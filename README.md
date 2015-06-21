@@ -1,2 +1,2 @@
 # AChoir
-Windows Live Artifacts Acquisition Script
+Windows Live Artifacts Acquisition Scripting Framework
