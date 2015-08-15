@@ -1,0 +1,103 @@
+***************************************************
+* Live Acquisition Script (1.0)                   *
+* - Pulls Forensics artifacts for analysis        *
+* - Created by D0n Quixote/OMENScan (May 2015)    *
+* - Inspired by many other tools                  *
+*                                                 *
+* Achoir /ini:DeadBox.acq /Drv:<x:>               *
+***************************************************
+SAY:
+SAY: AChoir will Pull Artifacts from the Drive Mounted as &DRv
+SAY:  - To properly do this use: Achoir /ini:DeadBox.acq /Drv:<x:>
+SAY:
+SAY: * * *   Please MAKE SURE you are running this as an Administrator  * * * 
+SAY: * * * Administrator right are required for many of these utilities * * * 
+SAY:
+SAY:Checking for the presence of Windows on the Mounted Drive:
+SAY:   &Drv\Windows\System32\ntoskrnl.exe
+SAY:
+REQ:&Drv\Windows\System32\ntoskrnl.exe
+SAY:
+PZZ: Press Any Key to Continue, or q to QUIT
+SAY: 1a. Copy Raw $MFT and $LogFile...
+SAY:
+ACQ:\RawData
+EXE:\DSK\RawCopy64.exe &Drv0 &Acq
+EXE:\DSK\RawCopy64.exe &Drv2 &Acq
+SAY:
+SAY: 1b. Now Parsing $MFT...
+SAY:
+EXE:\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT 
+SAY:
+SAY: 1c. Now Parsing USNJrnl...
+SAY:
+SYS:\FAU\fau-1.4.0.2464\X64\Volume_Dump.exe &Drv -u > &Acq\USN64Jrnl.dat
+SAY:
+SAY: 1d. Now Extracting USNJrnl...
+SAY:
+EXE:\DSK\ExtractUSNJrnl64.exe &Drv &Acq
+SAY:
+SAY: 2a. Parsing and Copying System Registry Hives/Files...
+SAY:
+ACQ:\Reg
+RegFileExport "&Drv\Windows\system32\config\SAM" "Reg-SAM.txt"
+RegFileExport "&Drv\Windows\system32\config\SECURITY" "Reg-SECURITY.txt"
+RegFileExport "&Drv\Windows\system32\config\SOFTWARE" "Reg-SOFTWARE.txt"
+RegFileExport "&Drv\Windows\system32\config\SYSTEM" "Reg-SYSTEM.txt"
+SYS:XCopy "&Drv\Windows\system32\config\*.*" "&Acq\*.*" /H
+SAY:
+SAY: 2a. Parsing and Copying USER Registry Hives/Files...
+SAY:
+FOR:&Drv\Users\NTUSER.DAT
+EXE:\SYS\RegfileExport.exe &For "&Acq\NTUSER(&Num).EXP"
+SYS:Echo F | XCopy &For "&Acq\NTUSER.DAT(&Num)" /H
+SAY:
+SAY: 2b. RegRipping Common Hives...
+SAY:
+SAY: ***Scanning Software hive***
+SYS:\RRV\RegRipper2.8-master\rip.exe -r &Drv\Windows\System32\Config\software -f software > &Acq\Software.regrip
+SAY:
+SAY: ***Scanning System hive***
+SYS:\RRV\RegRipper2.8-master\rip.exe -r &Drv\Windows\System32\Config\system -f system > &Acq\System.regrip 
+SAY:
+SAY: ***Scanning SAM hive***
+SYS:\RRV\RegRipper2.8-master\rip.exe -r &Drv\Windows\System32\Config\sam -f sam > &Acq\Sam.regrip
+SAY:
+SAY: ***Scanning Security hive*** 
+SYS:\RRV\RegRipper2.8-master\rip -r &Drv\Windows\System32\Config\SECURITY –f security > &AcSecurity.regrip
+SAY: 3. Parsing Prefetch Directory...
+SAY:
+ACQ:\SYS
+SYS:Dir &Drv\Windows\prefetch /a /q /r > &Acq\Prefetch.dat
+EXE:\SYS\parse_prefetch_info.exe -p &Drv\Windows\Prefetch -d &Acq\prefetch.db -o &Acq -r csv -w vista
+SAY:
+SAY: 4. Parsing Hosts And Services Directory...
+SAY:
+SYS:Copy &Drv\Windows\System32\Drivers\Etc\*.*  &Acq\*.*
+SAY:
+SAY: 5. Gathering AutoRun Information...
+SAY:
+EXE:\SYS\Autoruns.exe
+SAY:
+SAY: 6a. Parsing EventViewer Logs Hives...
+SAY:
+ACQ:\Evt
+SYS:\SYS\PSLogList.exe /accepteula -s -l &Drv\Windows\System32\Winevt\logs\Security.evtx  > &Acq\EvtSec.dat
+SYS:\SYS\PSLogList.exe /accepteula -s -l &Drv\Windows\System32\Winevt\logs\Application.evtx > &Acq\EvtApp.dat
+SYS:\SYS\PSLogList.exe /accepteula -s -l &Drv\Windows\System32\Winevt\logs\System.evtx > &Acq\EvtSys.dat
+SAY:
+SAY: 6b. Copying EventViewer Logs Hives...
+SAY:
+SYS:Copy &Drv\Windows\System32\winevt\Logs\*.* &Acq\*.*
+SAY:
+SAY: 7. Now Extracting Browser History...
+SAY:
+ACQ:\Brw
+EXE:\SYS\BrowsingHistoryView.exe 
+SAY:
+SAY: Acquisition Complete...
+SAY:
+SAY: Now Hashing Artifacts...
+HSH:ACQ
+SAY:
+PZZ: All Done!  Press Any Key to Finish.
