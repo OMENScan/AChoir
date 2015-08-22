@@ -13,6 +13,7 @@
 /* AChoir v0.07 - Add /BLD (Build.Acq), /DRV:, &Prc, 32B:, 64B: */
 /*                BYE:                                          */
 /* AChoir v0.08 - Hash Program before running,Set Artifacts ROS */
+/* AChoir v0.09 - Create Index.html for Artifact Browsing       */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -45,12 +46,17 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.08\0" ;
+char Version[10] = "v0.09\0" ;
 char RunMode[10] = "Run\0";
 int  iRanMode = 0 ;
 int  iRunMode = 0 ;
+int  iHtmMode = 0 ;
 int  iChkYN = 0 ;
 int  iChkRC = 0 ;
+
+char ACQName[255] ;
+char ACQDir[1024] ;
+char BACQDir[1024] ;
 
 char buffer[BUFSIZE];
 char filename[FILENAME_MAX] ;  
@@ -70,12 +76,14 @@ FILE* ForHndl ;
 FILE* MD5Hndl ;
 FILE* IniHndl ;
 FILE* WGetHndl ;
+FILE* HtmHndl ;
 
 char LogFile[1024]  = "C:\\AChoir\\AChoir.exe\0" ;
 char ChkFile[1024]  = "C:\\AChoir\\AChoir.exe\0" ;
 char MD5File[1024]  = "C:\\AChoir\\Hashes.txt\0" ;
 char ForFile[1024]  = "C:\\AChoir\\ForFiles\0" ;
 char IniFile[1024]  = "C:\\AChoir\\AChoir.ACQ\0" ;
+char HtmFile[1024]  = "C:\\AChoir\\Index.html\0" ;
 char TempDir[1024]  = "C:\\AChoir\0" ;
 char BaseDir[1024]  = "C:\\AChoir\0" ;
 char CurrDir[1024]  = "\0" ;
@@ -134,8 +142,6 @@ int main(int argc, char *argv[])
   char Inrec[4096] ;
   char Tmprec[2048] ;
   char Filrec[2048] ;
-  char ACQDir[1024] ;
-  char BACQDir[1024] ;
 
   char *TokPtr, *Indx ;
   CURL *curl ;
@@ -186,10 +192,11 @@ int main(int argc, char *argv[])
   /* Build the &ACQ Incident Number                               */
   /****************************************************************/
   if(GetComputerName(cName, &len) != 0)
-   sprintf(BACQDir, "%s\\ACQ-IR-%s-%04d%02d%02d-%02d%02d\0", BaseDir, cName, iYYYY, iMonth, iDay, iHour, iMin) ;
+   sprintf(ACQName, "ACQ-IR-%s-%04d%02d%02d-%02d%02d\0", cName, iYYYY, iMonth, iDay, iHour, iMin) ;
   else
-   sprintf(BACQDir, "%s\\ACQ-IR-%04d%02d%02d-%02d%02d\0", BaseDir, iYYYY, iMonth, iDay, iHour, iMin) ;
+   sprintf(ACQName, "ACQ-IR-%04d%02d%02d-%02d%02d\0", iYYYY, iMonth, iDay, iHour, iMin) ;
 
+  sprintf(BACQDir, "%s\\%s\0", BaseDir, ACQName) ;
 
 
   /****************************************************************/
@@ -294,7 +301,10 @@ int main(int argc, char *argv[])
     printf("Set: Creating Base Acquisition Directory: %s\n", BACQDir) ;
 
     if(access(BACQDir, 0) != 0)
-     mkdir(BACQDir) ;
+    {
+      mkdir(BACQDir) ;
+      PreIndex() ;
+    }
   }
 
 
@@ -501,8 +511,10 @@ int main(int argc, char *argv[])
 
             // Have we created the Base Acquisition Directory Yet?
             if(access(BACQDir, 0) != 0)
-             mkdir(BACQDir) ;
-
+            {
+              mkdir(BACQDir) ;
+              PreIndex() ;
+            }
 
             // Explicit Path
             if(Inrec[4] == '\\')
@@ -532,6 +544,12 @@ int main(int argc, char *argv[])
               fprintf(LogHndl, "Set: Creating Acquisition Sub-Directory: %s\n", ACQDir) ;
               printf("Set: Creating Acquisition Sub-Directory: %s\n", ACQDir) ;
               mkdir(TempDir) ;
+
+              if(iHtmMode == 1)
+              {
+                fprintf(HtmHndl, "</td><td align=center>\n") ;
+                fprintf(HtmHndl, "<a href=file:///%s target=AFrame> %s </a>\n", TempDir, ACQDir) ;
+              }
             }
 
             fprintf(LogHndl, "Set: Acquisition Sub-Directory Has Been Set To: %s\n", ACQDir) ;
@@ -1062,6 +1080,19 @@ int main(int argc, char *argv[])
 
   if(access(ForFile, 0) == 0)
    unlink(ForFile) ;
+
+
+  if(iHtmMode == 1)
+  {
+    fprintf(HtmHndl, "</td><td align=right>\n");
+    fprintf(HtmHndl, "<button onclick=\"window.history.forward()\">&gt;&gt;</button>\n");
+    fprintf(HtmHndl, "</td></tr></table>\n<p>\n");
+    fprintf(HtmHndl, "<iframe name=AFrame height=400 width=900 scrolling=auto src=file:///%s/></iframe>\n", BACQDir);
+    fprintf(HtmHndl, "</p>\n</body></html>\n");
+
+    fclose(HtmHndl) ;
+  }
+
 
   if(iRunMode == 1)
   {
@@ -1680,7 +1711,40 @@ int ListDir(char *DirName, char *LisType)
     _findclose(DirDone) ;
 
   }
+}
 
+
+
+/****************************************************************/
+/* Build The Initial Artfact Index.htm                          */
+/****************************************************************/
+int PreIndex() 
+{
+  iHtmMode = 0 ;
+  sprintf(HtmFile, "%s\\Index.htm\0", BACQDir) ;
+
+  HtmHndl = fopen(HtmFile, "w") ;
+  if(HtmHndl != NULL)
+  {
+    iHtmMode = 1 ;
+
+    fprintf(HtmHndl, "<html><head><title>AChoir Artifacts</title></head>\n") ;
+    fprintf(HtmHndl, "<body>\n") ;
+    fprintf(HtmHndl, "<h2>Welcome to AChoir %s</h2>\n\n", Version) ;
+    fprintf(HtmHndl, "<p>\n") ;
+    fprintf(HtmHndl, "Below is an Index of the Artifacts gathered for Acquisition: <b>%s</b>\n\n", ACQName) ;
+    fprintf(HtmHndl, "</p>\n\n") ;
+    fprintf(HtmHndl, "<table width=900>\n") ;
+    fprintf(HtmHndl, "<tr><td align=left>\n") ;
+    fprintf(HtmHndl, "<button onclick=\"window.history.back()\">&lt;&lt;</button>\n") ;
+    fprintf(HtmHndl, "</td><td align=center>\n") ;
+    fprintf(HtmHndl, "<a href=file:///%s target=AFrame> Root </a>\n", BACQDir) ;
+  }
+  else
+  {
+    fprintf(HtmHndl, "Err: Could not Create Artifact Index: %s\n", HtmFile) ;
+    printf("Err: Could not Create Artifact Index: %s\n", HtmFile) ;
+  }
 }
 
 

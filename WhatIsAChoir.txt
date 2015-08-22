@@ -1,4 +1,4 @@
-AChoir - Beta v0.08
+AChoir - Beta v0.09
 
 
 What is AChoir:
@@ -112,8 +112,8 @@ FOR:     Set the &FOR object.  This is a Looping object based on
          command can be run iteratively against all of these files. 
 CKY:     Check if a File exists. If it does, run until an "END:" 
          action
-CKN:     Check if a File exists. If it does, run until an "END:" 
-         action
+CKN:     Check if a File does not exist. If it doesn't, run until 
+         an "END:" action
 RC=:     If the Last GET:, SYS: or EXE: command was this return code
          run the statements until an END:
 RC!:     If the Last GET:, SYS: or EXE: command was NOT this return code
@@ -155,5 +155,36 @@ Here are the Command Line Options:
         and specify a drive variable (the drive letter that has been mounted).
 
 
+
+Artifacts that AChoir itself generates:
+Achoir itself will generate a few files.  These are meant to increase non-repudiation
+and make the artifacts easier to use.
+
+Logfile (ACQ-IR-<name>-<date>-<time>.txt
+----------------------------------------
+Achoir will create a logfile for each acquisition in the /Logs directory.
+The log contains both the actions taken by AChoir and additional information
+such as the hash of each program that is run.
+
+DirHash.txt
+-----------
+When requested in the AChoir Script (HSH:DIR), Achoir will hash all files starting
+at the directory AChoir is run from (AChoir's root directory) and store the MD5 hashes 
+in this file.
+
+ACQHash.txt
+-----------
+When requested in the AChoir Script (HSH:ACQ), Achoir will hash all acquired 
+artifacts and store the MD5 hashes in this file.
+
+Index.htm
+---------
+Achoir will generate an Index.htm file for every acquisition.  This file can 
+be opened with your favorite web browser to browse and open the acquired
+artifacts.  This is an incredibly simple but useful feature.  
+
+
+
+Last Thoughts:
 The AChoir language is pretty simple.  And I will do my best to keep it that way.  To best understand it, please take a look at the Build.ACQ and Achoir.ACQ scripts
 
