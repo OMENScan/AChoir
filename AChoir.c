@@ -14,6 +14,7 @@
 /*                BYE:                                          */
 /* AChoir v0.08 - Hash Program before running,Set Artifacts ROS */
 /* AChoir v0.09 - Create Index.html for Artifact Browsing       */
+/* AChoir v0.10 - Mapping External Drives - Set to the ACQDir   */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -40,13 +41,15 @@
 #include <windows.h>
 #include "md5.h"
 
+#include <Winnetwk.h>
+
 #include <curl/curl.h>
 
 #define NUL '\0'
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.09\0" ;
+char Version[10] = "v0.10\0" ;
 char RunMode[10] = "Run\0";
 int  iRanMode = 0 ;
 int  iRunMode = 0 ;
@@ -72,6 +75,7 @@ int  FileMD5(char *MD5FileName) ;
 int  MemAllocErr(char *ErrType) ;
 
 FILE* LogHndl ;
+FILE* CpyHndl ;
 FILE* ForHndl ;
 FILE* MD5Hndl ;
 FILE* IniHndl ;
@@ -79,6 +83,7 @@ FILE* WGetHndl ;
 FILE* HtmHndl ;
 
 char LogFile[1024]  = "C:\\AChoir\\AChoir.exe\0" ;
+char CpyFile[1024]  = "C:\\AChoir\\AChoir.exe\0" ;
 char ChkFile[1024]  = "C:\\AChoir\\AChoir.exe\0" ;
 char MD5File[1024]  = "C:\\AChoir\\Hashes.txt\0" ;
 char ForFile[1024]  = "C:\\AChoir\\ForFiles\0" ;
@@ -102,6 +107,7 @@ char FullRoot[1024] = "C:\\InetPub\\wwwroot\0" ;
 
 char LastRec[2048] ;
 char ThisRec[2048] ;
+char cpyChar ;
 
 char FilArray[MaxArray][MaxArray] ;
 
@@ -132,12 +138,18 @@ size_t write_file(void *ptr, size_t size, size_t nmemb, FILE *stream) ;
 char RootDir[FILENAME_MAX] = " \0" ;
 char FullFName[FILENAME_MAX] ;  
 
+DWORD netRC = NO_ERROR;
+NETRESOURCE netRes = {0};
+TCHAR szConnection[MAX_PATH];
+DWORD ConnectSize = MAX_PATH, ConnectResult, Flags = (CONNECT_INTERACTIVE | CONNECT_REDIRECT);
+
 
 int main(int argc, char *argv[])
 {
   int i, j ;
   int iPtr, oPtr ;
   int RunMe, ForMe, Looper, LoopNum ;
+  int getKey ;
 
   char Inrec[4096] ;
   char Tmprec[2048] ;
@@ -160,6 +172,7 @@ int main(int argc, char *argv[])
   iHour  = lclTime->tm_hour ;
   iMin   = lclTime->tm_min ;
   iSec   = lclTime->tm_sec ;
+
 
 
   /****************************************************************/
@@ -548,7 +561,7 @@ int main(int argc, char *argv[])
               if(iHtmMode == 1)
               {
                 fprintf(HtmHndl, "</td><td align=center>\n") ;
-                fprintf(HtmHndl, "<a href=file:///%s target=AFrame> %s </a>\n", TempDir, ACQDir) ;
+                fprintf(HtmHndl, "<a href=file:%s target=AFrame> %s </a>\n", ACQDir, ACQDir) ;
               }
             }
 
@@ -778,7 +791,9 @@ int main(int argc, char *argv[])
 
             fprintf(LogHndl, "%s\n", Inrec+4) ;
             printf("%s\n", Inrec+4) ;
-            if(getche() == 113)
+            getKey = getche() ;
+
+            if((getKey == 81) || (getKey == 113))
             {
               fprintf(LogHndl, "\nYou have requested Achoir to Quit.\n") ;
               printf("\nYou have requested Achoir to Quit.\n") ;
@@ -874,6 +889,48 @@ int main(int argc, char *argv[])
             fclose(LogHndl) ;
 
             exit (LastRC) ;
+          }
+          else
+          if(strnicmp(Inrec, "MAP:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Map to an External Drive & Set it to ACQ Directory           */
+            /****************************************************************/
+            strtok(Inrec, "\n") ; 
+            strtok(Inrec, "\r") ; 
+
+            fprintf(LogHndl, "Map: %s\n", Inrec+4) ;
+            printf("Map: %s\n", Inrec+4) ;
+
+            netRes.dwType = RESOURCETYPE_DISK;
+            netRes.lpRemoteName = Inrec+4 ;
+
+            netRC = WNetUseConnection(NULL, &netRes, NULL, NULL, Flags,
+                    szConnection, &ConnectSize, &ConnectResult);
+
+
+            if(netRC != NO_ERROR)
+            {
+              printf("Err: Error Mapping Resource: %s\n\n", Inrec+4);
+              fprintf(LogHndl, "Err: Error Mapping Resource: %s\n\n", Inrec+4);
+
+              printf("Inf: Do you want to continue without mapping remote?\n");
+
+              getKey = getche() ;
+              if((getKey != 89) && (getKey != 121))
+              {
+                printf("Err: Program Exit Requested.\n");
+                fprintf(LogHndl, "Err: Program Exit Requested.\n");
+                exit (1);
+              }
+            }
+            else
+            {
+               printf("Inf: Successfully Mapped %s to drive %s\n", Inrec+4, szConnection);
+               fprintf(LogHndl, "Inf: Successfully Mapped %s to drive %s\n", Inrec+4, szConnection);
+
+               sprintf(BACQDir, "%s\\%s\0", szConnection, ACQName) ;
+            }
           }
           else
           if(strnicmp(Inrec, "SYS:", 4) == 0)
@@ -1087,7 +1144,7 @@ int main(int argc, char *argv[])
     fprintf(HtmHndl, "</td><td align=right>\n");
     fprintf(HtmHndl, "<button onclick=\"window.history.forward()\">&gt;&gt;</button>\n");
     fprintf(HtmHndl, "</td></tr></table>\n<p>\n");
-    fprintf(HtmHndl, "<iframe name=AFrame height=400 width=900 scrolling=auto src=file:///%s/></iframe>\n", BACQDir);
+    fprintf(HtmHndl, "<iframe name=AFrame height=400 width=900 scrolling=auto src=file:./></iframe>\n");
     fprintf(HtmHndl, "</p>\n</body></html>\n");
 
     fclose(HtmHndl) ;
@@ -1103,11 +1160,32 @@ int main(int argc, char *argv[])
     ListDir(TempDir, "ROS") ;
   }
 
-
   fclose(LogHndl) ;
+
+  /****************************************************************/
+  /* Make a Copy of the Logfile in the ACQDirectory               */
+  /****************************************************************/
+  sprintf(CpyFile, "%s\\ACQ-IR-%04d%02d%02d-%02d%02d.Log\0", BACQDir, iYYYY, iMonth, iDay, iHour, iMin) ;
+
+  LogHndl = fopen(LogFile, "r") ;
+  CpyHndl = fopen(CpyFile, "w") ;
+
+  if((LogHndl != NULL) && (CpyHndl != NULL))
+  {
+    do 
+    {
+      cpyChar = fgetc(LogHndl);
+      if(cpyChar != EOF)
+       fputc(cpyChar, CpyHndl);
+    } while (cpyChar != EOF);
+
+    fclose(LogHndl) ;
+    fclose(CpyHndl) ;
+  }
 
   exit (0) ;
   return 0 ;
+
 }
 
 
@@ -1738,7 +1816,7 @@ int PreIndex()
     fprintf(HtmHndl, "<tr><td align=left>\n") ;
     fprintf(HtmHndl, "<button onclick=\"window.history.back()\">&lt;&lt;</button>\n") ;
     fprintf(HtmHndl, "</td><td align=center>\n") ;
-    fprintf(HtmHndl, "<a href=file:///%s target=AFrame> Root </a>\n", BACQDir) ;
+    fprintf(HtmHndl, "<a href=file:./ target=AFrame> Root </a>\n") ;
   }
   else
   {

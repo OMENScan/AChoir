@@ -101,6 +101,8 @@ SAY:     Echo Text and Objects to the Screen and Logfile
 GET:     Get a file using HTTP
 EXE:     Run a Program
 SYS:     Execute a System Command
+MAP:     Map to a remote drive share (\\<server>\<share>) and use 
+         it as the Acquisition Directory 
 ACQ:     Tell Achoir to create a unique Acquisition directory
 DIR:     Set the &Dir object and create the directory if needed
 FIL:     Set the &Fil object (File)
