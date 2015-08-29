@@ -2,12 +2,12 @@
 Windows Live Artifacts Acquisition Scripting Framework
 
 * AChoir v0.08 - Released as Open Source at my Live Acquisition presentation at BSides Las Vegas, August 2015
-*                https://www.youtube.com/watch?v=NNPiSlVsA6M
+  * https://www.youtube.com/watch?v=NNPiSlVsA6M
 * AChoir v0.09 - Added creation of Index.html for simple Artifact browsing
 * AChoir v0.10 - Added Mapping to remote drives, and (re)setting the ACQDir
 * AChoir v0.11 - Added &Map variable 
-*                Added INI: action (switches the INI File) - Used for remote acquisition
-*                Added INP: action and &Inp variable (Console Input and variable)
+  * Added INI: action (switches the INI File) - Used for remote acquisition
+  * Added INP: action and &Inp variable (Console Input and variable)
 
 
 # Brief Description:
