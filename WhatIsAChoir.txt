@@ -1,4 +1,4 @@
-AChoir - Beta v0.09
+AChoir - Beta v0.11
 
 
 What is AChoir:
@@ -98,6 +98,11 @@ Here is a list of all the Actions and Objects:
 Actions:
 ========
 SAY:     Echo Text and Objects to the Screen and Logfile
+INP:     Input from console. (INP:<Display This Text>)
+         Display text and get input into variable &Inp 
+         IMPORTANT NOTE: Longer input is TRUNCATED to 250 chars
+INI:     SWITCH to another Script File (INI:F:\NewScript.Acq)
+         Note: This WILL NOT RETURN to the calling script.
 GET:     Get a file using HTTP
 EXE:     Run a Program
 SYS:     Execute a System Command
@@ -131,6 +136,7 @@ END:     End Conditional Statement execution.
 Objects:
 ========
 &Dir     The Current Directory Object
+&Inp     Input from console (INP: Action) 
 &Fil     The Current File Object
 &Acq     The Current Acquisition Directory
 &For     An array of File objects set by the FOR: action
@@ -140,6 +146,7 @@ Objects:
          CKN: and CKY: actions
 &RCD     The Last Return Code set by a SYS: or EXE: action
 &Drv     A variable used to hold a Drive Letter (C:, D:, etc...)
+&Map     A variable used to hold the last Mapped Drive Letter (Z:, Y:, etc...)
 
 
 

@@ -15,6 +15,8 @@
 /* AChoir v0.08 - Hash Program before running,Set Artifacts ROS */
 /* AChoir v0.09 - Create Index.html for Artifact Browsing       */
 /* AChoir v0.10 - Mapping External Drives - Set to the ACQDir   */
+/* AChoir v0.11 - New &Map variable and INI: action             */
+/*                INP: action and &Inp variable (Console Input) */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -49,7 +51,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.10\0" ;
+char Version[10] = "v0.11\0" ;
 char RunMode[10] = "Run\0";
 int  iRanMode = 0 ;
 int  iRunMode = 0 ;
@@ -94,6 +96,7 @@ char BaseDir[1024]  = "C:\\AChoir\0" ;
 char CurrDir[1024]  = "\0" ;
 char CurrFil[255]   = "AChoir.dat\0" ;
 char DiskDrive[5]   = "C:\0\0\0" ;
+char MapDrive[5]    = "C:\0\0\0" ;
 char *WinRoot       = "C:\\Windows" ;
 char *Procesr       = "AMD64" ;
 
@@ -154,6 +157,7 @@ int main(int argc, char *argv[])
   char Inrec[4096] ;
   char Tmprec[2048] ;
   char Filrec[2048] ;
+  char Inprec[255] ;
 
   char *TokPtr, *Indx ;
   CURL *curl ;
@@ -179,10 +183,11 @@ int main(int argc, char *argv[])
   /* Set Defaults                                                 */
   /****************************************************************/
   memset(CurrDir, 0, 1024) ;
+  memset(CurrDir, 0, 1024) ;
   memset(TempDir, 0, 1024) ;
   memset(BaseDir, 0, 1024) ;
   memset(BACQDir, 0, 1024) ;
-  memset(ACQDir, 0, 1024) ;
+  memset(Inprec, 0, 255) ;
 
   // What Directory are we in?
   getcwd(BaseDir, 1000) ;
@@ -439,6 +444,13 @@ int main(int argc, char *argv[])
               iPtr+= 3 ;
             }
             else
+            if(strnicmp(Tmprec+iPtr, "&Inp", 4) ==0 )
+            {
+              sprintf(Inrec+oPtr, "%s", Inprec) ;
+              oPtr = strlen(Inrec) ;
+              iPtr+= 3 ;
+            }
+            else
             if(strnicmp(Tmprec+iPtr, "&Acq", 4) ==0 )
             {
               if(strlen(ACQDir) > 0 )
@@ -488,6 +500,13 @@ int main(int argc, char *argv[])
             if(strnicmp(Tmprec+iPtr, "&Drv", 4) ==0 )
             {
               sprintf(Inrec+oPtr, "%s\0", DiskDrive) ;
+              oPtr = strlen(Inrec) ;
+              iPtr+= 3 ;
+            }
+            else
+            if(strnicmp(Tmprec+iPtr, "&Map", 4) ==0 )
+            {
+              sprintf(Inrec+oPtr, "%s\0", MapDrive) ;
               oPtr = strlen(Inrec) ;
               iPtr+= 3 ;
             }
@@ -637,6 +656,67 @@ int main(int argc, char *argv[])
 
           }
           else
+          if(strnicmp(Inrec, "Ini:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Close the Old INI File and use this new one                  */
+            /****************************************************************/
+            strtok(Inrec, "\n") ; 
+            strtok(Inrec, "\r") ; 
+
+            sprintf(IniFile, "%s\0", Inrec+4) ;
+            if(access(IniFile, 0) != 0)
+            {
+              fprintf(LogHndl, "Err: Requested INI File Not Found: %s - Ignored.\n", Inrec+4) ;
+              printf("Requested Err: INI File Not Found: %s - Ignored.\n", Inrec+4) ;
+            }
+            else
+            {
+              fprintf(LogHndl, "Inf: Switching to INI File: %s\n", Inrec+4) ;
+              printf("Inf: Switching to INI File: %s\n", Inrec+4) ;
+
+              fclose(IniHndl) ;
+              IniHndl = fopen(IniFile, "r") ;
+
+              if(IniHndl != NULL)
+                RunMe = 0 ;  // Conditional run Script default is yes
+              else
+              {
+                fprintf(LogHndl, "Err: Could Not Open INI File: %s - Exiting.\n", Inrec+4) ;
+                printf("Err: Could Not Open INI File: %s - Exiting.\n", Inrec+4) ;
+                exit(3) ;
+              }
+            }
+          }
+          else
+          if(strnicmp(Inrec, "Inp:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Check Last Return Code = n                                   */
+            /****************************************************************/
+            strtok(Inrec, "\n") ; 
+            strtok(Inrec, "\r") ; 
+
+            fprintf(LogHndl, "Inp: [%s]", Inrec+4) ;
+            printf("Inp: %s", Inrec+4) ;
+
+            memset(Inprec, 0, 255) ;
+            fgets(Inprec, 251, stdin) ;
+
+            /****************************************************************/
+            /* If our input is too long, clear the rest over 250 chars      */
+            /****************************************************************/
+            if(strlen(Inprec) > 249)
+            {
+              fprintf(LogHndl, "Err: Input Truncated!\n") ;
+              printf("Err: Input Truncated!\n");
+
+              while ((getKey = getchar()) != '\n' && getKey != EOF);
+            }
+
+            fprintf(LogHndl, "%s\n", Inprec) ;
+          }
+          else
           if(strnicmp(Inrec, "RC=:", 4) == 0)
           {
             /****************************************************************/
@@ -750,7 +830,7 @@ int main(int argc, char *argv[])
           if(strnicmp(Inrec, "REQ:", 4) == 0)
           {
             /****************************************************************/
-           /* This File is REQUIRED (Or exit with an Error)                */
+            /* This File is REQUIRED (Or exit with an Error)                */
             /****************************************************************/
 
             strtok(Inrec, "\n") ; 
@@ -928,6 +1008,7 @@ int main(int argc, char *argv[])
             {
                printf("Inf: Successfully Mapped %s to drive %s\n", Inrec+4, szConnection);
                fprintf(LogHndl, "Inf: Successfully Mapped %s to drive %s\n", Inrec+4, szConnection);
+               strncpy(MapDrive, szConnection, 3) ;
 
                sprintf(BACQDir, "%s\\%s\0", szConnection, ACQName) ;
             }
@@ -1115,6 +1196,8 @@ int main(int argc, char *argv[])
       }
 
     }
+
+    fclose(IniHndl) ;
 
   }
   else
