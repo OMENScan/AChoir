@@ -80,6 +80,7 @@ SYS:Copy &Win\sysnative\winevt\Logs\*.* &Acq\*.*
 SAY:
 SAY: 7. Parsing Hosts And Services Directory...
 SAY:
+ACQ:\SYS
 SYS:Copy &Win\sysnative\Drivers\Etc\*.*  &Acq\*.*
 SAY:
 SAY: 8. Parsing Environment Variables...
