@@ -20,30 +20,37 @@ SAY:
 ACQ:\MemDump
 EXE:\MEM\WinPmem.exe &Acq\WinPmemDump.Raw
 SAY:
-SAY: 2a. Copy Raw $MFT and $LogFile...
+SAY: 2. Parsing Prefetch Directory...
+SAY:
+ACQ:\SYS
+SYS:Copy &Win\prefetch\*.* &Acq\*.*
+SYS:Dir &Win\prefetch /a /q /r > &Acq\Prefetch.dat
+EXE:\SYS\parse_prefetch_info.exe -p &Win\Prefetch -d &Acq\prefetch.db -o &Acq -r csv -w vista
+SAY:
+SAY: 3a. Copy Raw $MFT and $LogFile...
 SAY:
 ACQ:\RawData
 EXE:\DSK\RawCopy64.exe C:0 &Acq
 EXE:\DSK\RawCopy64.exe C:2 &Acq
 SAY:
-SAY: 2b. Now Parsing $MFT...
+SAY: 3b. Now Parsing $MFT...
 SAY:
 EXE:\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT 
 SAY:
-SAY: 2c. Now Parsing USNJrnl...
+SAY: 3c. Now Parsing USNJrnl...
 SAY:
 SYS:\FAU\fau-1.4.0.2464\X64\Volume_Dump.exe C: -u > &Acq\USN64Jrnl.dat
 SAY:
-SAY: 2d. Now Extracting USNJrnl...
+SAY: 3d. Now Extracting USNJrnl...
 SAY:
 EXE:\DSK\ExtractUSNJrnl64.exe C: &Acq
 SAY:
-SAY: 3. Gathering System Information...
+SAY: 4. Gathering System Information...
 SAY:
 ACQ:\
 SYS:\SYS\PSInfo.exe /accepteula -s > &Acq\Info.dat
 SAY:
-SAY: 4a. Saving Registry Hives...
+SAY: 5a. Saving Registry Hives...
 SAY:
 ACQ:\Reg
 SYS:reg save HKLM\SECURITY &Acq\Security.RegSave
@@ -52,7 +59,7 @@ SYS:reg save HKLM\SAM &Acq\SAM.RegSave
 SYS:reg save HKLM\SYSTEM &Acq\System.RegSave
 SYS:reg save HKLM\HARDWARE &Acq\Hardware.RegSave
 SAY:
-SAY: 4b. Parsing (Exporting) Registry Hives...
+SAY: 5b. Parsing (Exporting) Registry Hives...
 SAY:
 SYS:Reg Export HKLM &Acq\RegHKLM.dat
 SYS:Reg Export HKCU &Acq\RegHKCU.dat
@@ -60,22 +67,16 @@ SYS:Reg Export HKCR &Acq\RegHKCR.dat
 SYS:Reg Export HKCC &Acq\RegHKCC.dat
 SYS:Reg Export HKU  &Acq\RegHKU.dat
 SAY:
-SAY: 5. Parsing EventViewer Logs Hives...
+SAY: 6a. Parsing EventViewer Logs Hives...
 SAY:
 ACQ:\Evt
 SYS:\SYS\PSLogList.exe /accepteula -s Security > &Acq\EvtSec.dat
 SYS:\SYS\PSLogList.exe /accepteula -s Application > &Acq\EvtApp.dat
 SYS:\SYS\PSLogList.exe /accepteula -s System > &Acq\EvtSys.dat
 SAY:
-SAY: 5b. Copying EventViewer Logs Hives...
+SAY: 6b. Copying EventViewer Logs Hives...
 SAY:
 SYS:Copy &Win\sysnative\winevt\Logs\*.* &Acq\*.*
-SAY:
-SAY: 6. Parsing Prefetch Directory...
-SAY:
-ACQ:\SYS
-SYS:Dir &Win\prefetch /a /q /r > &Acq\Prefetch.dat
-EXE:\SYS\parse_prefetch_info.exe -p &Win\Prefetch -d &Acq\prefetch.db -o &Acq -r csv -w vista
 SAY:
 SAY: 7. Parsing Hosts And Services Directory...
 SAY:

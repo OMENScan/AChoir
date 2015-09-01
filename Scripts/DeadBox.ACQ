@@ -65,9 +65,11 @@ SYS:\RRV\RegRipper2.8-master\rip.exe -r &Drv\Windows\System32\Config\sam -f sam 
 SAY:
 SAY: ***Scanning Security hive*** 
 SYS:\RRV\RegRipper2.8-master\rip -r &Drv\Windows\System32\Config\SECURITY –f security > &AcSecurity.regrip
+SAY:
 SAY: 3. Parsing Prefetch Directory...
 SAY:
 ACQ:\SYS
+SYS:Copy &Drv\Windows\prefetch\*.* &Acq\*.*
 SYS:Dir &Drv\Windows\prefetch /a /q /r > &Acq\Prefetch.dat
 EXE:\SYS\parse_prefetch_info.exe -p &Drv\Windows\Prefetch -d &Acq\prefetch.db -o &Acq -r csv -w vista
 SAY:
