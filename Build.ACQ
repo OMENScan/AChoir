@@ -90,6 +90,16 @@ SAY: --- Unzipping Prefetch Parser ---
 SAY:
 EXE:unzip.exe -o &Dir\&Fil -d &Dir
 SAY:
+SAY:
+SAY: --- Getting WinPreFetchView - 32bit (From Nirsoft) ---
+SAY:
+FIL:winprefetchview.zip
+EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\WinPreFetchView.txt http://www.nirsoft.net/utils/winprefetchview.zip
+SAY:
+SAY: --- Unzipping WinPreFetchView ---
+SAY:
+EXE:unzip.exe -o &Dir\&Fil -d &Dir
+SAY:
 SAY: --- Getting AutoRuns (from Microsoft SysInternals) ---
 SAY:
 FIL:AutoRuns.zip
@@ -155,6 +165,15 @@ FIL:BrowseHist64.zip
 EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\BrowseHist64.txt http://nirsoft.net/utils/browsinghistoryview-x64.zip
 SAY:
 SAY: --- Unzipping BrowsingHistoryView (64 Bit) ---
+SAY:
+EXE:unzip.exe -o &Dir\&Fil -d &Dir
+SAY:
+SAY: --- Getting WinPreFetchView - 64bit (From Nirsoft) ---
+SAY:
+FIL:winprefetchview-x64.zip
+EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\WinPreFetchView-x64.txt http://www.nirsoft.net/utils/winprefetchview-x64.zip
+SAY:
+SAY: --- Unzipping WinPrefetchView (64 Bit) ---
 SAY:
 EXE:unzip.exe -o &Dir\&Fil -d &Dir
 SAY:

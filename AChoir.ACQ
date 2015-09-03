@@ -25,7 +25,8 @@ SAY:
 ACQ:\SYS
 SYS:Copy &Win\prefetch\*.* &Acq\*.*
 SYS:Dir &Win\prefetch /a /q /r > &Acq\Prefetch.dat
-EXE:\SYS\parse_prefetch_info.exe -p &Win\Prefetch -d &Acq\prefetch.db -o &Acq -r csv -w vista
+***:\SYS\parse_prefetch_info.exe -p &Win\Prefetch -d &Acq\prefetch.db -o &Acq -r csv -w vista
+EXE:\SYS\WinPrefetchView.exe /scomma &Acq\WinPrefetchview.dat
 SAY:
 SAY: 3a. Copy Raw $MFT and $LogFile...
 SAY:

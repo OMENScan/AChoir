@@ -71,7 +71,8 @@ SAY:
 ACQ:\SYS
 SYS:Copy &Drv\Windows\prefetch\*.* &Acq\*.*
 SYS:Dir &Drv\Windows\prefetch /a /q /r > &Acq\Prefetch.dat
-EXE:\SYS\parse_prefetch_info.exe -p &Drv\Windows\Prefetch -d &Acq\prefetch.db -o &Acq -r csv -w vista
+***:\SYS\parse_prefetch_info.exe -p &Drv\Windows\Prefetch -d &Acq\prefetch.db -o &Acq -r csv -w vista
+EXE:\SYS\WinPrefetchView.exe /folder &Drv\Windows\Prefetch /scomma &Acq\WinPrefetchview.dat
 SAY:
 SAY: 4. Parsing Hosts And Services Directory...
 SAY:
