@@ -23,7 +23,9 @@ SAY:
 SAY: 2. Parsing Prefetch Directory...
 SAY:
 ACQ:\SYS
-SYS:Copy &Win\prefetch\*.* &Acq\*.*
+*YS:Copy &Win\prefetch\*.* &Acq\*.*
+For:&Win\prefetch\*.*
+CPY:"&For" "&Acq\&Fnm"
 SYS:Dir &Win\prefetch /a /q /r > &Acq\Prefetch.dat
 ***:\SYS\parse_prefetch_info.exe -p &Win\Prefetch -d &Acq\prefetch.db -o &Acq -r csv -w vista
 EXE:\SYS\WinPrefetchView.exe /scomma &Acq\WinPrefetchview.dat
@@ -68,21 +70,25 @@ SYS:Reg Export HKCR &Acq\RegHKCR.dat
 SYS:Reg Export HKCC &Acq\RegHKCC.dat
 SYS:Reg Export HKU  &Acq\RegHKU.dat
 SAY:
-SAY: 6a. Parsing EventViewer Logs Hives...
+SAY: 6a. Parsing EventViewer Logs...
 SAY:
 ACQ:\Evt
 SYS:\SYS\PSLogList.exe /accepteula -s Security > &Acq\EvtSec.dat
 SYS:\SYS\PSLogList.exe /accepteula -s Application > &Acq\EvtApp.dat
 SYS:\SYS\PSLogList.exe /accepteula -s System > &Acq\EvtSys.dat
 SAY:
-SAY: 6b. Copying EventViewer Logs Hives...
+SAY: 6b. Copying EventViewer Logs...
 SAY:
-SYS:Copy &Win\sysnative\winevt\Logs\*.* &Acq\*.*
+*YS:Copy &Win\sysnative\winevt\Logs\*.* &Acq\*.*
+For:&Win\sysnative\winevt\Logs\*.*
+CPY:"&For" "&Acq\&Fnm"
 SAY:
 SAY: 7. Parsing Hosts And Services Directory...
 SAY:
 ACQ:\SYS
-SYS:Copy &Win\sysnative\Drivers\Etc\*.*  &Acq\*.*
+*YS:Copy &Win\sysnative\Drivers\Etc\*.*  &Acq\*.*
+For:&Win\sysnative\Drivers\Etc\*.*
+CPY:"&For" "&Acq\&Fnm"
 SAY:
 SAY: 8. Parsing Environment Variables...
 SAY:
@@ -150,8 +156,9 @@ SAY: 22. Gathering All User Registries...
 SAY:
 ACQ:\Reg
 FOR:C:\Users\NTUSER.DAT
-EXE:\SYS\RegfileExport.exe &For "&Acq\NTUSER(&Num).EXP"
-SYS:Echo F | XCopy &For "&Acq\NTUSER.DAT(&Num)" /H
+EXE:\SYS\RegfileExport.exe "&For" &Acq\NTUSER(&Num).EXP
+*YS:Echo F | XCopy "&For" "&Acq\NTUSER.DAT(&Num)" /H
+CPY:"&For" "&Acq\&Fnm(&Num)"
 SAY:
 SAY: 23. Now Extracting Browser History...
 SAY:

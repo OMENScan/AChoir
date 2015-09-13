@@ -17,6 +17,10 @@
 /* AChoir v0.10 - Mapping External Drives - Set to the ACQDir   */
 /* AChoir v0.11 - New &Map variable and INI: action             */
 /*                INP: action and &Inp variable (Console Input) */
+/* AChoir v0.13 - New &Tmp is the Window %Temp% variable        */
+/*                New CPY: Action to copy files                 */
+/*                New &FNM variable - Each &FOR File Name       */
+/* AChoir v0.20 - Lets call this 2.0-Lots of Code improvements  */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -38,6 +42,7 @@
 #include <time.h>
 #include <io.h>
 #include <direct.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <process.h>
 #include <windows.h>
@@ -47,11 +52,15 @@
 
 #include <curl/curl.h>
 
+#include <winbase.h>
+#include <winnt.h>
+
+
 #define NUL '\0'
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.11\0" ;
+char Version[10] = "v0.20\0" ;
 char RunMode[10] = "Run\0";
 int  iRanMode = 0 ;
 int  iRunMode = 0 ;
@@ -72,9 +81,13 @@ int DebugFlag=0 ;
 void stripfilename(char *path) ;
 int ListDir(char *DirName, char *LisType) ;
 long Squish(char *SqString) ;
+long twoSplit(char *SpString) ;
 char *stristr(const char *String, const char *Pattern) ;
 int  FileMD5(char *MD5FileName) ;
 int  MemAllocErr(char *ErrType) ;
+int  binCopy(char *FrmFile, char *TooFile) ;
+void Time_tToFileTime(time_t InTimeT, int whichTime) ;
+
 
 FILE* LogHndl ;
 FILE* CpyHndl ;
@@ -99,6 +112,7 @@ char DiskDrive[5]   = "C:\0\0\0" ;
 char MapDrive[5]    = "C:\0\0\0" ;
 char *WinRoot       = "C:\\Windows" ;
 char *Procesr       = "AMD64" ;
+char *TempVar       = "C:\\Windows\\Temp" ;
 
 int  WGetIni, WGetIsGood, WGotIsGood ;
 
@@ -134,17 +148,27 @@ int  recvSize = 25000 ;
 
 int  LastRC = 0 ;
 int  ChkRC = 0 ;
-char *ExePtr, *ParmPtr;
+char *ExePtr, *ParmPtr, *CopyPtr;
 
 size_t write_file(void *ptr, size_t size, size_t nmemb, FILE *stream) ;
 
 char RootDir[FILENAME_MAX] = " \0" ;
 char FullFName[FILENAME_MAX] ;  
+char ForFName[FILENAME_MAX] ;  
 
 DWORD netRC = NO_ERROR;
 NETRESOURCE netRes = {0};
 TCHAR szConnection[MAX_PATH];
 DWORD ConnectSize = MAX_PATH, ConnectResult, Flags = (CONNECT_INTERACTIVE | CONNECT_REDIRECT);
+
+int iPrm1, iPrm2, iPrm3 ;
+
+struct stat Frmstat ;
+FILETIME TmpTime ;
+FILETIME ToCTime ;
+FILETIME ToMTime ;
+FILETIME ToATime ;
+LPFILETIME OutFileTime ;
 
 
 int main(int argc, char *argv[])
@@ -154,15 +178,19 @@ int main(int argc, char *argv[])
   int RunMe, ForMe, Looper, LoopNum ;
   int getKey ;
 
-  char Inrec[4096] ;
+  char Inrec[4096]  ;
   char Tmprec[2048] ;
   char Filrec[2048] ;
-  char Inprec[255] ;
+  char Inprec[255]  ;
+  char Cpyrec[4096] ;
+  char Exerec[4096] ;
 
   char *TokPtr, *Indx ;
   CURL *curl ;
   CURLcode res ;
   LCurrTime = time(NULL) ;
+  char *ForSlash ;
+  char *ForBlank ;
 
   char cName[MAX_COMPUTERNAME_LENGTH + 1] ;
   DWORD len = 55 ;
@@ -204,6 +232,7 @@ int main(int argc, char *argv[])
   /****************************************************************/
   WinRoot = getenv("systemroot")  ;
   Procesr = getenv("processor_architecture")  ;
+  TempVar = getenv("temp")  ;
 
 
   /****************************************************************/
@@ -411,6 +440,20 @@ int main(int argc, char *argv[])
 
               strtok(Filrec, "\n") ; 
               strtok(Filrec, "\r") ; 
+
+
+              /****************************************************************/
+              /* Get Just the File Name                                       */
+              /****************************************************************/
+              if((ForSlash = strrchr(Filrec, '\\')) != NULL)
+              {
+                if(strlen(ForSlash+1) > 1)
+                 strncpy(ForFName, ForSlash+1, 250) ;
+                else
+                 strncpy(ForFName, "Unknown\0", 8) ;
+              }
+              else
+               strncpy(ForFName, Filrec, 250) ;
             }
             else
              break;
@@ -469,6 +512,13 @@ int main(int argc, char *argv[])
               iPtr+= 3 ;
             }
             else
+            if(strnicmp(Tmprec+iPtr, "&Tmp", 4) ==0 )
+            {
+              sprintf(Inrec+oPtr, "%s", TempVar) ;
+              oPtr = strlen(Inrec) ;
+              iPtr+= 3 ;
+            }
+            else
             if(strnicmp(Tmprec+iPtr, "&For", 4) ==0 )
             {
               sprintf(Inrec+oPtr, "%s", Filrec) ;
@@ -479,6 +529,13 @@ int main(int argc, char *argv[])
             if(strnicmp(Tmprec+iPtr, "&Num", 4) ==0 )
             {
               sprintf(Inrec+oPtr, "%d\0", LoopNum) ;
+              oPtr = strlen(Inrec) ;
+              iPtr+= 3 ;
+            }
+            else
+            if(strnicmp(Tmprec+iPtr, "&Fnm", 4) ==0 )
+            {
+              sprintf(Inrec+oPtr, "%s\0", ForFName) ;
               oPtr = strlen(Inrec) ;
               iPtr+= 3 ;
             }
@@ -715,6 +772,34 @@ int main(int argc, char *argv[])
             }
 
             fprintf(LogHndl, "%s\n", Inprec) ;
+          }
+          else
+          if(strnicmp(Inrec, "CPY:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Binary Copy From => To                                       */
+            /****************************************************************/
+            strtok(Inrec, "\n") ; 
+            strtok(Inrec, "\r") ; 
+
+            Squish(Inrec) ;  
+
+            memset(Cpyrec, 0, 4096) ;
+            strncpy(Cpyrec, Inrec+4, 4092) ;
+            twoSplit(Cpyrec) ;
+
+            if(iPrm2 == 0)
+            {
+              fprintf(LogHndl, "Err: Copying Requires both a FROM and a TO File\n") ;
+              printf("Err: Copying Requires both a FROM and a TO File\n") ;
+            }
+            else
+            {
+              fprintf(LogHndl, "\nCpy: %s\n     %s\n", Cpyrec+iPrm1, Cpyrec+iPrm2) ;
+              printf("\nCpy: %s\n     %s\n", Cpyrec+iPrm1, Cpyrec+iPrm2) ;
+
+              binCopy(Cpyrec+iPrm1, Cpyrec+iPrm2) ;
+            }
           }
           else
           if(strnicmp(Inrec, "RC=:", 4) == 0)
@@ -1036,8 +1121,8 @@ int main(int argc, char *argv[])
             }
 
 
-            fprintf(LogHndl, "Sys: %s\n", TempDir) ;
-            printf("Sys: %s\n", TempDir) ;
+            fprintf(LogHndl, "\nSys: %s\n", TempDir) ;
+            printf("\nSys: %s\n", TempDir) ;
 
             LastRC = system(TempDir) ;
             fprintf(LogHndl, "Return Code: %d\n", LastRC) ;
@@ -1052,18 +1137,21 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\r") ; 
 
             Squish(Inrec) ;  
-            ParmPtr = stristr(Inrec, " ") ;
+            memset(Exerec, 0, 4096) ;
+            strncpy(Exerec, Inrec+4, 4092) ;
+            twoSplit(Exerec) ;
+
 
             // Are we requesting an explicit path?
-            if(Inrec[4] == '\\')
+            if(Exerec[0] == '\\')
             {
               memset(TempDir, 0, 1024) ;
-              sprintf(TempDir, "%s%s\0", BaseDir, Inrec+4) ;
+              sprintf(TempDir, "%s%s\0", BaseDir, Exerec+iPrm1) ;
             }
             else
             {
               memset(TempDir, 0, 1024) ;
-              sprintf(TempDir, "%s\0", Inrec+4) ;
+              sprintf(TempDir, "%s\0", Exerec+iPrm1) ;
             }
 
 
@@ -1071,62 +1159,52 @@ int main(int argc, char *argv[])
             /****************************************************************/
             /* Are There Any Parms?                                         */
             /****************************************************************/
-            if(!ParmPtr)
+            if(access(TempDir, 0) != 0)
             {
-              fprintf(LogHndl, "Exe: %s\n", Inrec+4) ;
-              printf("Exe: %s\n", Inrec+4) ;
+              fprintf(LogHndl, "Err: Program Not Found\n") ;
+              printf("Err: Program Not Found\n") ;
+            }
+            else
+            {
+              FileMD5(TempDir) ;
 
-              if(access(TempDir, 0) != 0)
+              if(iPrm3 > 0)
               {
-                fprintf(LogHndl, "Err: Program Not Found\n") ;
-                printf("Err: Program Not Found\n") ;
+                fprintf(LogHndl, "\nExe: %s\n   : %s\n   : %s\n", Exerec+iPrm1, Exerec+iPrm2, Exerec+iPrm3) ;
+                printf("\nExe: %s\n   : %s\n   : %s\n", Exerec+iPrm1, Exerec+iPrm2, Exerec+iPrm3) ;
+                fprintf(LogHndl, "Inf: Program Hash: %s\n", MD5Out) ;
+                printf("Inf: Program Hash: %s\n", MD5Out) ;
+
+                LastRC = spawnlp(P_WAIT, TempDir, TempDir, Exerec+iPrm2, Exerec+iPrm3, NULL);
+              }
+              else
+              if(iPrm2 > 0)
+              {
+                fprintf(LogHndl, "\nExe: %s\n   : %s\n", Exerec+iPrm1, Exerec+iPrm2) ;
+                printf("\nExe: %s\n   : %s\n", Exerec+iPrm1, Exerec+iPrm2) ;
+                fprintf(LogHndl, "Inf: Program Hash: %s\n", MD5Out) ;
+                printf("Inf: Program Hash: %s\n", MD5Out) ;
+
+                LastRC = spawnlp(P_WAIT, TempDir, TempDir, Exerec+iPrm2, NULL);
               }
               else
               {
-                FileMD5(TempDir) ;
-
+                fprintf(LogHndl, "\nExe: %s\n", Exerec+iPrm1) ;
+                printf("\nExe: %s\n", Exerec+iPrm1) ;
                 fprintf(LogHndl, "Inf: Program Hash: %s\n", MD5Out) ;
                 printf("Inf: Program Hash: %s\n", MD5Out) ;
 
                 LastRC = spawnlp(P_WAIT, TempDir, TempDir, NULL);
-
-                if(LastRC != 0)
-                {
-                  fprintf(LogHndl, "Spawn Error(%d): %s\n", errno, strerror(errno)) ;
-                  printf("Spawn Error(%d): %s\n", errno, strerror(errno)) ;
-                }
-
-                fprintf(LogHndl, "Return Code: %d\n", LastRC) ;
               }
-            }
-            else
-            {
-              TokPtr = strtok(TempDir, " ") ;
-              fprintf(LogHndl, "Exe: %s\n     %s\n", TempDir, ParmPtr+1) ;
-              printf("Exe: %s\n     %s\n", TempDir, ParmPtr+1) ;
 
-              if(access(TempDir, 0) != 0)
+
+              if(LastRC != 0)
               {
-                fprintf(LogHndl, "Err: Program Not Found\n") ;
-                printf("Err: Program Not Found\n") ;
+                fprintf(LogHndl, "Spawn Error(%d): %s\n", errno, strerror(errno)) ;
+                printf("Spawn Error(%d): %s\n", errno, strerror(errno)) ;
               }
-              else
-              {
-                FileMD5(TempDir) ;
 
-                fprintf(LogHndl, "Inf: Program Hash: %s\n", MD5Out) ;
-                printf("Inf: Program Hash: %s\n", MD5Out) ;
-
-                LastRC = spawnlp(P_WAIT, TempDir, TempDir, ParmPtr+1, NULL);
-
-                if(LastRC != 0)
-                {
-                  fprintf(LogHndl, "Spawn Error(%d): %s\n", errno, strerror(errno)) ;
-                  printf("Spawn Error(%d): %s\n", errno, strerror(errno)) ;
-                }
-
-                fprintf(LogHndl, "Return Code: %d\n", LastRC) ;
-              }
+              fprintf(LogHndl, "Return Code: %d\n", LastRC) ;
             }
           }
           else
@@ -1248,22 +1326,12 @@ int main(int argc, char *argv[])
   /****************************************************************/
   /* Make a Copy of the Logfile in the ACQDirectory               */
   /****************************************************************/
-  sprintf(CpyFile, "%s\\ACQ-IR-%04d%02d%02d-%02d%02d.Log\0", BACQDir, iYYYY, iMonth, iDay, iHour, iMin) ;
-
-  LogHndl = fopen(LogFile, "r") ;
-  CpyHndl = fopen(CpyFile, "w") ;
-
-  if((LogHndl != NULL) && (CpyHndl != NULL))
+  if(access(BACQDir, 0) == 0)
   {
-    do 
-    {
-      cpyChar = fgetc(LogHndl);
-      if(cpyChar != EOF)
-       fputc(cpyChar, CpyHndl);
-    } while (cpyChar != EOF);
-
-    fclose(LogHndl) ;
-    fclose(CpyHndl) ;
+    fprintf(LogHndl, "Inf: Copying Log File...\n") ;
+    printf("Inf: Copying Log File...\n") ;
+    sprintf(CpyFile, "%s\\ACQ-IR-%04d%02d%02d-%02d%02d.Log\0", BACQDir, iYYYY, iMonth, iDay, iHour, iMin) ;
+    binCopy(LogFile, CpyFile) ; 
   }
 
   exit (0) ;
@@ -1680,6 +1748,84 @@ long Squish(char *SqString)
 
 
 /****************************************************************/
+/* Split a string in two:                                       */
+/*   * Quoted strings work                                      */
+/*   * Delimiter is a space                                     */
+/*                                                              */
+/* iSplt=0 -- No Quote, a space is the Delimiter                */
+/* iSplt=1 -- Yes Quote, a space is NOT a Delimiter             */
+/* iParm=0 -- Process Parameter 1                               */
+/* iParm=1 -- Process Parameter 2                               */
+/* iParm=3 -- Process the rest                                  */
+/*                                                              */
+/****************************************************************/
+long twoSplit(char *SpString)
+{
+  long Spi, SpLen ;
+  int  iParm, iSplt ;
+
+
+  iParm = iSplt = 0 ;
+  iPrm1 = iPrm2 = iPrm3 = 0 ;
+  SpLen = strlen(SpString) ;
+
+  for(Spi=0; Spi < SpLen; Spi++)
+  {
+    if((SpString[Spi] == ' ') && (iSplt == 0))
+    {
+      //Split - No Pending Quote (Only if there isnt a repeating blank
+
+      if((SpString[Spi+1] == ' ') && (iParm == 0)) ;
+      else
+      if((SpString[Spi+1] == ' ') && (iParm == 1)) ;
+      else
+      {
+        //Set to Parameter 1, 2, 3, etc...
+        iParm++ ; 
+       
+        //For Parms greater than 1 - Ignore Split.
+        if(iParm == 1)
+        {      
+          SpString[Spi] = '\0' ;
+          iPrm2 = Spi+1 ;
+        }
+        else
+        if(iParm == 2)
+        {      
+          SpString[Spi] = '\0' ;
+          iPrm3 = Spi+1 ;
+        }
+      }
+    }
+    else
+    if((SpString[Spi] == '"') && (iSplt == 0))
+    {
+      iSplt = 1 ;
+
+      if(iParm == 0)
+       iPrm1 = Spi+1 ;
+      else
+      if(iParm == 1)
+       iPrm2 = Spi+1 ;
+      else
+      if(iParm == 2)
+       iPrm3 = Spi ;
+    }
+    else
+    if((SpString[Spi] == '"') && (iSplt == 1))
+    {
+      iSplt = 0 ;
+
+      if(iParm < 2)
+       SpString[Spi] = '\0' ;
+    }
+  }
+  return iParm ;
+}
+
+
+
+/****************************************************************/
 /*  stristr                                                     */
 /****************************************************************/
 char *stristr(const char *String, const char *Pattern)
@@ -1908,4 +2054,164 @@ int PreIndex()
   }
 }
 
+
+
+/****************************************************************/
+/* Binary Copy From, To                                         */
+/****************************************************************/
+int binCopy(char *FrmFile, char *TooFile) 
+{
+  size_t inSize, outSize;
+  unsigned char Cpybuf[8192]; 
+  int NBlox = 0 ;
+
+  FILE* FrmHndl ;
+  FILE* TooHndl ;
+
+  //FILETIME ftCreate, ftAccess, ftWrite;
+
+  if(access(FrmFile, 0) != 0)
+  {
+    fprintf(LogHndl, "Err: Source Copy File Not Found: \n %s\n", FrmFile) ;
+    printf("Err: Source Copy File Not Found: \n %s\n", FrmFile) ;
+  }
+  else
+  {
+    /****************************************************************/
+    /* Get the original TimeStamps                                  */
+    /****************************************************************/
+    stat(FrmFile, &Frmstat);
+
+    /****************************************************************/
+    /* The code below has been removed because it is flaky          */
+    /*                                                              */
+    /* This would normally be the best way to get source file       */
+    /*  timestamps but since many artifacts are still open, it      */
+    /*  fails.  I have opted to use stat() which is more reliable,  */
+    /*  and write a FILETIME struct conversion routine.             */
+    /****************************************************************/
+    //FrmHndl = CreateFile(FrmFile, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    //if(FrmHndl == INVALID_HANDLE_VALUE)
+    // printf("Could not Read Old File Dates: %d\n", GetLastError()) ;
+    //else {
+    //GetFileTime(FrmHndl, &ftCreate, &ftAccess, &ftWrite);
+    //CloseHandle(FrmHndl) ; }
+
+
+    /****************************************************************/
+    /* Copy File Code                                               */
+    /****************************************************************/
+    FrmHndl = fopen(FrmFile, "rb") ;
+    TooHndl = fopen(TooFile, "wb") ;
+
+    if((FrmHndl != NULL) && (TooHndl != NULL))
+    {
+      while((inSize = fread(Cpybuf, 1, sizeof Cpybuf, FrmHndl)) > 0) 
+      {
+        printf("Inf: 8K Block: %d\r", NBlox++) ;
+
+        outSize = fwrite(Cpybuf, 1, inSize, TooHndl);
+        if(outSize < inSize)
+        {
+          /****************************************************************/
+          /* Somethingwent wrong - Show an error and quit                 */
+          /****************************************************************/
+          if(ferror(TooHndl))
+          {
+            fprintf(LogHndl, "Err: Error Copying File (Output Error)\n") ;
+            printf("Err: Error Copying File (Output Error)\n") ;
+          }
+          else
+          {
+            fprintf(LogHndl, "Err: Error Copying File (Disk Full)\n") ;
+            printf("Err: Error Copying File (Disk full)\n") ;
+          }
+          break;
+        }
+      }
+
+      fclose(FrmHndl) ;
+      fclose(TooHndl) ;
+
+      /****************************************************************/
+      /* Re-Set the original TimeStamps on copied file                */
+      /****************************************************************/
+      Time_tToFileTime(Frmstat.st_atime, 1) ; 
+      Time_tToFileTime(Frmstat.st_mtime, 2) ;
+      Time_tToFileTime(Frmstat.st_ctime, 3) ;
+
+
+      TooHndl = CreateFile(TooFile, FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, 
+                OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+      //SetFileTime(TooHndl, &ftCreate, &ftAccess, &ftWrite);
+      SetFileTime(TooHndl, &ToCTime, &ToATime, &ToMTime);
+      CloseHandle(TooHndl);
+
+
+      /****************************************************************/
+      /* MD5 The Files                                                */
+      /****************************************************************/
+      FileMD5(FrmFile) ;
+      fprintf(LogHndl, "Inf: Source File MD5.....: %s\n", MD5Out) ;
+      printf("Inf: Source File MD5.....: %s\n", MD5Out) ;
+
+      FileMD5(TooFile) ;
+      fprintf(LogHndl, "Inf: Destination File MD5: %s\n", MD5Out) ;
+      printf("Inf: Destination File MD5: %s\n", MD5Out) ;
+    }
+    else
+    {
+      fprintf(LogHndl, "Err: Could Not Open File(s) for Copy\n") ;
+      printf("Err: Could Not Open File(s) for Copy\n") ;
+    }
+  }
+}
+
+
+void Time_tToFileTime(time_t InTimeT, int whichTime)
+{
+  /****************************************************************/
+  /* This convoluted piece of code is neccesary because           */
+  /*  CreateFile (necessary for GetFileTime) is super Flaky, and  */
+  /*  There is no API convert from time_t to SYSTEMTIME - Sigh... */
+  /****************************************************************/
+  struct tm  *convgtm ;      // First convert to a tm struct
+  SYSTEMTIME convstm = {0} ; // Next copy everything to a SYSTEMTIME struct
+  unsigned short wYear;
+  unsigned short wMonth;
+  unsigned short wDayOfWeek; 
+  unsigned short wDay;
+  unsigned short wHour;
+  unsigned short wMinute;
+  unsigned short wSecond;
+  unsigned short wMilliseconds;
+
+
+  convgtm = gmtime(&InTimeT) ;
+  wYear =   convgtm->tm_year + 1900 ;
+  wMonth =  convgtm->tm_mon + 1 ;
+  wDay =    convgtm->tm_mday ;
+  wHour =   convgtm->tm_hour ;
+  wMinute = convgtm->tm_min ;
+  wSecond = convgtm->tm_sec ;
+
+  convstm.wYear  =  wYear ;
+  convstm.wMonth =  wMonth ;
+  convstm.wDay   =  wDay ;
+  convstm.wHour  =  wHour ;
+  convstm.wMinute = wMinute ;
+  convstm.wSecond = wSecond ;
+
+  if(whichTime == 1)
+   SystemTimeToFileTime(&convstm, &ToATime);
+  else
+  if(whichTime == 2)
+   SystemTimeToFileTime(&convstm, &ToMTime);
+  else
+  if(whichTime == 3)
+   SystemTimeToFileTime(&convstm, &ToCTime);
+  else
+   SystemTimeToFileTime(&convstm, &TmpTime);
+}
 
