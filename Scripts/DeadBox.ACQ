@@ -44,13 +44,16 @@ RegFileExport "&Drv\Windows\system32\config\SAM" "Reg-SAM.txt"
 RegFileExport "&Drv\Windows\system32\config\SECURITY" "Reg-SECURITY.txt"
 RegFileExport "&Drv\Windows\system32\config\SOFTWARE" "Reg-SOFTWARE.txt"
 RegFileExport "&Drv\Windows\system32\config\SYSTEM" "Reg-SYSTEM.txt"
-SYS:XCopy "&Drv\Windows\system32\config\*.*" "&Acq\*.*" /H
+For:&Drv\Windows\system32\config\*.*
+CPY:"&For" "&Acq\&Fnm"
+*YS:XCopy "&Drv\Windows\system32\config\*.*" "&Acq\*.*" /H
 SAY:
 SAY: 2a. Parsing and Copying USER Registry Hives/Files...
 SAY:
 FOR:&Drv\Users\NTUSER.DAT
 EXE:\SYS\RegfileExport.exe &For "&Acq\NTUSER(&Num).EXP"
-SYS:Echo F | XCopy &For "&Acq\NTUSER.DAT(&Num)" /H
+*YS:Echo F | XCopy &For "&Acq\NTUSER.DAT(&Num)" /H
+CPY:"&For" "&Acq\&Fnm(&Num)"
 SAY:
 SAY: 2b. RegRipping Common Hives...
 SAY:
@@ -69,14 +72,18 @@ SAY:
 SAY: 3. Parsing Prefetch Directory...
 SAY:
 ACQ:\SYS
-SYS:Copy &Drv\Windows\prefetch\*.* &Acq\*.*
+*YS:Copy &Drv\Windows\prefetch\*.* &Acq\*.*
+For:&Drv\Windows\prefetch\*.*
+CPY:"&For" "&Acq\&Fnm"
 SYS:Dir &Drv\Windows\prefetch /a /q /r > &Acq\Prefetch.dat
 ***:\SYS\parse_prefetch_info.exe -p &Drv\Windows\Prefetch -d &Acq\prefetch.db -o &Acq -r csv -w vista
 EXE:\SYS\WinPrefetchView.exe /folder &Drv\Windows\Prefetch /scomma &Acq\WinPrefetchview.dat
 SAY:
 SAY: 4. Parsing Hosts And Services Directory...
 SAY:
-SYS:Copy &Drv\Windows\System32\Drivers\Etc\*.*  &Acq\*.*
+*YS:Copy &Drv\Windows\System32\Drivers\Etc\*.*  &Acq\*.*
+For:&Drv\Windows\System32\Drivers\Etc\*.*
+CPY:"&For" "&Acq\&Fnm"
 SAY:
 SAY: 5. Gathering AutoRun Information...
 SAY:
@@ -91,7 +98,9 @@ SYS:\SYS\PSLogList.exe /accepteula -s -l &Drv\Windows\System32\Winevt\logs\Syste
 SAY:
 SAY: 6b. Copying EventViewer Logs Hives...
 SAY:
-SYS:Copy &Drv\Windows\System32\winevt\Logs\*.* &Acq\*.*
+*YS:Copy &Drv\Windows\System32\winevt\Logs\*.* &Acq\*.*
+For:&Drv\Windows\System32\winevt\Logs\*.*
+CPY:"&For" "&Acq\&Fnm"
 SAY:
 SAY: 7. Now Extracting Browser History...
 SAY:

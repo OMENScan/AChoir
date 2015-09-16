@@ -60,7 +60,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.20\0" ;
+char Version[10] = "v0.21\0" ;
 char RunMode[10] = "Run\0";
 int  iRanMode = 0 ;
 int  iRunMode = 0 ;
@@ -2178,6 +2178,9 @@ void Time_tToFileTime(time_t InTimeT, int whichTime)
   /****************************************************************/
   struct tm  *convgtm ;      // First convert to a tm struct
   SYSTEMTIME convstm = {0} ; // Next copy everything to a SYSTEMTIME struct
+  time_t cmpTime ;
+  int wIsDST = -1 ;
+
   unsigned short wYear;
   unsigned short wMonth;
   unsigned short wDayOfWeek; 
@@ -2187,8 +2190,39 @@ void Time_tToFileTime(time_t InTimeT, int whichTime)
   unsigned short wSecond;
   unsigned short wMilliseconds;
 
-
+  /****************************************************************/
+  /* First we Convert to tm struct                                */
+  /****************************************************************/
   convgtm = gmtime(&InTimeT) ;
+
+
+  /****************************************************************/
+  /* Set DST to -1 and run gmtime to see if the time was DST      */
+  /*  Why does DST EVEN MATTER in UTC?  Sigh....                  */
+  /****************************************************************/
+  convgtm->tm_isdst = -1 ;
+  cmpTime = mktime(convgtm) ;
+
+
+  /****************************************************************/
+  /* Was it DST?  If so, add 3600  - I... Never Mind..            */
+  /****************************************************************/
+  wIsDST = convgtm->tm_isdst ;
+
+
+  /****************************************************************/
+  /* This was during DST - Subtract an hour and reconvert         */
+  /****************************************************************/
+  if(wIsDST == 0)
+  {
+    InTimeT = InTimeT - 3600 ;
+    convgtm = gmtime(&InTimeT) ;
+  }
+
+
+  /****************************************************************/
+  /* Get the data from the tm struct                              */
+  /****************************************************************/
   wYear =   convgtm->tm_year + 1900 ;
   wMonth =  convgtm->tm_mon + 1 ;
   wDay =    convgtm->tm_mday ;
@@ -2196,6 +2230,10 @@ void Time_tToFileTime(time_t InTimeT, int whichTime)
   wMinute = convgtm->tm_min ;
   wSecond = convgtm->tm_sec ;
 
+
+  /****************************************************************/
+  /* Move it to the SYSTEMTIME struct                             */
+  /****************************************************************/
   convstm.wYear  =  wYear ;
   convstm.wMonth =  wMonth ;
   convstm.wDay   =  wDay ;
@@ -2203,6 +2241,10 @@ void Time_tToFileTime(time_t InTimeT, int whichTime)
   convstm.wMinute = wMinute ;
   convstm.wSecond = wSecond ;
 
+
+  /****************************************************************/
+  /* CTime, ATime, MTime                                          */
+  /****************************************************************/
   if(whichTime == 1)
    SystemTimeToFileTime(&convstm, &ToATime);
   else
