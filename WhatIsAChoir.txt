@@ -1,4 +1,4 @@
-AChoir - Beta v0.20
+AChoir - Beta v0.22
 
 
 What is AChoir:
@@ -118,6 +118,8 @@ FOR:     Set the &FOR object.  This is a Looping object based on
          All *.DAT Files under C:\Users. In this way a single 
          command can be run iteratively against all of these files. 
 CPY:     Copy Files (CPY:<FromFile> <ToFile>) - Supports Quotes
+ARN:     Search Registry Run Key and copy the EXEs 
+         (possible malware persistence)
 CKY:     Check if a File exists. If it does, run until an "END:" 
          action
 CKN:     Check if a File does not exist. If it doesn't, run until 

@@ -21,6 +21,9 @@
 /*                New CPY: Action to copy files                 */
 /*                New &FNM variable - Each &FOR File Name       */
 /* AChoir v0.20 - Lets call this 2.0-Lots of Code improvements  */
+/* AChoir v0.21 - Fix GMT DST idiosyncracy                      */
+/* AChoir v0.22 - New ARN: Action -                             */
+/*                Parse the Run Key and copy the Autorun EXEs   */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -59,8 +62,10 @@
 #define NUL '\0'
 #define MaxArray 100
 #define BUFSIZE 4096
+#define KEY_WOW64_64KEY 0x0100
+#define KEY_WOW64_32KEY 0x0200
 
-char Version[10] = "v0.21\0" ;
+char Version[10] = "v0.22\0" ;
 char RunMode[10] = "Run\0";
 int  iRanMode = 0 ;
 int  iRunMode = 0 ;
@@ -87,6 +92,7 @@ int  FileMD5(char *MD5FileName) ;
 int  MemAllocErr(char *ErrType) ;
 int  binCopy(char *FrmFile, char *TooFile) ;
 void Time_tToFileTime(time_t InTimeT, int whichTime) ;
+long varConvert(char *inVarRec) ;
 
 
 FILE* LogHndl ;
@@ -113,6 +119,7 @@ char MapDrive[5]    = "C:\0\0\0" ;
 char *WinRoot       = "C:\\Windows" ;
 char *Procesr       = "AMD64" ;
 char *TempVar       = "C:\\Windows\\Temp" ;
+char *ProgVar       = "C:\\Program Files" ;
 
 int  WGetIni, WGetIsGood, WGotIsGood ;
 
@@ -162,6 +169,7 @@ TCHAR szConnection[MAX_PATH];
 DWORD ConnectSize = MAX_PATH, ConnectResult, Flags = (CONNECT_INTERACTIVE | CONNECT_REDIRECT);
 
 int iPrm1, iPrm2, iPrm3 ;
+char *iPtr1, *iPtr2, *iPtr3 ;
 
 struct stat Frmstat ;
 FILETIME TmpTime ;
@@ -170,6 +178,24 @@ FILETIME ToMTime ;
 FILETIME ToATime ;
 LPFILETIME OutFileTime ;
 
+LPCTSTR lpSubKey = TEXT("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\0");
+DWORD ulOptions = 0;
+REGSAM samDesired = KEY_READ | KEY_WOW64_64KEY ;
+long OpenK ;
+long OpenRC ;
+
+HKEY  hKey = HKEY_LOCAL_MACHINE;
+
+HKEY   phkResult;
+DWORD  dwIndex = 0 ;
+TCHAR  lpValueName[2048] ;
+DWORD  lpcchValueName = 2048 ;
+LPTSTR lpData[2048] ;
+DWORD  lpcbData = 2048 ;
+
+char o32VarRec[4096] ;
+char o64VarRec[4096] ;
+int  i64x32 ;
 
 int main(int argc, char *argv[])
 {
@@ -184,6 +210,7 @@ int main(int argc, char *argv[])
   char Inprec[255]  ;
   char Cpyrec[4096] ;
   char Exerec[4096] ;
+  char Arnrec[2048] ;
 
   char *TokPtr, *Indx ;
   CURL *curl ;
@@ -233,6 +260,7 @@ int main(int argc, char *argv[])
   WinRoot = getenv("systemroot")  ;
   Procesr = getenv("processor_architecture")  ;
   TempVar = getenv("temp")  ;
+  ProgVar = getenv("programfiles")  ;
 
 
   /****************************************************************/
@@ -800,6 +828,116 @@ int main(int argc, char *argv[])
 
               binCopy(Cpyrec+iPrm1, Cpyrec+iPrm2) ;
             }
+          }
+          else
+          if(strnicmp(Inrec, "ARN:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Dump AutoRun Keys                                            */
+            /****************************************************************/
+            strtok(Inrec, "\n") ; 
+            strtok(Inrec, "\r") ; 
+
+            Squish(Inrec) ;  
+
+            OpenK = RegOpenKeyEx(hKey, lpSubKey, ulOptions, samDesired, &phkResult);
+            if (OpenK == ERROR_SUCCESS)
+            {
+              /****************************************************************/
+              /* More Microsft Wierdness                                      */
+              /*  - Disable Wow6432Node to get the Keys                       */
+              /****************************************************************/
+              for(dwIndex=0; dwIndex < 1000; dwIndex++)
+              {
+                lpcchValueName = 2048 ;
+                lpcbData = 2048 ;
+                OpenRC = RegEnumValue(phkResult, dwIndex, lpValueName, &lpcchValueName, NULL, NULL, (LPBYTE)lpData, &lpcbData);
+                if (OpenRC == ERROR_SUCCESS)
+                {
+                  /****************************************************************/
+                  /* Parse out the .exe - Ignore quotes                           */
+                  /****************************************************************/
+                  memset(Arnrec, 0, 2048) ;
+                  memset(Cpyrec, 0, 4096) ;
+
+                  snprintf(Arnrec, 2047, "%s", lpData) ;
+                  if(Arnrec[0] == '"')
+                   iPtr1 = Arnrec+1 ;
+                  else
+                   iPtr1 = Arnrec ;
+
+                  iPtr2 = stristr(Arnrec, ".exe") ;
+                  if(iPtr2 > 0)
+                   iPtr2[4] = '\0' ;
+
+                  if((iPtr3 = strrchr(iPtr1, '\\')) != NULL)
+                  {
+                    if(strlen(iPtr3+1) > 1)
+                     iPtr3++ ;
+                    else
+                     iPtr3 = iPtr1 ;
+                  }
+                  else
+                   iPtr3 = iPtr1 ;
+
+
+                  /****************************************************************/
+                  /* If the program is there, Copy it                             */
+                  /****************************************************************/
+                  varConvert(iPtr1) ;
+
+                  if(access(o32VarRec, 0) == 0)
+                  {
+                    sprintf(Cpyrec, "%s\\%s\\%s-%s\0", BACQDir, ACQDir, lpValueName, iPtr3) ;
+
+                    fprintf(LogHndl, "\nArn: %s\n     %s\n", lpValueName, lpData) ;
+                    printf("\nArn: %s\n     %s\n", lpValueName, lpData) ;
+
+                    binCopy(o32VarRec, Cpyrec) ;
+                  }
+                  else
+                  {
+                    fprintf(LogHndl, "\nArn: Not Found - %s\n     %s\n", lpValueName, lpData) ;
+                    printf("\nArn: Not Found - %s\n     %s\n", lpValueName, lpData) ;
+                  }
+
+
+                  /****************************************************************/
+                  /* Check for 64bit versions (if set)                            */
+                  /****************************************************************/
+                  if(i64x32 == 1)
+                  {
+                    if(access(o64VarRec, 0) == 0)
+                    {
+                      sprintf(Cpyrec, "%s\\%s\\%s(64)-%s\0", BACQDir, ACQDir, lpValueName, iPtr3) ;
+
+                      fprintf(LogHndl, "\nArn: (64bit)%s\n     %s\n", lpValueName, lpData) ;
+                      printf("\nArn: (64bit)%s\n     %s\n", lpValueName, lpData) ;
+
+                      binCopy(o64VarRec, Cpyrec) ;
+                    }
+                    else
+                    {
+                      fprintf(LogHndl, "\nArn: Not Found (64bit) - %s\n     %s\n", lpValueName, lpData) ;
+                      printf("\nArn: Not Found (64bit) - %s\n     %s\n", lpValueName, lpData) ;
+                    }
+                  }
+                }
+                else
+                if(OpenRC == ERROR_NO_MORE_ITEMS)
+                 break;
+                else
+                 printf("Error: %d\n", OpenRC) ;
+               }
+
+               RegCloseKey(phkResult) ;
+            }
+            else if(OpenK == ERROR_FILE_NOT_FOUND)
+             printf("Run Key Doesnt exist\n") ;
+            else if(OpenK == ERROR_ACCESS_DENIED)
+             printf("Run Key Access Denied\n") ;
+            else
+             printf("Registry Error: %d\n", OpenK) ;
           }
           else
           if(strnicmp(Inrec, "RC=:", 4) == 0)
@@ -1743,6 +1881,85 @@ long Squish(char *SqString)
 
   SqLen = strlen(SqString) ;
   return SqLen ;
+}
+
+
+
+/****************************************************************/
+/* convert a record with Environment Variables in it            */
+/*  - Do manual checks for 64 bit exceptions - Check both 32&64 */
+/****************************************************************/
+long varConvert(char *inVarRec)
+{
+  int  inProgress, GVNi ;
+  long Vari, Var32o, Var64o, VarLen ;
+  char envVarName[255] = "Temp" ;
+  char *convVar = "C:\\Temp" ;
+  
+  i64x32 = 0 ;
+  Var32o = Var64o = GVNi = 0 ;
+  inProgress = 0 ;
+  memset(o32VarRec, 0, 4096) ;
+  memset(o64VarRec, 0, 4096) ;
+  memset(envVarName, 0, 255) ;
+
+  VarLen = strlen(inVarRec) ;
+  if(VarLen > 4095)
+   VarLen = 4095 ;
+
+  for(Vari=0; Vari < VarLen; Vari++)
+  {
+    if((inVarRec[Vari] == '%') && (inProgress == 0))
+    {
+      inProgress = 1 ;
+    }
+    else
+    if((inVarRec[Vari] == '%') && (inProgress == 1))
+    {
+      inProgress = 0 ;
+      convVar = getenv(envVarName)  ;
+
+
+      /****************************************************************/
+      /* Check for 32bit and 64bit differences                        */
+      /****************************************************************/
+      if(strnicmp(convVar, "C:\\Program Files", 16) == 0)
+      {
+        i64x32 = 1 ;
+        strcat(o32VarRec, "C:\\Program Files\0") ;
+        strcat(o64VarRec, "C:\\Program Files (x86)\0") ;
+      }
+      else
+      {
+        strcat(o32VarRec, convVar) ;
+        strcat(o64VarRec, convVar) ;
+      }
+
+      Var32o = strlen(o32VarRec) ;
+      Var64o = strlen(o64VarRec) ;
+
+      GVNi = 0 ;
+      memset(envVarName, 0, 255) ;
+    }
+    else
+    if(inProgress == 1)
+    {
+      envVarName[GVNi] = inVarRec[Vari] ;
+      GVNi++ ;
+
+      if(GVNi > 254)
+       return 1 ;
+    }
+    else
+    {
+      o32VarRec[Var32o] = inVarRec[Vari] ;
+      o64VarRec[Var64o] = inVarRec[Vari] ;
+      Var32o++ ; 
+      Var64o++ ; 
+    }
+  }
+
+  return 0 ;
 }
 
 
