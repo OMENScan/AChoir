@@ -12,13 +12,7 @@ SAY: * * * Administrator right are required for many of these utilities * * *
 SAY:
 PZZ: Press Any Key to Continue, or q to QUIT
 SAY:
-SAY: 1. Now Dumping Memory...
-SAY:
-SAY:  WARNING: This will take while, and will create a HUGE memory image File.
-SAY:  You've been warned ;-) 
-SAY:
-ACQ:\MemDump
-EXE:\MEM\WinPmem.exe &Acq\WinPmemDump.Raw
+SAY: 1. Memory Dump Will Not Be Run...
 SAY:
 SAY: 2. Parsing Prefetch Directory...
 SAY:
@@ -121,36 +115,39 @@ SAY: 14. Gathering NetBIOS Information...
 SAY:
 SYS:&Win\sysnative\NBTStat.exe -scn > &Acq\NetBios.dat
 SAY:
-SAY: 15. Gathering AutoRun Information...
-SAY:
-SYS:\SYS\Autorunsc.exe /accepteula -a * -c -h > &Acq\AutoRun.dat
-SAY:
-SAY: 16. Gathering Open Files/Process Information...
+SAY: 15. Gathering Open Files/Process Information...
 SAY:
 SYS:\SYS\Handle.exe /accepteula > &Acq\OpenFiles.dat
 SAY:
-SAY: 17. Gathering Scheduled Task Information...
+SAY: 16. Gathering Scheduled Task Information...
 SAY:
 SYS:At > &Acq\SchedTasks.dat
 SYS:Schtasks /query /fo LIST /v >> &Acq\SchedTasks.dat
 SAY:
-SAY: 18. Gathering System Logon Information...
+SAY: 17. Gathering System Logon Information...
 SAY:
 SYS:\SYS\PSLoggedon.exe /accepteula > &Acq\Logon.dat
 SAY:
-SAY: 19. Gathering Services Information...
+SAY: 18. Gathering Services Information...
 SAY:
 SYS:Net Start > &Acq\Services.dat
 SYS:sc query type= service state= all > &Acq\Services-2.dat
 SYS:Tasklist /SVC > &Acq\Services-3.dat
 SAY:
-SAY: 20. Gathering Last Activity Information...
+SAY: 19. Gathering Last Activity Information...
 SAY:
 EXE:\SYS\LastActivityView.exe /scomma &Acq\LastActivity.dat
 SAY:
-SAY: 21. Gathering User Assist Information...
+SAY: 20. Gathering User Assist Information...
 SAY:
 EXE:\SYS\UserAssistView.exe /scomma &Acq\UserAssist.dat
+SAY:
+SAY: 21. Gathering AutoRun Information...
+SAY:
+ACQ:\Arn
+ARN:
+SAY:
+SYS:\SYS\Autorunsc.exe /accepteula -a * -c -h > &Acq\AutoRun.dat
 SAY:
 SAY: 22. Gathering All User Registries...
 SAY:

@@ -1,0 +1,13 @@
+***************************************************
+* Live Acquisition Script (1.0)                   *
+* - Pulls Forensics artifacts for analysis        *
+* - Created by D0n Quixote/OMENScan (May 2015)    *
+* - Inspired by many other tools                  *
+***************************************************
+SYS:CLS
+Say:
+Say:
+Say:          ***************************************************
+Say:          *             AChoir MENU Has Exited              *
+Say:          ***************************************************
+Say:

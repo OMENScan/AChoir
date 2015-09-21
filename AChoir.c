@@ -24,6 +24,7 @@
 /* AChoir v0.21 - Fix GMT DST idiosyncracy                      */
 /* AChoir v0.22 - New ARN: Action -                             */
 /*                Parse the Run Key and copy the Autorun EXEs   */
+/* AChoir v0.23 - /MNU Command Line Option Runs Menu.ACQ        */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -277,6 +278,7 @@ int main(int argc, char *argv[])
   /****************************************************************/
   /* Get the Runmode: (Default == 1)                              */
   /*  BLD = Go Get the Utilities via cURL                         */
+  /*  MNU = Run the Menu.ACQ - a VERY simple menu script          */
   /*  RUN = Run the Live Acquisition Utility Script               */
   /*                                                              */
   /****************************************************************/
@@ -288,6 +290,7 @@ int main(int argc, char *argv[])
       printf("AChoir Arguments:\n\n") ;
       printf(" /HELP - This Description\n") ;
       printf(" /BLD  - Run the Build.ACQ Script (Build the AChoir Toolkit)\n") ;
+      printf(" /MNU  - Run the Menu.ACQ Script (A Simple AChoir Menu)\n") ;
       printf(" /RUN  - Run the AChoir.ACQ Script to do a Live Acquisition\n") ;
       printf(" /DRV:<x:> - Set the &DRV parameter\n") ;
       printf(" /INI:<File Name> - Run the <File Name> script instead of AChoir.ACQ\n") ;
@@ -309,6 +312,14 @@ int main(int argc, char *argv[])
       strncpy(IniFile, "AChoir.ACQ\0", 11) ;
       printf("Set: Input Script Set:\n     %s\n\n", IniFile) ;
       iRunMode = 1 ;
+    }
+    else
+    if((strnicmp(argv[i], "/MNU", 4) == 0) && (strlen(argv[i]) == 4)) 
+    {
+      strncpy(RunMode, "Mnu\0", 4) ;
+      strncpy(IniFile, "Menu.ACQ\0", 10) ;
+      printf("Set: Input Script Set:\n     %s\n\n", IniFile) ;
+      iRunMode = 3 ;
     }
     else
     if(strnicmp(argv[i], "/DRV:", 4) == 0)
@@ -753,7 +764,7 @@ int main(int argc, char *argv[])
             if(access(IniFile, 0) != 0)
             {
               fprintf(LogHndl, "Err: Requested INI File Not Found: %s - Ignored.\n", Inrec+4) ;
-              printf("Requested Err: INI File Not Found: %s - Ignored.\n", Inrec+4) ;
+              printf("Err: Requested INI File Not Found: %s - Ignored.\n", Inrec+4) ;
             }
             else
             {
@@ -787,6 +798,8 @@ int main(int argc, char *argv[])
 
             memset(Inprec, 0, 255) ;
             fgets(Inprec, 251, stdin) ;
+            strtok(Inprec, "\n") ; 
+            strtok(Inprec, "\r") ; 
 
             /****************************************************************/
             /* If our input is too long, clear the rest over 250 chars      */

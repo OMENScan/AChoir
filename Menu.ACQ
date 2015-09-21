@@ -1,0 +1,23 @@
+***************************************************
+* Live Acquisition Script (1.0)                   *
+* - Pulls Forensics artifacts for analysis        *
+* - Created by D0n Quixote/OMENScan (May 2015)    *
+* - Inspired by many other tools                  *
+***************************************************
+SYS:CLS
+Say:
+Say:          ***************************************************
+Say:          *           Welcome to the AChoir MENU            *
+Say:          ***************************************************
+Say:
+Say:     Please enter the name of the Script you would you like to run:
+Say:
+Say: 
+Say:     > Achoir    (Full Live Acquisition)
+Say:     > NoMem     (Acquisition WITHOUT Memory Dump)
+Say:     > Quit      (Quit)
+Say:
+Inp:Script Name> 
+Ini:&Inp.ACQ
+Pzz:Press Any Key to Retry (or "q" to quit)
+Ini:Menu.ACQ

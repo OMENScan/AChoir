@@ -1,4 +1,4 @@
-AChoir - Beta v0.22
+AChoir - Beta v0.23
 
 
 What is AChoir:
@@ -161,6 +161,8 @@ Here are the Command Line Options:
         Note: This option WILL NOT Create an Acquisition Base Directory - BE AWARE!
 /RUN  - Run the AChoir.ACQ Script to do a Live Acquisition
         This option WILL Create a Base Acquisition Directory
+/MNU  - Run the Menu.ACQ Script (AChoir Menu)
+        Note: This is a simple Menu Script for selecting an AChoir script to run.
 /INI:<File Name>  - Run the <File Name> script instead of AChoir.ACQ
         This Option WILL NOT Create a Base Acquisition Directory
         Use the ACQ: action to create the Base Acquisition Directory if you want one. 

@@ -14,6 +14,7 @@ Windows Live Artifacts Acquisition Scripting Framework
 * AChoir v0.20 - Lets call this 2.0-Lots of Code improvements
 * AChoir v0.21 - Fix GMT DST idiosyncracy
 * AChoir v0.22 - New ARN: Action - Parse the Run Key and copy the Autorun EXEs
+* AChoir v0.23 - New /MNU Switch - Run the Menu.ACQ script
 
 
 # Brief Description:
