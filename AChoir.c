@@ -25,6 +25,8 @@
 /* AChoir v0.22 - New ARN: Action -                             */
 /*                Parse the Run Key and copy the Autorun EXEs   */
 /* AChoir v0.23 - /MNU Command Line Option Runs Menu.ACQ        */
+/* AChoir v0.24 - Expand the ARN: routine to recognize WOW64    */
+/*                and System32/sysnative wierdness              */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -66,7 +68,7 @@
 #define KEY_WOW64_64KEY 0x0100
 #define KEY_WOW64_32KEY 0x0200
 
-char Version[10] = "v0.22\0" ;
+char Version[10] = "v0.24\0" ;
 char RunMode[10] = "Run\0";
 int  iRanMode = 0 ;
 int  iRunMode = 0 ;
@@ -181,7 +183,8 @@ LPFILETIME OutFileTime ;
 
 LPCTSTR lpSubKey = TEXT("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\0");
 DWORD ulOptions = 0;
-REGSAM samDesired = KEY_READ | KEY_WOW64_64KEY ;
+REGSAM samWOW64   = KEY_READ | KEY_WOW64_64KEY ;
+REGSAM samDesired = KEY_READ ;
 long OpenK ;
 long OpenRC ;
 
@@ -194,6 +197,7 @@ DWORD  lpcchValueName = 2048 ;
 LPTSTR lpData[2048] ;
 DWORD  lpcbData = 2048 ;
 
+int  samLoop = 0 ;
 char o32VarRec[4096] ;
 char o64VarRec[4096] ;
 int  i64x32 ;
@@ -853,104 +857,116 @@ int main(int argc, char *argv[])
 
             Squish(Inrec) ;  
 
-            OpenK = RegOpenKeyEx(hKey, lpSubKey, ulOptions, samDesired, &phkResult);
-            if (OpenK == ERROR_SUCCESS)
-            {
+
+
+            /****************************************************************/
+            /* Run Registry Scan Twice - First Time Native, Second Time     */
+            /*  - Disable Wow6432Node to get the Keys                       */
+            /****************************************************************/
+            for(samLoop=0; samLoop < 2; samLoop++)
+            { 
               /****************************************************************/
-              /* More Microsft Wierdness                                      */
-              /*  - Disable Wow6432Node to get the Keys                       */
+              /* Dump AutoRun Keys                                            */
               /****************************************************************/
-              for(dwIndex=0; dwIndex < 1000; dwIndex++)
+              if(samLoop == 0)
+               OpenK = RegOpenKeyEx(hKey, lpSubKey, ulOptions, samDesired, &phkResult);
+              else
+               OpenK = RegOpenKeyEx(hKey, lpSubKey, ulOptions, samWOW64, &phkResult);
+
+              if (OpenK == ERROR_SUCCESS)
               {
-                lpcchValueName = 2048 ;
-                lpcbData = 2048 ;
-                OpenRC = RegEnumValue(phkResult, dwIndex, lpValueName, &lpcchValueName, NULL, NULL, (LPBYTE)lpData, &lpcbData);
-                if (OpenRC == ERROR_SUCCESS)
+                for(dwIndex=0; dwIndex < 1000; dwIndex++)
                 {
-                  /****************************************************************/
-                  /* Parse out the .exe - Ignore quotes                           */
-                  /****************************************************************/
-                  memset(Arnrec, 0, 2048) ;
-                  memset(Cpyrec, 0, 4096) ;
-
-                  snprintf(Arnrec, 2047, "%s", lpData) ;
-                  if(Arnrec[0] == '"')
-                   iPtr1 = Arnrec+1 ;
-                  else
-                   iPtr1 = Arnrec ;
-
-                  iPtr2 = stristr(Arnrec, ".exe") ;
-                  if(iPtr2 > 0)
-                   iPtr2[4] = '\0' ;
-
-                  if((iPtr3 = strrchr(iPtr1, '\\')) != NULL)
+                  lpcchValueName = 2048 ;
+                  lpcbData = 2048 ;
+                  OpenRC = RegEnumValue(phkResult, dwIndex, lpValueName, &lpcchValueName, NULL, NULL, (LPBYTE)lpData, &lpcbData);
+                  if (OpenRC == ERROR_SUCCESS)
                   {
-                    if(strlen(iPtr3+1) > 1)
-                     iPtr3++ ;
+                    /****************************************************************/
+                    /* Parse out the .exe - Ignore quotes                           */
+                    /****************************************************************/
+                    memset(Arnrec, 0, 2048) ;
+                    memset(Cpyrec, 0, 4096) ;
+
+                    snprintf(Arnrec, 2047, "%s", lpData) ;
+                    if(Arnrec[0] == '"')
+                     iPtr1 = Arnrec+1 ;
+                    else
+                     iPtr1 = Arnrec ;
+
+                    iPtr2 = stristr(Arnrec, ".exe") ;
+                    if(iPtr2 > 0)
+                     iPtr2[4] = '\0' ;
+
+                    if((iPtr3 = strrchr(iPtr1, '\\')) != NULL)
+                    {
+                      if(strlen(iPtr3+1) > 1)
+                       iPtr3++ ;
+                      else
+                       iPtr3 = iPtr1 ;
+                    }
                     else
                      iPtr3 = iPtr1 ;
-                  }
-                  else
-                   iPtr3 = iPtr1 ;
 
 
-                  /****************************************************************/
-                  /* If the program is there, Copy it                             */
-                  /****************************************************************/
-                  varConvert(iPtr1) ;
+                    /****************************************************************/
+                    /* If the program is there, Copy it                             */
+                    /****************************************************************/
+                    varConvert(iPtr1) ;
 
-                  if(access(o32VarRec, 0) == 0)
-                  {
-                    sprintf(Cpyrec, "%s\\%s\\%s-%s\0", BACQDir, ACQDir, lpValueName, iPtr3) ;
-
-                    fprintf(LogHndl, "\nArn: %s\n     %s\n", lpValueName, lpData) ;
-                    printf("\nArn: %s\n     %s\n", lpValueName, lpData) ;
-
-                    binCopy(o32VarRec, Cpyrec) ;
-                  }
-                  else
-                  {
-                    fprintf(LogHndl, "\nArn: Not Found - %s\n     %s\n", lpValueName, lpData) ;
-                    printf("\nArn: Not Found - %s\n     %s\n", lpValueName, lpData) ;
-                  }
-
-
-                  /****************************************************************/
-                  /* Check for 64bit versions (if set)                            */
-                  /****************************************************************/
-                  if(i64x32 == 1)
-                  {
-                    if(access(o64VarRec, 0) == 0)
+                    if(access(o32VarRec, 0) == 0)
                     {
-                      sprintf(Cpyrec, "%s\\%s\\%s(64)-%s\0", BACQDir, ACQDir, lpValueName, iPtr3) ;
+                      sprintf(Cpyrec, "%s\\%s\\%s-%s\0", BACQDir, ACQDir, lpValueName, iPtr3) ;
 
-                      fprintf(LogHndl, "\nArn: (64bit)%s\n     %s\n", lpValueName, lpData) ;
-                      printf("\nArn: (64bit)%s\n     %s\n", lpValueName, lpData) ;
+                      fprintf(LogHndl, "\nArn: %s\n     %s\n", lpValueName, lpData) ;
+                      printf("\nArn: %s\n     %s\n", lpValueName, lpData) ;
 
-                      binCopy(o64VarRec, Cpyrec) ;
+                      binCopy(o32VarRec, Cpyrec) ;
                     }
                     else
                     {
-                      fprintf(LogHndl, "\nArn: Not Found (64bit) - %s\n     %s\n", lpValueName, lpData) ;
-                      printf("\nArn: Not Found (64bit) - %s\n     %s\n", lpValueName, lpData) ;
+                      fprintf(LogHndl, "\nArn: Not Found - %s\n     %s\n", lpValueName, lpData) ;
+                      printf("\nArn: Not Found - %s\n     %s\n", lpValueName, lpData) ;
+                    }
+
+
+                    /****************************************************************/
+                    /* Check for 64bit versions (if set)                            */
+                    /****************************************************************/
+                    if(i64x32 == 1)
+                    {
+                      if(access(o64VarRec, 0) == 0)
+                      {
+                        sprintf(Cpyrec, "%s\\%s\\%s(64)-%s\0", BACQDir, ACQDir, lpValueName, iPtr3) ;
+
+                        fprintf(LogHndl, "\nArn: (64bit)%s\n     %s\n", lpValueName, lpData) ;
+                        printf("\nArn: (64bit)%s\n     %s\n", lpValueName, lpData) ;
+
+                        binCopy(o64VarRec, Cpyrec) ;
+                      }
+                      else
+                      {
+                        fprintf(LogHndl, "\nArn: Not Found (64bit) - %s\n     %s\n", lpValueName, lpData) ;
+                        printf("\nArn: Not Found (64bit) - %s\n     %s\n", lpValueName, lpData) ;
+                      }
                     }
                   }
+                  else
+                  if(OpenRC == ERROR_NO_MORE_ITEMS)
+                   break;
+                  else
+                   printf("Error: %d\n", OpenRC) ;
                 }
-                else
-                if(OpenRC == ERROR_NO_MORE_ITEMS)
-                 break;
-                else
-                 printf("Error: %d\n", OpenRC) ;
-               }
 
-               RegCloseKey(phkResult) ;
+                RegCloseKey(phkResult) ;
+              }
+              else if(OpenK == ERROR_FILE_NOT_FOUND)
+               printf("Run Key Doesnt exist\n") ;
+              else if(OpenK == ERROR_ACCESS_DENIED)
+               printf("Run Key Access Denied\n") ;
+              else
+               printf("Registry Error: %d\n", OpenK) ;
             }
-            else if(OpenK == ERROR_FILE_NOT_FOUND)
-             printf("Run Key Doesnt exist\n") ;
-            else if(OpenK == ERROR_ACCESS_DENIED)
-             printf("Run Key Access Denied\n") ;
-            else
-             printf("Registry Error: %d\n", OpenK) ;
           }
           else
           if(strnicmp(Inrec, "RC=:", 4) == 0)
@@ -1962,6 +1978,21 @@ long varConvert(char *inVarRec)
 
       if(GVNi > 254)
        return 1 ;
+    }
+    else
+    if(strnicmp(inVarRec+Vari, "System32", 8) == 0)
+    {
+      /****************************************************************/
+      /* Check for System32 - (Do Checks for sysnative)               */
+      /****************************************************************/
+      i64x32 = 1 ;
+      Vari+= 7 ;
+
+      strcat(o32VarRec, "System32\0") ;
+      strcat(o64VarRec, "sysnative\0") ;
+
+      Var32o = strlen(o32VarRec) ;
+      Var64o = strlen(o64VarRec) ;
     }
     else
     {
