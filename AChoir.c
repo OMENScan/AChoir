@@ -27,6 +27,7 @@
 /* AChoir v0.23 - /MNU Command Line Option Runs Menu.ACQ        */
 /* AChoir v0.24 - Expand the ARN: routine to recognize WOW64    */
 /*                and System32/sysnative wierdness              */
+/* AChoir v0.25 - More improvements to Run Key Extract          */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -68,7 +69,7 @@
 #define KEY_WOW64_64KEY 0x0100
 #define KEY_WOW64_32KEY 0x0200
 
-char Version[10] = "v0.24\0" ;
+char Version[10] = "v0.25\0" ;
 char RunMode[10] = "Run\0";
 int  iRanMode = 0 ;
 int  iRunMode = 0 ;
@@ -205,7 +206,7 @@ int  i64x32 ;
 int main(int argc, char *argv[])
 {
   int i, j ;
-  int iPtr, oPtr ;
+  int iPtr, oPtr, ArnPtr ;
   int RunMe, ForMe, Looper, LoopNum ;
   int getKey ;
 
@@ -888,15 +889,45 @@ int main(int argc, char *argv[])
                     memset(Arnrec, 0, 2048) ;
                     memset(Cpyrec, 0, 4096) ;
 
-                    snprintf(Arnrec, 2047, "%s", lpData) ;
-                    if(Arnrec[0] == '"')
-                     iPtr1 = Arnrec+1 ;
-                    else
-                     iPtr1 = Arnrec ;
 
-                    iPtr2 = stristr(Arnrec, ".exe") ;
+                    /****************************************************************/
+                    /* Check for possibl caller program (rundll32, cmd, etc...)     */
+                    /****************************************************************/
+                    snprintf(Arnrec, 2047, "%s", lpData) ;
+                    for(ArnPtr=0; ArnPtr < strlen(Arnrec); ArnPtr++)
+                    {
+                      if(strnicmp(Arnrec+ArnPtr, "rundll32", 8) == 0)
+                       ArnPtr+=7 ;
+                      else
+                      if(strnicmp(Arnrec+ArnPtr, "rundll32.exe", 12) == 0)
+                       ArnPtr+=11 ;
+                      else
+                      if(strnicmp(Arnrec+ArnPtr, "cmd /c", 6) == 0)
+                       ArnPtr+=5 ;
+                      else
+                      if(strnicmp(Arnrec+ArnPtr, "cmd.exe /c", 10) == 0)
+                       ArnPtr+=9 ;
+                      else
+                      if(Arnrec[ArnPtr] == ' ') ;
+                      else
+                      if(Arnrec[ArnPtr] == '"') ;
+                      else
+                       break;
+                    }
+                    iPtr1 = Arnrec+ArnPtr ;
+
+                    /****************************************************************/
+                    /* Check for .dll or .exe                                       */
+                    /****************************************************************/
+                    iPtr2 = stristr(Arnrec, ".dll") ;
                     if(iPtr2 > 0)
                      iPtr2[4] = '\0' ;
+                    else
+                    {
+                      iPtr2 = stristr(Arnrec, ".exe") ;
+                      if(iPtr2 > 0)
+                       iPtr2[4] = '\0' ;
+                    }
 
                     if((iPtr3 = strrchr(iPtr1, '\\')) != NULL)
                     {
