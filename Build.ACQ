@@ -63,13 +63,12 @@ EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\ExtractUsnJrnl64.txt https://github.c
 SAY:
 SAY: --- Getting Forensics Acquisition Utilities (FAU) (from GMG Systems Inc) ---
 SAY:
-DIR:\FAU
-FIL:FAU.zip
-EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\FAU.txt http://www.gmgsystemsinc.com/fau/8AAD05B8-7DBF-4F43-A798-712B7D788E53/fau-1.4.0.2464.zip
+SAY: --- Getting USNJrnl2Csv (From GitHub/JSchicht) ---
 SAY:
-SAY: --- Unzipping Forensics Acquisition Utilities (FAU) ---
-SAY:
-EXE:unzip.exe -o &Dir\&Fil -d &Dir
+FIL:UsnJrnl2Csv.exe
+EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\UsnJrnl2Csv.txt https://github.com/jschicht/UsnJrnl2Csv/blob/master/UsnJrnl2Csv.exe?raw=true
+FIL:UsnJrnl2Csv64.exe
+EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\UsnJrnl2Csv64.txt https://github.com/jschicht/UsnJrnl2Csv/blob/master/UsnJrnl2Csv64.exe?raw=true
 SAY:
 SAY: --- Getting PSTools (from Microsoft SysInternals) ---
 SAY:

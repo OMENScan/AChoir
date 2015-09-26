@@ -31,7 +31,7 @@ EXE:\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT
 SAY:
 SAY: 1c. Now Parsing USNJrnl...
 SAY:
-SYS:\FAU\fau-1.4.0.2464\X64\Volume_Dump.exe &Drv -u > &Acq\USN64Jrnl.dat
+SYS:fsutil usn readjournal &Drv csv > &Acq\USN64Jrnl.dat
 SAY:
 SAY: 1d. Now Extracting USNJrnl...
 SAY:

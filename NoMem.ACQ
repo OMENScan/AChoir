@@ -12,7 +12,9 @@ SAY: * * * Administrator right are required for many of these utilities * * *
 SAY:
 PZZ: Press Any Key to Continue, or q to QUIT
 SAY:
+SAY:
 SAY: 1. Memory Dump Will Not Be Run...
+SAY:
 SAY:
 SAY: 2. Parsing Prefetch Directory...
 SAY:
@@ -34,13 +36,13 @@ SAY: 3b. Now Parsing $MFT...
 SAY:
 EXE:\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT 
 SAY:
-SAY: 3c. Now Parsing USNJrnl...
-SAY:
-SYS:\FAU\fau-1.4.0.2464\X64\Volume_Dump.exe C: -u > &Acq\USN64Jrnl.dat
-SAY:
-SAY: 3d. Now Extracting USNJrnl...
+SAY: 3c. Now Extracting USNJrnl...
 SAY:
 EXE:\DSK\ExtractUSNJrnl64.exe C: &Acq
+SAY:
+SAY: 3d. Now Parsing USNJrnl...
+SAY:
+SYS:fsutil usn readjournal C: csv > &Acq\USN64Jrnl.dat
 SAY:
 SAY: 4. Gathering System Information...
 SAY:
