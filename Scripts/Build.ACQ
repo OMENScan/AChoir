@@ -3,7 +3,7 @@
 ** This script uses cURL to get the LiveKit Utilities.   *
 ** from the owners websites - These are not my utilities *
 ** I just use them in the Live Acquisition script.       *
-** - Created by D0n Quixote/OMENScan (May 2015)          *
+** - Created by D0n Quix0te/OMENScan (May 2015)          *
 **********************************************************
 SAY:
 SAY: Welcome to AChoir Builder.
@@ -156,6 +156,11 @@ SAY:
 SAY: --- Unzipping BrowsingHistoryView (32 Bit) ---
 SAY:
 EXE:unzip.exe -o &Dir\&Fil -d &Dir
+SAY:
+SAY: --- Getting Winaudit (From Parmavex Services) ---
+SAY:
+FIL:Winaudit.exe
+EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\Winaudit.txt https://github.com/OMENScan/AChoir/blob/master/Tools/WinAudit.exe?raw=true
 SAY:
 SAY: --- Getting BrowsingHistoryView (From NirSoft) ---
 SAY:

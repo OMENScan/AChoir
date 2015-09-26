@@ -1,7 +1,7 @@
 ***************************************************
 * Live Acquisition Script (1.0)                   *
 * - Pulls Forensics artifacts for analysis        *
-* - Created by D0n Quixote/OMENScan (May 2015)    *
+* - Created by D0n Quix0te/OMENScan (May 2015)    *
 * - Inspired by many other tools                  *
 ***************************************************
 SAY:
@@ -14,7 +14,6 @@ PZZ: Press Any Key to Continue, or q to QUIT
 SAY:
 SAY:
 SAY: 1. Memory Dump Will Not Be Run...
-SAY:
 SAY:
 SAY: 2. Parsing Prefetch Directory...
 SAY:
@@ -44,10 +43,18 @@ SAY: 3d. Now Parsing USNJrnl...
 SAY:
 SYS:fsutil usn readjournal C: csv > &Acq\USN64Jrnl.dat
 SAY:
-SAY: 4. Gathering System Information...
+SAY: 4a. Gathering System Information...
 SAY:
 ACQ:\
 SYS:\SYS\PSInfo.exe /accepteula -s > &Acq\Info.dat
+SAY:
+SAY: 4b. Gathering System Audit Information...
+SAY:
+EXE:\SYS\WinAudit.exe /r=gsoPxuTUeERNtnzDaIbMpmidcSArCOHG /f=&Acq\WinAudit.htm /l=&Acq\WinAudLog.txt
+SAY:
+SAY: 4c. Gathering Group Policy Information...
+SAY:
+SYS:GPResult /R /Z > &Acq\GPResult.txt
 SAY:
 SAY: 5a. Saving Registry Hives...
 SAY:
