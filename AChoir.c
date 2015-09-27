@@ -28,6 +28,7 @@
 /* AChoir v0.24 - Expand the ARN: routine to recognize WOW64    */
 /*                and System32/sysnative wierdness              */
 /* AChoir v0.25 - More improvements to Run Key Extract          */
+/* AChoir v0.26 - Expand system variables %variable%            */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -69,7 +70,7 @@
 #define KEY_WOW64_64KEY 0x0100
 #define KEY_WOW64_32KEY 0x0200
 
-char Version[10] = "v0.25\0" ;
+char Version[10] = "v0.26\0" ;
 char RunMode[10] = "Run\0";
 int  iRanMode = 0 ;
 int  iRunMode = 0 ;
@@ -511,9 +512,19 @@ int main(int argc, char *argv[])
           Inrec[0] = '\0' ;
           oPtr = 0 ;
 
-          for(iPtr=0; iPtr < 1000; iPtr++)
+
+          /****************************************************************/
+          /* Check for System (DOS/Win) Variables and Expand them         */
+          /****************************************************************/
+          varConvert(Tmprec) ;
+
+
+          /****************************************************************/
+          /* Now Further expand o32VarRec for Achoir unique variables     */
+          /****************************************************************/
+          for(iPtr=0; iPtr < 2000; iPtr++)
           {
-            if(strnicmp(Tmprec+iPtr, "&Dir", 4) ==0 )
+            if(strnicmp(o32VarRec+iPtr, "&Dir", 4) ==0 )
             {
               if(strlen(CurrDir) > 0 )
                sprintf(Inrec+oPtr, "%s\\%s", BaseDir, CurrDir) ;
@@ -524,21 +535,21 @@ int main(int argc, char *argv[])
               iPtr+= 3 ;
             }
             else
-            if(strnicmp(Tmprec+iPtr, "&Fil", 4) ==0 )
+            if(strnicmp(o32VarRec+iPtr, "&Fil", 4) ==0 )
             {
               sprintf(Inrec+oPtr, "%s", CurrFil) ;
               oPtr = strlen(Inrec) ;
               iPtr+= 3 ;
             }
             else
-            if(strnicmp(Tmprec+iPtr, "&Inp", 4) ==0 )
+            if(strnicmp(o32VarRec+iPtr, "&Inp", 4) ==0 )
             {
               sprintf(Inrec+oPtr, "%s", Inprec) ;
               oPtr = strlen(Inrec) ;
               iPtr+= 3 ;
             }
             else
-            if(strnicmp(Tmprec+iPtr, "&Acq", 4) ==0 )
+            if(strnicmp(o32VarRec+iPtr, "&Acq", 4) ==0 )
             {
               if(strlen(ACQDir) > 0 )
                sprintf(Inrec+oPtr, "%s\\%s", BACQDir, ACQDir) ;
@@ -549,70 +560,70 @@ int main(int argc, char *argv[])
               iPtr+= 3 ;
             }
             else
-            if(strnicmp(Tmprec+iPtr, "&Win", 4) ==0 )
+            if(strnicmp(o32VarRec+iPtr, "&Win", 4) ==0 )
             {
               sprintf(Inrec+oPtr, "%s", WinRoot) ;
               oPtr = strlen(Inrec) ;
               iPtr+= 3 ;
             }
             else
-            if(strnicmp(Tmprec+iPtr, "&Tmp", 4) ==0 )
+            if(strnicmp(o32VarRec+iPtr, "&Tmp", 4) ==0 )
             {
               sprintf(Inrec+oPtr, "%s", TempVar) ;
               oPtr = strlen(Inrec) ;
               iPtr+= 3 ;
             }
             else
-            if(strnicmp(Tmprec+iPtr, "&For", 4) ==0 )
+            if(strnicmp(o32VarRec+iPtr, "&For", 4) ==0 )
             {
               sprintf(Inrec+oPtr, "%s", Filrec) ;
               oPtr = strlen(Inrec) ;
               iPtr+= 3 ;
             }
             else
-            if(strnicmp(Tmprec+iPtr, "&Num", 4) ==0 )
+            if(strnicmp(o32VarRec+iPtr, "&Num", 4) ==0 )
             {
               sprintf(Inrec+oPtr, "%d\0", LoopNum) ;
               oPtr = strlen(Inrec) ;
               iPtr+= 3 ;
             }
             else
-            if(strnicmp(Tmprec+iPtr, "&Fnm", 4) ==0 )
+            if(strnicmp(o32VarRec+iPtr, "&Fnm", 4) ==0 )
             {
               sprintf(Inrec+oPtr, "%s\0", ForFName) ;
               oPtr = strlen(Inrec) ;
               iPtr+= 3 ;
             }
             else
-            if(strnicmp(Tmprec+iPtr, "&Rcd", 4) ==0 )
+            if(strnicmp(o32VarRec+iPtr, "&Rcd", 4) ==0 )
             {
               sprintf(Inrec+oPtr, "%d\0", LastRC) ;
               oPtr = strlen(Inrec) ;
               iPtr+= 3 ;
             }
             else
-            if(strnicmp(Tmprec+iPtr, "&Chk", 4) ==0 )
+            if(strnicmp(o32VarRec+iPtr, "&Chk", 4) ==0 )
             {
               sprintf(Inrec+oPtr, "%s\0", ChkFile) ;
               oPtr = strlen(Inrec) ;
               iPtr+= 3 ;
             }
             else
-            if(strnicmp(Tmprec+iPtr, "&Drv", 4) ==0 )
+            if(strnicmp(o32VarRec+iPtr, "&Drv", 4) ==0 )
             {
               sprintf(Inrec+oPtr, "%s\0", DiskDrive) ;
               oPtr = strlen(Inrec) ;
               iPtr+= 3 ;
             }
             else
-            if(strnicmp(Tmprec+iPtr, "&Map", 4) ==0 )
+            if(strnicmp(o32VarRec+iPtr, "&Map", 4) ==0 )
             {
               sprintf(Inrec+oPtr, "%s\0", MapDrive) ;
               oPtr = strlen(Inrec) ;
               iPtr+= 3 ;
             }
             else
-            if(strnicmp(Tmprec+iPtr, "&Prc", 4) ==0 )
+            if(strnicmp(o32VarRec+iPtr, "&Prc", 4) ==0 )
             {
               sprintf(Inrec+oPtr, "%s\0", Procesr) ;
               oPtr = strlen(Inrec) ;
@@ -620,7 +631,7 @@ int main(int argc, char *argv[])
             }
             else
             {
-              Inrec[oPtr] = Tmprec[iPtr] ;
+              Inrec[oPtr] = o32VarRec[iPtr] ;
               oPtr++ ;
               Inrec[oPtr] = '\0' ;
             }
@@ -628,7 +639,7 @@ int main(int argc, char *argv[])
 
 
           /****************************************************************/
-          /* Expand the record, replacing variables                       */
+          /* Now execute the Actions                                      */
           /****************************************************************/
           if(Inrec[0] == '*') ;
           else
@@ -1971,7 +1982,19 @@ long varConvert(char *inVarRec)
   {
     if((inVarRec[Vari] == '%') && (inProgress == 0))
     {
-      inProgress = 1 ;
+      /****************************************************************/
+      /* To prevent expansion use %%                                  */
+      /****************************************************************/
+      if(inVarRec[Vari+1] == '%')
+      {
+        o32VarRec[Var32o] = inVarRec[Vari] ;
+        o64VarRec[Var64o] = inVarRec[Vari] ;
+        Vari++ ;
+        Var32o++ ; 
+        Var64o++ ; 
+      }
+      else
+       inProgress = 1 ;
     }
     else
     if((inVarRec[Vari] == '%') && (inProgress == 1))
@@ -1983,6 +2006,8 @@ long varConvert(char *inVarRec)
       /****************************************************************/
       /* Check for 32bit and 64bit differences                        */
       /****************************************************************/
+      if(convVar == NULL) ;
+      else
       if(strnicmp(convVar, "C:\\Program Files", 16) == 0)
       {
         i64x32 = 1 ;

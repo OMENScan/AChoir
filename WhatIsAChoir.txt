@@ -1,15 +1,24 @@
-AChoir - Beta v0.23
+AChoir - Beta v0.26
 
 
 What is AChoir:
 ===============
-Every Incident Responder eventually comes to the conclusion that they need to script their favorite Live Acquisition utilities.  For some reason (or many reasons) those Live Acquisition scripts are often shrouded in mystery and shared only among trusted parties.
+Every Incident Responder eventually comes to the conclusion that they need to script their 
+favorite Live Acquisition utilities.  For some reason (or many reasons) many of those Live 
+Acquisition scripts are often shrouded in mystery and shared only among trusted parties.
 
-I have seen these scripts written in numerous scripting languages - but oddly enough, all of these scripts tend to use many of the same freely available utilities - To do mostly the same things.
+I have seen these scripts written in numerous scripting languages - but oddly enough, all of 
+these scripts tend to use many of the same freely available utilities - To do mostly the 
+same things.
 
-It often takes a Responder several years, along with lots of trial and error to settle on a set of utilities (and options) that both work and that provide relevant information on useful forensic artifacts.
+It often takes a Responder several years, along with lots of trial and error to settle on a 
+set of utilities (and options) that both work and that provide relevant information on useful 
+forensic artifacts.
 
-And even though Responders often use the same utilities and are scripting them in largely the same way, each Responder has to go through the same pain of building their own script in their (not so) favorite scripting language - figuring out how to quickly and consistently gather the artifacts of most value. 
+And even though Responders often use the same utilities and are scripting them in largely 
+the same way, each Responder has to go through the same pain of building their own script in 
+their (not so) favorite scripting language - figuring out how to quickly and consistently 
+gather the artifacts of most value. 
 
 I believe that this process of re-inventing the wheel over and over again is just silly. 
 
@@ -37,21 +46,34 @@ Achoir itself is architected with two primary functional concepts:
 2. To Run those utilities (Toolkit) in an organized way.
 
 
-An AChoir script can download, and unzip these utilities in order to create a Live Acquisition Toolkit.  We have provided our version of a "Build" script, but you can make your own.
+An AChoir script can download, and unzip these utilities in order to create a Live 
+Acquisition Toolkit.  We have provided our version of a "Build" script, but you can 
+make your own.
 
-The idea is to make it easily repeatable to download and organize these utilities.  That is: with just AChoir and a builder script, anyone can build an Acquisition Scripting Toolkit.
+The idea is to make it easily repeatable to download and organize these utilities.  
+That is: with just AChoir and a builder script, anyone can build an Acquisition 
+Scripting Toolkit.
 
 This has the additional benefit of documenting where everything came from.
 
-The second functional concept of running the Acquisition Script to gather artifacts is obvious.  But what AChoir tries to do is make that experience consistent and repeatable.  Achoir creates unique directories for every Acquisition run, and has built in functions like hashing.  In this way we are creating both a consistent framework and a scripting language that is targeted specifically at Live Acquisition.
+The second functional concept of running the Acquisition Script to gather artifacts is 
+obvious.  But what AChoir tries to do is make that experience consistent and repeatable.  
+Achoir creates unique directories for every Acquisition run, and has built in functions 
+like hashing.  In this way we are creating both a consistent framework and a scripting 
+language that is targeted specifically at Live Acquisition.
 
 
 
 So Isn't This Just another Scripting Language?  I can do that already.
 ======================================================================
-I would say, you could do everything Achoir does with any scripting language - If that is what you want to do.  In fact, that is how AChoir started life.  But Achoir's goals are to make Live Acquisition scripting consistent and to eventually create a respository for Live Acquisition utilities to make the whole process easier for Responders.
+I would say, you could do everything Achoir does with any scripting language - If that 
+is what you want to do.  In fact, that is how AChoir started life.  But Achoir's goals 
+are to make Live Acquisition scripting consistent and to eventually create a respository 
+for Live Acquisition utilities to make the whole process easier for Responders.
 
-We are also very sensitive to the "Observer Effect" problem when Acquiring artifacts, and Achoir will be coded in a way to minimize disturbing the artifacts.  This takes some work when writing your own Live Acquisition scripting programs.
+We are also very sensitive to the "Observer Effect" problem when Acquiring artifacts, 
+and Achoir will be coded in a way to minimize disturbing the artifacts.  This takes some 
+work when writing your own Live Acquisition scripting programs.
 
 
 
@@ -63,7 +85,9 @@ The Achoir scripting language has two primary concepts:
 2. Actions
 
 
-Actions are the thing you want to do.  Objects are the thing(s) you want to do the Actions against.  Actions always start in column 1, they are three letters folowed by a colon(:).  Objects Can go anywhere and start with an ampersand(&) followed by three letters.
+Actions are the thing you want to do.  Objects are the thing(s) you want to do the Actions 
+against.  Actions always start in column 1, they are three letters folowed by a colon(:).  
+Objects Can go anywhere and start with an ampersand(&) followed by three letters.
 
 
 Here is a simple example:
@@ -71,9 +95,13 @@ Dir:\Test
 Say:The Current Directory is: &Dir
 
 
-In this example, a lot of things are going on.  First the &Dir object is being set by the DIR: action.  In addition, if that directory does not exist it will be created.  All directories are created RELATIVE to the directory Achoir was run from. doing this ensures consistency every time Achoir is run, and prevents one set of artifacts from stepping on another set.
+In this example, a lot of things are going on.  First the &Dir object is being set by the DIR: 
+action.  In addition, if that directory does not exist it will be created.  All directories are 
+created RELATIVE to the directory Achoir was run from. doing this ensures consistency every 
+time Achoir is run, and prevents one set of artifacts from stepping on another set.
 
-The next statement (SAY:) then prints the text and &Dir object to both the screen, and a unique LogFile for each run. 
+The next statement (SAY:) then prints the text and &Dir object to both the screen, and a unique 
+LogFile for each run. 
 
 
 Here is another Example:
@@ -82,13 +110,19 @@ FOR:C:\Users\NTUSER.DAT
 SYS:XCopy &For "&Acq\NTUSER.DAT(&Num)" /H
 
 
-In this example our goal is to Copy all User NTUSER.DAT Registry files under the C:\USERS Directory. To do this we would use the "FOR:" Action and the &For Object.
+In this example our goal is to Copy all User NTUSER.DAT Registry files under the C:\USERS Directory. 
+To do this we would use the "FOR:" Action and the &For Object.
 
-First we set the Acquisition Sub-Directory (ACQ:) object (&Acq) to "\Reg"  This is a path directly under the unique generated Acquisition Directory.
+First we set the Acquisition Sub-Directory (ACQ:) object (&Acq) to "\Reg"  This is a path directly 
+under the unique generated Acquisition Directory.
 
-Next, the &For object is set to any/all NTUSER.DAT files found in any subdirectory under C:\Users (Note: wildcards are also valid).  The &For object also has an &Num object automatically associated to it, to distinguish each file.
+Next, the &For object is set to any/all NTUSER.DAT files found in any subdirectory under 
+C:\Users (Note: wildcards are also valid).  The &For object also has an &Num object automatically 
+associated to it, to distinguish each file.
 
-The next (SYS:) statement can then copy all of those files to the &Acq directory and give each file a unique name using the &Num object.  The concept that makes this happen with a single command is the &For object.
+The next (SYS:) statement can then copy all of those files to the &Acq directory and give each 
+file a unique name using the &Num object.  The concept that makes this happen with a single 
+command is the &For object.
 
 
 
@@ -153,6 +187,8 @@ Objects:
 &Tmp     The Window %Temp% variable
 &FNM     Each &FOR File Name (Without Path)
 
+%<variable>% - AChoir can also expand the native DOS/Windows Environment Variables
+ Note: To use a native % (prevent expansion) in a script, use %% 
 
 
 Here are the Command Line Options:
@@ -202,5 +238,6 @@ artifacts.  This is an incredibly simple but useful feature.
 
 
 Last Thoughts:
-The AChoir language is pretty simple.  And I will do my best to keep it that way.  To best understand it, please take a look at the Build.ACQ and Achoir.ACQ scripts
+The AChoir language is pretty simple.  And I will do my best to keep it that way.  To best 
+understand it, please take a look at the Build.ACQ and Achoir.ACQ scripts
 
