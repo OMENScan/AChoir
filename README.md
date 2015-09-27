@@ -15,12 +15,14 @@ Windows Live Artifacts Acquisition Scripting Framework
 * AChoir v0.21 - Fix GMT DST idiosyncracy
 * AChoir v0.22 - New ARN: Action - Parse the Run Key and copy the Autorun EXEs
 * AChoir v0.23 - New /MNU Switch - Run the Menu.ACQ script
-
+* AChoir v0.24 - Expand the ARN: routine to recognize WOW64
+  * ...and System32/sysnative wierdness
+* AChoir v0.25 - More improvements to Run Key Extract
+* Achoir v0.25b - Add WinAudit and GPResult to Scripts
 
 # Brief Description:
 Every Incident Responder eventually comes to the conclusion that they need to 
-script their favorite Live Acquisition utilities.  Many times those Live 
-Acquisition scripts are shared only among trusted parties.
+script their favorite Live Acquisition utilities.
 
 I have seen these scripts written in numerous scripting languages - but oddly 
 enough, all of these scripts tend to use many of the same freely available 
@@ -44,4 +46,5 @@ file, run it, and allow it to build the default AChoir Toolkit.
 If you want to buid the toolkit onto an external USB drive, simply install Achoir 
 to your external USB drive, and let the Install program run the build process 
 from there.  Achoir will Install and build the toolkit onto the Drive and 
-Directory it is installed to. 
+Directory it is installed to. This process also works if you want to install/run
+AChoir from a network share.
