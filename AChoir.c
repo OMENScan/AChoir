@@ -29,6 +29,7 @@
 /*                and System32/sysnative wierdness              */
 /* AChoir v0.25 - More improvements to Run Key Extract          */
 /* AChoir v0.26 - Expand system variables %variable%            */
+/* AChoir v0.27 - More improvements in remote acquisition (Map) */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -70,7 +71,7 @@
 #define KEY_WOW64_64KEY 0x0100
 #define KEY_WOW64_32KEY 0x0200
 
-char Version[10] = "v0.26\0" ;
+char Version[10] = "v0.27\0" ;
 char RunMode[10] = "Run\0";
 int  iRanMode = 0 ;
 int  iRunMode = 0 ;
@@ -98,6 +99,7 @@ int  MemAllocErr(char *ErrType) ;
 int  binCopy(char *FrmFile, char *TooFile) ;
 void Time_tToFileTime(time_t InTimeT, int whichTime) ;
 long varConvert(char *inVarRec) ;
+long consInput(char *consString) ;
 
 
 FILE* LogHndl ;
@@ -204,17 +206,20 @@ char o32VarRec[4096] ;
 char o64VarRec[4096] ;
 int  i64x32 ;
 
+char Inprec[255]  ;
+char Conrec[255]  ;
+int  iGoodMap = 0 ;
+int  getKey ;
+
 int main(int argc, char *argv[])
 {
   int i, j ;
   int iPtr, oPtr, ArnPtr ;
   int RunMe, ForMe, Looper, LoopNum ;
-  int getKey ;
 
   char Inrec[4096]  ;
   char Tmprec[2048] ;
   char Filrec[2048] ;
-  char Inprec[255]  ;
   char Cpyrec[4096] ;
   char Exerec[4096] ;
   char Arnrec[2048] ;
@@ -250,6 +255,7 @@ int main(int argc, char *argv[])
   memset(BaseDir, 0, 1024) ;
   memset(BACQDir, 0, 1024) ;
   memset(Inprec, 0, 255) ;
+  memset(Conrec, 0, 255) ;
 
   // What Directory are we in?
   getcwd(BaseDir, 1000) ;
@@ -809,26 +815,8 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\n") ; 
             strtok(Inrec, "\r") ; 
 
-            fprintf(LogHndl, "Inp: [%s]", Inrec+4) ;
-            printf("Inp: %s", Inrec+4) ;
-
-            memset(Inprec, 0, 255) ;
-            fgets(Inprec, 251, stdin) ;
-            strtok(Inprec, "\n") ; 
-            strtok(Inprec, "\r") ; 
-
-            /****************************************************************/
-            /* If our input is too long, clear the rest over 250 chars      */
-            /****************************************************************/
-            if(strlen(Inprec) > 249)
-            {
-              fprintf(LogHndl, "Err: Input Truncated!\n") ;
-              printf("Err: Input Truncated!\n");
-
-              while ((getKey = getchar()) != '\n' && getKey != EOF);
-            }
-
-            fprintf(LogHndl, "%s\n", Inprec) ;
+            consInput(Inrec+4) ;
+            strncpy(Inprec, Conrec, 254) ;
           }
           else
           if(strnicmp(Inrec, "CPY:", 4) == 0)
@@ -1273,38 +1261,51 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\n") ; 
             strtok(Inrec, "\r") ; 
 
-            fprintf(LogHndl, "Map: %s\n", Inrec+4) ;
-            printf("Map: %s\n", Inrec+4) ;
-
-            netRes.dwType = RESOURCETYPE_DISK;
-            netRes.lpRemoteName = Inrec+4 ;
-
-            netRC = WNetUseConnection(NULL, &netRes, NULL, NULL, Flags,
-                    szConnection, &ConnectSize, &ConnectResult);
-
-
-            if(netRC != NO_ERROR)
-            {
-              printf("Err: Error Mapping Resource: %s\n\n", Inrec+4);
-              fprintf(LogHndl, "Err: Error Mapping Resource: %s\n\n", Inrec+4);
-
-              printf("Inf: Do you want to continue without mapping remote?\n");
-
-              getKey = getche() ;
-              if((getKey != 89) && (getKey != 121))
-              {
-                printf("Err: Program Exit Requested.\n");
-                fprintf(LogHndl, "Err: Program Exit Requested.\n");
-                exit (1);
-              }
-            }
+            memset(Conrec, 0, 255) ;
+            if(strlen(Inrec) < 5)
+             consInput("Map: Server\\Share>") ;
             else
-            {
-               printf("Inf: Successfully Mapped %s to drive %s\n", Inrec+4, szConnection);
-               fprintf(LogHndl, "Inf: Successfully Mapped %s to drive %s\n", Inrec+4, szConnection);
-               strncpy(MapDrive, szConnection, 3) ;
+             strncpy(Conrec, Inrec+4, 254) ;
 
-               sprintf(BACQDir, "%s\\%s\0", szConnection, ACQName) ;
+
+            iGoodMap = 0 ;
+            while(iGoodMap == 0)
+            {
+              fprintf(LogHndl, "Map: %s\n", Conrec) ;
+              printf("Map: %s\n", Conrec) ;
+
+              netRes.dwType = RESOURCETYPE_DISK;
+              netRes.lpRemoteName = Conrec ;
+
+              netRC = WNetUseConnection(NULL, &netRes, NULL, NULL, Flags,
+                      szConnection, &ConnectSize, &ConnectResult);
+
+
+              if(netRC != NO_ERROR)
+              {
+                printf("Err: Error Mapping Resource: %s\n\n", Conrec);
+                fprintf(LogHndl, "Err: Error Mapping Resource: %s\n\n", Conrec);
+
+                printf("Map: Please Re-Enter Server\\Drive or \"quit\".\n");
+                memset(Conrec, 0, 255) ;
+                consInput("Map: Server\\Share>") ;
+
+                if(strnicmp(Conrec, "quit", 4) == 0)
+                {
+                  printf("Err: Program Exit Requested.\n");
+                  fprintf(LogHndl, "Err: Program Exit Requested.\n");
+                  exit (1);
+                }
+              }
+              else
+              {
+                 iGoodMap = 1 ;
+                 printf("Inf: Successfully Mapped %s to drive %s\n", Conrec, szConnection);
+                 fprintf(LogHndl, "Inf: Successfully Mapped %s to drive %s\n", Conrec, szConnection);
+                 strncpy(MapDrive, szConnection, 3) ;
+
+                 sprintf(BACQDir, "%s\\%s\0", szConnection, ACQName) ;
+              }
             }
           }
           else
@@ -2572,5 +2573,34 @@ void Time_tToFileTime(time_t InTimeT, int whichTime)
    SystemTimeToFileTime(&convstm, &ToCTime);
   else
    SystemTimeToFileTime(&convstm, &TmpTime);
+}
+
+
+
+/****************************************************************/
+/* Console Input                                                */
+/****************************************************************/
+long consInput(char *consString)
+{
+  fprintf(LogHndl, "Inp: [%s]", consString) ;
+  printf("Inp: %s", consString) ;
+
+  memset(Conrec, 0, 255) ;
+  fgets(Conrec, 251, stdin) ;
+  strtok(Conrec, "\n") ; 
+  strtok(Conrec, "\r") ; 
+
+  /****************************************************************/
+  /* If our input is too long, clear the rest over 250 chars      */
+  /****************************************************************/
+  if(strlen(Conrec) > 249)
+  {
+    fprintf(LogHndl, "Err: Input Truncated!\n") ;
+    printf("Err: Input Truncated!\n");
+
+    while ((getKey = getchar()) != '\n' && getKey != EOF);
+  }
+
+  fprintf(LogHndl, "%s\n", Conrec) ;
 }
 

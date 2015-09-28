@@ -15,7 +15,7 @@ SAY:
 SAY: 1. Map To remote Drive
 SAY:
 SAY: Mapping Remote Drive...
-MAP:\\127.0.0.1\C$
+MAP:
 SAY:
 SAY: 2. Now Switching To Remote Script...
 SAY:
