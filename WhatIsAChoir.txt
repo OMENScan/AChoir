@@ -1,4 +1,4 @@
-AChoir - Beta v0.26
+AChoir - Beta v0.28
 
 
 What is AChoir:
@@ -140,6 +140,8 @@ INI:     SWITCH to another Script File (INI:F:\NewScript.Acq)
 GET:     Get a file using HTTP
 EXE:     Run a Program
 SYS:     Execute a System Command
+USR:     <UserId> to use when mapping a drive (Optional)
+PWD:     <Password> to use when mapping a drive (Optional)
 MAP:     Map to a remote drive share (\\<server>\<share>) and use 
          it as the Acquisition Directory 
 ACQ:     Tell Achoir to create a unique Acquisition directory
@@ -205,6 +207,11 @@ Here are the Command Line Options:
 /DRV:<x:> - Set the &DRV parameter
         This option is designed to allow you to build dead-box scripts,
         and specify a drive variable (the drive letter that has been mounted).
+/USR:<UserId> - UserId to use when mapping a drive (Optional)
+/PWD:<Password> - Password to use when mapping a drive (Optional)
+/MAP:<\\Server\Share> - Map a network drive - THIS SETS THE ACQUISITION AND 
+      CURRENT DIRECTORIES TO THE MAPPED DRIVE - This is mostly used for REMOTE
+      Acquisition 
 
 
 

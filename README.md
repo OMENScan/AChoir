@@ -19,6 +19,11 @@ Windows Live Artifacts Acquisition Scripting Framework
   * ...and System32/sysnative wierdness
 * AChoir v0.25 - More improvements to Run Key Extract
 * Achoir v0.25b - Add WinAudit and GPResult to Scripts
+* AChoir v0.26 - Expand system variables %variable%
+* AChoir v0.27 - More improvements in remote acquisition (Map)
+* AChoir v0.28 - Add /MAP:  /USR:  and  /PWD:  command lines
+  * and MAP:  USR:  and  PWD:  INI file Actions
+  * to enable Mapping for Remote Acquisition
 
 # Brief Description:
 Every Incident Responder eventually comes to the conclusion that they need to 

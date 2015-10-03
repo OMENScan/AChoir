@@ -30,6 +30,9 @@
 /* AChoir v0.25 - More improvements to Run Key Extract          */
 /* AChoir v0.26 - Expand system variables %variable%            */
 /* AChoir v0.27 - More improvements in remote acquisition (Map) */
+/* AChoir v0.28 - Add /MAP:  /USR:  and  /PWD:  command lines   */
+/*                and MAP:  USR:  and  PWD:  INI file Actions   */
+/*                to enable Mapping for Remote Acquisition      */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -71,7 +74,7 @@
 #define KEY_WOW64_64KEY 0x0100
 #define KEY_WOW64_32KEY 0x0200
 
-char Version[10] = "v0.27\0" ;
+char Version[10] = "v0.28\0" ;
 char RunMode[10] = "Run\0";
 int  iRanMode = 0 ;
 int  iRunMode = 0 ;
@@ -100,6 +103,7 @@ int  binCopy(char *FrmFile, char *TooFile) ;
 void Time_tToFileTime(time_t InTimeT, int whichTime) ;
 long varConvert(char *inVarRec) ;
 long consInput(char *consString) ;
+long mapsDrive(char *mapString) ;
 
 
 FILE* LogHndl ;
@@ -206,9 +210,15 @@ char o32VarRec[4096] ;
 char o64VarRec[4096] ;
 int  i64x32 ;
 
+char Inrec[4096]  ;
 char Inprec[255]  ;
 char Conrec[255]  ;
+char inUser[255]  ;
+char inPass[255]  ;
+char inMapp[255]  ;
+char inFnam[255]  ;
 int  iGoodMap = 0 ;
+int  iArgsMap = 0 ;
 int  getKey ;
 
 int main(int argc, char *argv[])
@@ -217,7 +227,6 @@ int main(int argc, char *argv[])
   int iPtr, oPtr, ArnPtr ;
   int RunMe, ForMe, Looper, LoopNum ;
 
-  char Inrec[4096]  ;
   char Tmprec[2048] ;
   char Filrec[2048] ;
   char Cpyrec[4096] ;
@@ -245,26 +254,27 @@ int main(int argc, char *argv[])
   iSec   = lclTime->tm_sec ;
 
 
-
   /****************************************************************/
   /* Set Defaults                                                 */
   /****************************************************************/
-  memset(CurrDir, 0, 1024) ;
   memset(CurrDir, 0, 1024) ;
   memset(TempDir, 0, 1024) ;
   memset(BaseDir, 0, 1024) ;
   memset(BACQDir, 0, 1024) ;
   memset(Inprec, 0, 255) ;
   memset(Conrec, 0, 255) ;
+  memset(inFnam, 0, 255) ;
+  memset(inMapp, 0, 255) ;
+  memset(inUser, 0, 255) ;
+  memset(inPass, 0, 255) ;
 
-  // What Directory are we in?
+  strncpy(inFnam, "AChoir.ACQ\0", 11) ;
+
+
+  /****************************************************************/
+  /* What Directory are we in?                                    */
+  /****************************************************************/
   getcwd(BaseDir, 1000) ;
-
-  // Set Initial File Names
-  sprintf(IniFile, "%s\\AChoir.ACQ\0", BaseDir) ;
-  sprintf(WGetFile, "%s\\AChoir.Dat\0", BaseDir) ;
-  sprintf(ForFile, "%s\\ForFiles\0", BaseDir) ;
-  sprintf(ChkFile, "%s\\AChoir.exe\0", BaseDir) ;
 
 
   /****************************************************************/
@@ -284,8 +294,6 @@ int main(int argc, char *argv[])
   else
    sprintf(ACQName, "ACQ-IR-%04d%02d%02d-%02d%02d\0", iYYYY, iMonth, iDay, iHour, iMin) ;
 
-  sprintf(BACQDir, "%s\\%s\0", BaseDir, ACQName) ;
-
 
   /****************************************************************/
   /* Get the Runmode: (Default == 1)                              */
@@ -295,6 +303,7 @@ int main(int argc, char *argv[])
   /*                                                              */
   /****************************************************************/
   iRunMode = 1 ;
+  iArgsMap = 0 ;
   for(i=1; i<argc; i++)
   {
     if((strnicmp(argv[i], "/Help", 5) == 0) && (strlen(argv[i]) < 255))
@@ -305,6 +314,9 @@ int main(int argc, char *argv[])
       printf(" /MNU  - Run the Menu.ACQ Script (A Simple AChoir Menu)\n") ;
       printf(" /RUN  - Run the AChoir.ACQ Script to do a Live Acquisition\n") ;
       printf(" /DRV:<x:> - Set the &DRV parameter\n") ;
+      printf(" /USR:<UserID> - User to Map to Remote Server\n") ;
+      printf(" /PWD:<Password> - Password to Map to Remote Server\n") ;
+      printf(" /MAP:<Server\\Share> - Map to a Remote Server\n") ;
       printf(" /INI:<File Name> - Run the <File Name> script instead of AChoir.ACQ\n") ;
 
       exit(0) ;
@@ -313,24 +325,21 @@ int main(int argc, char *argv[])
     if((strnicmp(argv[i], "/BLD", 4) == 0) && (strlen(argv[i]) == 4)) 
     {
       strncpy(RunMode, "Bld\0", 4) ;
-      strncpy(IniFile, "Build.ACQ\0", 10) ;
-      printf("Set: Input Script Set:\n     %s\n\n", IniFile) ;
+      strncpy(inFnam, "Build.ACQ\0", 10) ;
       iRunMode = 0 ;
     }
     else
     if((strnicmp(argv[i], "/RUN", 4) == 0) && (strlen(argv[i]) == 4))
     {
       strncpy(RunMode, "Run\0", 4) ;
-      strncpy(IniFile, "AChoir.ACQ\0", 11) ;
-      printf("Set: Input Script Set:\n     %s\n\n", IniFile) ;
+      strncpy(inFnam, "AChoir.ACQ\0", 11) ;
       iRunMode = 1 ;
     }
     else
     if((strnicmp(argv[i], "/MNU", 4) == 0) && (strlen(argv[i]) == 4)) 
     {
       strncpy(RunMode, "Mnu\0", 4) ;
-      strncpy(IniFile, "Menu.ACQ\0", 10) ;
-      printf("Set: Input Script Set:\n     %s\n\n", IniFile) ;
+      strncpy(inFnam, "Menu.ACQ\0", 10) ;
       iRunMode = 3 ;
     }
     else
@@ -346,19 +355,78 @@ int main(int argc, char *argv[])
 
     }
     else
-    if((strnicmp(argv[i], "/INI:", 5) == 0) && (strlen(argv[i]) > 10) && (strlen(argv[i]) < 1000))
+    if((strnicmp(argv[i], "/INI:", 5) == 0) && (strlen(argv[i]) > 10))
     {
-      strncpy(RunMode, "Ini\0", 4) ;
-      memset(IniFile, 0, 1024) ;
-      strncpy(IniFile, argv[i]+5, 1000) ;
-      printf("Set: Input Script Set:\n     %s\n\n", IniFile) ;
-      iRunMode = 2 ;
+      if(strlen(argv[i]) < 254)
+      {
+        strncpy(RunMode, "Ini\0", 4) ;
+        strncpy(inFnam, argv[i]+5, 254) ;
+        iRunMode = 2 ;
+      }
+      else
+       printf("Err: /INI:  Too Long (Greater than 254 chars)\n") ;
+    }
+    else
+    if(strnicmp(argv[i], "/MAP:", 5) == 0)
+    {
+      if(strlen(argv[i]) < 254)
+      {
+        iArgsMap = 1 ;
+        memset(inMapp, 0, 255) ;
+        strncpy(inMapp, argv[i]+5, 254) ;
+      }
+      else
+       printf("Err: /MAP:  Too Long (Greater than 254 chars)\n") ;
+    }
+    else
+    if(strnicmp(argv[i], "/USR:", 5) == 0)
+    {
+      if(strlen(argv[i]) < 254)
+      {
+        memset(inUser, 0, 255) ;
+        strncpy(inUser, argv[i]+5, 254) ;
+      }
+      else
+       printf("Err: /USR:  Too Long (Greater than 254 chars)\n") ;
+    }
+    else
+    if(strnicmp(argv[i], "/PWD:", 5) == 0)
+    {
+      if(strlen(argv[i]) < 254)
+      {
+        memset(inPass, 0, 255) ;
+        strncpy(inPass, argv[i]+5, 254) ;
+      }
+      else
+       printf("Err: /PWD:  Too Long (Greater than 254 chars)\n") ;
     }
     else
     {
       printf("Err: Bad Argument: %s\n", argv[i]) ;
     }
   }
+
+
+  /****************************************************************/
+  /* Should we Map a Drive First?  If yes, set the BaseDir too.   */
+  /****************************************************************/
+  if(iArgsMap == 1)
+  {
+    mapsDrive(inMapp) ;
+    strncpy(BaseDir, MapDrive, 4) ;
+  }
+
+
+
+  /****************************************************************/
+  /* Set Initial File Names (BaseDir needs to be set 1st)         */
+  /****************************************************************/
+  sprintf(IniFile, "%s\\%s\0", BaseDir, inFnam) ;
+  sprintf(WGetFile, "%s\\AChoir.Dat\0", BaseDir) ;
+  sprintf(ForFile, "%s\\ForFiles\0", BaseDir) ;
+  sprintf(ChkFile, "%s\\AChoir.exe\0", BaseDir) ;
+  sprintf(BACQDir, "%s\\%s\0", BaseDir, ACQName) ;
+
 
 
   /****************************************************************/
@@ -383,9 +451,11 @@ int main(int argc, char *argv[])
 
   printf("Inf: AChoir ver: %s, Mode: %s\n", Version, RunMode) ;
   printf("Inf: Directory Has Been Set To: %s\\%s\n", BaseDir, CurrDir) ;
+  printf("Set: Input Script Set:\n     %s\n\n", IniFile) ;
 
   fprintf(LogHndl, "Inf: AChoir ver: %s, Mode: %s\n", Version, RunMode) ;
   fprintf(LogHndl, "Inf: Directory Has Been Set To: %s\\%s\n", BaseDir, CurrDir) ;
+  fprintf(LogHndl, "Set: Input Script Set:\n     %s\n\n", IniFile) ;
 
 
 
@@ -1253,6 +1323,30 @@ int main(int argc, char *argv[])
             exit (LastRC) ;
           }
           else
+          if(strnicmp(Inrec, "USR:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Map to an External Drive & Set it to ACQ Directory           */
+            /****************************************************************/
+            strtok(Inrec, "\n") ; 
+            strtok(Inrec, "\r") ; 
+
+            memset(inUser, 0, 255) ;
+            strncpy(inUser, Inrec+4, 254) ;
+          }
+          else
+          if(strnicmp(Inrec, "PWD:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Map to an External Drive & Set it to ACQ Directory           */
+            /****************************************************************/
+            strtok(Inrec, "\n") ; 
+            strtok(Inrec, "\r") ; 
+
+            memset(inPass, 0, 255) ;
+            strncpy(inPass, Inrec+4, 254) ;
+          }
+          else
           if(strnicmp(Inrec, "MAP:", 4) == 0)
           {
             /****************************************************************/
@@ -1261,52 +1355,7 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\n") ; 
             strtok(Inrec, "\r") ; 
 
-            memset(Conrec, 0, 255) ;
-            if(strlen(Inrec) < 5)
-             consInput("Map: Server\\Share>") ;
-            else
-             strncpy(Conrec, Inrec+4, 254) ;
-
-
-            iGoodMap = 0 ;
-            while(iGoodMap == 0)
-            {
-              fprintf(LogHndl, "Map: %s\n", Conrec) ;
-              printf("Map: %s\n", Conrec) ;
-
-              netRes.dwType = RESOURCETYPE_DISK;
-              netRes.lpRemoteName = Conrec ;
-
-              netRC = WNetUseConnection(NULL, &netRes, NULL, NULL, Flags,
-                      szConnection, &ConnectSize, &ConnectResult);
-
-
-              if(netRC != NO_ERROR)
-              {
-                printf("Err: Error Mapping Resource: %s\n\n", Conrec);
-                fprintf(LogHndl, "Err: Error Mapping Resource: %s\n\n", Conrec);
-
-                printf("Map: Please Re-Enter Server\\Drive or \"quit\".\n");
-                memset(Conrec, 0, 255) ;
-                consInput("Map: Server\\Share>") ;
-
-                if(strnicmp(Conrec, "quit", 4) == 0)
-                {
-                  printf("Err: Program Exit Requested.\n");
-                  fprintf(LogHndl, "Err: Program Exit Requested.\n");
-                  exit (1);
-                }
-              }
-              else
-              {
-                 iGoodMap = 1 ;
-                 printf("Inf: Successfully Mapped %s to drive %s\n", Conrec, szConnection);
-                 fprintf(LogHndl, "Inf: Successfully Mapped %s to drive %s\n", Conrec, szConnection);
-                 strncpy(MapDrive, szConnection, 3) ;
-
-                 sprintf(BACQDir, "%s\\%s\0", szConnection, ACQName) ;
-              }
-            }
+            mapsDrive(Inrec+4) ;
           }
           else
           if(strnicmp(Inrec, "SYS:", 4) == 0)
@@ -2603,4 +2652,59 @@ long consInput(char *consString)
 
   fprintf(LogHndl, "%s\n", Conrec) ;
 }
+
+
+
+/****************************************************************/
+/* Console Input                                                */
+/****************************************************************/
+long mapsDrive(char *mapString)
+{
+  memset(Conrec, 0, 255) ;
+  if(strlen(mapString) < 1)
+   consInput("Map: Server\\Share>") ;
+  else
+   strncpy(Conrec, mapString, 254) ;
+
+
+  iGoodMap = 0 ;
+  while(iGoodMap == 0)
+  {
+    fprintf(LogHndl, "Map: %s\n", Conrec) ;
+    printf("Map: %s\n", Conrec) ;
+
+    netRes.dwType = RESOURCETYPE_DISK;
+    netRes.lpRemoteName = Conrec ;
+
+    // netRC = WNetUseConnection(NULL, &netRes, NULL, NULL, Flags, szConnection, &ConnectSize, &ConnectResult);
+    netRC = WNetUseConnection(NULL, &netRes, inPass, inUser, Flags, szConnection, &ConnectSize, &ConnectResult);
+
+    if(netRC != NO_ERROR)
+    {
+      printf("Err: Error Mapping Resource: %s\n\n", Conrec);
+      fprintf(LogHndl, "Err: Error Mapping Resource: %s\n\n", Conrec);
+
+      printf("Map: Please Re-Enter Server\\Drive or \"quit\".\n");
+      memset(Conrec, 0, 255) ;
+      consInput("Map: Server\\Share>") ;
+
+      if(strnicmp(Conrec, "quit", 4) == 0)
+      {
+        printf("Err: Program Exit Requested.\n");
+        fprintf(LogHndl, "Err: Program Exit Requested.\n");
+        exit (1);
+      }
+    }
+    else
+    {
+       iGoodMap = 1 ;
+       printf("Inf: Successfully Mapped %s to drive %s\n", Conrec, szConnection);
+       fprintf(LogHndl, "Inf: Successfully Mapped %s to drive %s\n", Conrec, szConnection);
+       strncpy(MapDrive, szConnection, 3) ;
+
+       sprintf(BACQDir, "%s\\%s\0", szConnection, ACQName) ;
+    }
+  }
+}
+
 
