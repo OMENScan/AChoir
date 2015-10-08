@@ -163,9 +163,13 @@ ARN:
 SAY:
 SYS:&Map\SYS\Autorunsc.exe /accepteula -a * -c -h > &Acq\AutoRun.dat
 SAY:
-SAY: 22. Gathering All User Registries...
+SAY: 22a. Gathering Current (Open) User Registry...
 SAY:
 ACQ:\Reg
+EXE:&Map\DSK\RawCopy64.exe %userProfile%\NTUSER.DAT &Acq
+SAY:
+SAY: 22b. Gathering All User Registries...
+SAY:
 FOR:C:\Users\NTUSER.DAT
 EXE:&Map\SYS\RegfileExport.exe "&For" &Acq\NTUSER(&Num).EXP
 *YS:Echo F | XCopy &For "&Acq\NTUSER.DAT(&Num)" /H
