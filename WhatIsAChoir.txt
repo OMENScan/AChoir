@@ -1,4 +1,10 @@
-AChoir - Beta v0.28
+AChoir - Beta v0.31
+
+AChoir MSVC/WinHTTP
+===================
+AChoir has been converted to MSVC and Win HTTP.  The original AChoir (Mingw and libcurl) will 
+be left intact for those that prefer MingW under AChoir-Legacy.  However, 
+all future development will be done to this version.  
 
 
 What is AChoir:
@@ -132,6 +138,10 @@ Here is a list of all the Actions and Objects:
 Actions:
 ========
 SAY:     Echo Text and Objects to the Screen and Logfile
+ADM:Check Check if AChoir is running as an Administrator,
+           and warn if it is not
+ADM:Force  Check if AChoir is running as an Administrator,
+           and EXIT OUT if it is not
 INP:     Input from console. (INP:<Display This Text>)
          Display text and get input into variable &Inp 
          IMPORTANT NOTE: Longer input is TRUNCATED to 250 chars
@@ -176,6 +186,7 @@ Objects:
 ========
 &Dir     The Current Directory Object
 &Inp     Input from console (INP: Action) 
+&Tim     The Local Time Set on the computer - Please Note: It may not be accurate.
 &Fil     The Current File Object
 &Acq     The Current Acquisition Directory
 &For     An array of File objects set by the FOR: action
