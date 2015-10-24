@@ -1,10 +1,9 @@
 # AChoir
 Windows Live Artifacts Acquisition Scripting Framework
 
-AChoir has now been Converted to MSVC and Win HTTP.  
-The original AChoir (Mingw and libcurl) will be left intact under 
-AChoir-Legacy for those that prefer MingW.  However, all future development 
-will be done to this fork.
+AChoir has now been Converted to MSVC and Win HTTP. The original AChoir 
+(Mingw and libcurl) will be left intact under AChoir-Legacy for those that 
+prefer MingW.  However, all future development will be done to this fork.
 
 
 * AChoir v0.08 - Released as Open Source at my Live Acquisition presentation 
@@ -34,6 +33,8 @@ will be done to this fork.
 * AChoir v0.29 - Add ADM:Check and ADM:Force to check OR enforce that AChoir be run from an ADMIN ID
   - Converted to MSVC 
   - Also replaced libCurl with MS WinHTTP APIs
+* AChoir v0.30 - Improve CPY: - Prevent Overwriting Files
+* AChoir v0.31 - Start and End Time Stamps and &Tim variable
 
 
 # Brief Description:
