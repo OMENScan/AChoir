@@ -4,6 +4,12 @@
 * - Created by D0n Quix0te/OMENScan (May 2015)    *
 * - Inspired by many other tools                  *
 ***************************************************
+64B:
+SAY:
+SAY: AChoir - 64 Bit Detected...  Switching to 64 Bit Script...
+SAY:
+INI:AChoir64.ACQ
+END:
 SAY:
 SAY: AChoir will scan the Hard drive and pull forensics for investigation.
 SAY:
@@ -23,18 +29,16 @@ SAY:
 SAY: 2. Parsing Prefetch Directory...
 SAY:
 ACQ:\SYS
-*YS:Copy &Win\prefetch\*.* &Acq\*.*
 For:&Win\prefetch\*.*
 CPY:"&For" "&Acq\&Fnm"
 SYS:Dir &Win\prefetch /a /q /r > &Acq\Prefetch.dat
-***:\SYS\parse_prefetch_info.exe -p &Win\Prefetch -d &Acq\prefetch.db -o &Acq -r csv -w vista
 EXE:\SYS\WinPrefetchView.exe /scomma &Acq\WinPrefetchview.dat
 SAY:
 SAY: 3a. Copy Raw $MFT and $LogFile...
 SAY:
 ACQ:\RawData
-EXE:\DSK\RawCopy64.exe C:0 &Acq
-EXE:\DSK\RawCopy64.exe C:2 &Acq
+EXE:\DSK\RawCopy.exe C:0 &Acq
+EXE:\DSK\RawCopy.exe C:2 &Acq
 SAY:
 SAY: 3b. Now Parsing $MFT...
 SAY:
@@ -42,11 +46,11 @@ EXE:\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT
 SAY:
 SAY: 3c. Now Extracting USNJrnl...
 SAY:
-EXE:\DSK\ExtractUSNJrnl64.exe C: &Acq
+EXE:\DSK\ExtractUSNJrnl.exe C: &Acq
 SAY:
 SAY: 3d. Now Parsing USNJrnl...
 SAY:
-SYS:fsutil usn readjournal C: csv > &Acq\USN64Jrnl.dat
+SYS:fsutil usn readjournal C: csv > &Acq\USNJrnl.dat
 SAY:
 SAY: 4a. Gathering System Information...
 SAY:
@@ -87,14 +91,12 @@ SYS:\SYS\PSLogList.exe /accepteula -s System > &Acq\EvtSys.dat
 SAY:
 SAY: 6b. Copying EventViewer Logs...
 SAY:
-*YS:Copy &Win\sysnative\winevt\Logs\*.* &Acq\*.*
 For:&Win\sysnative\winevt\Logs\*.*
 CPY:"&For" "&Acq\&Fnm"
 SAY:
 SAY: 7. Parsing Hosts And Services Directory...
 SAY:
 ACQ:\SYS
-*YS:Copy &Win\sysnative\Drivers\Etc\*.*  &Acq\*.*
 For:&Win\sysnative\Drivers\Etc\*.*
 CPY:"&For" "&Acq\&Fnm"
 SAY:
@@ -166,7 +168,7 @@ SAY:
 SAY: 22a. Gathering Current (Open) User Registry...
 SAY:
 ACQ:\Reg
-EXE:\DSK\RawCopy64.exe %userProfile%\NTUSER.DAT &Acq
+EXE:\DSK\RawCopy.exe %userProfile%\NTUSER.DAT &Acq
 SAY:
 SAY: 22b. Gathering All User Registries...
 SAY:

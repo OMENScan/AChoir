@@ -4,12 +4,6 @@
 * - Created by D0n Quix0te/OMENScan (May 2015)    *
 * - Inspired by many other tools                  *
 ***************************************************
-64B:
-SAY:
-SAY: AChoir - 64 Bit Detected...  Switching to 64 Bit Script...
-SAY:
-INI:AChoir64.ACQ
-END:
 SAY:
 SAY: AChoir will scan the Hard drive and pull forensics for investigation.
 SAY:
@@ -37,8 +31,8 @@ SAY:
 SAY: 3a. Copy Raw $MFT and $LogFile...
 SAY:
 ACQ:\RawData
-EXE:\DSK\RawCopy.exe C:0 &Acq
-EXE:\DSK\RawCopy.exe C:2 &Acq
+EXE:\DSK\RawCopy64.exe C:0 &Acq
+EXE:\DSK\RawCopy64.exe C:2 &Acq
 SAY:
 SAY: 3b. Now Parsing $MFT...
 SAY:
@@ -46,11 +40,11 @@ EXE:\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT
 SAY:
 SAY: 3c. Now Extracting USNJrnl...
 SAY:
-EXE:\DSK\ExtractUSNJrnl.exe C: &Acq
+EXE:\DSK\ExtractUSNJrnl64.exe C: &Acq
 SAY:
 SAY: 3d. Now Parsing USNJrnl...
 SAY:
-SYS:fsutil usn readjournal C: csv > &Acq\USNJrnl.dat
+SYS:fsutil usn readjournal C: csv > &Acq\USN64Jrnl.dat
 SAY:
 SAY: 4a. Gathering System Information...
 SAY:
@@ -91,13 +85,13 @@ SYS:\SYS\PSLogList.exe /accepteula -s System > &Acq\EvtSys.dat
 SAY:
 SAY: 6b. Copying EventViewer Logs...
 SAY:
-For:&Win\sysnative\winevt\Logs\*.*
+For:&Win\System32\winevt\Logs\*.*
 CPY:"&For" "&Acq\&Fnm"
 SAY:
 SAY: 7. Parsing Hosts And Services Directory...
 SAY:
 ACQ:\SYS
-For:&Win\sysnative\Drivers\Etc\*.*
+For:&Win\System32\Drivers\Etc\*.*
 CPY:"&For" "&Acq\&Fnm"
 SAY:
 SAY: 8. Parsing Environment Variables...
@@ -129,7 +123,7 @@ SYS:Arp -a > &Acq\ArpInfo.dat
 SAY:
 SAY: 14. Gathering NetBIOS Information...
 SAY:
-SYS:&Win\sysnative\NBTStat.exe -scn > &Acq\NetBios.dat
+SYS:&Win\System32\NBTStat.exe -scn > &Acq\NetBios.dat
 SAY:
 SAY: 15. Gathering Open Files/Process Information...
 SAY:
@@ -168,13 +162,12 @@ SAY:
 SAY: 22a. Gathering Current (Open) User Registry...
 SAY:
 ACQ:\Reg
-EXE:\DSK\RawCopy.exe %userProfile%\NTUSER.DAT &Acq
+EXE:\DSK\RawCopy64.exe %userProfile%\NTUSER.DAT &Acq
 SAY:
 SAY: 22b. Gathering All User Registries...
 SAY:
 FOR:C:\Users\NTUSER.DAT
 EXE:\SYS\RegfileExport.exe "&For" &Acq\NTUSER(&Num).EXP
-*YS:Echo F | XCopy "&For" "&Acq\NTUSER.DAT(&Num)" /H
 CPY:"&For" "&Acq\&Fnm(&Num)"
 SAY:
 SAY: 23. Now Extracting Browser History...
