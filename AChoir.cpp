@@ -40,6 +40,8 @@
 /* AChoir v0.30 - Improve CPY: - Prevent Overwriting Files      */
 /* AChoir v0.31 - Start and End Time Stamps and &Tim variable   */
 /* AChoir v0.32 - Changes to support 32 and 64 Bit versions!    */
+/* AChoir v0.33 - Turn On/Off USB Write Protect                 */
+/* AChoir v0.34 - Internal Code Cleanup                         */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -80,7 +82,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.32\0";
+char Version[10] = "v0.34\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -114,6 +116,8 @@ long mapsDrive(char *mapString, int mapLog);
 int PreIndex();
 BOOL IsUserAdmin(VOID);
 void showTime(char *showText);
+void USB_Protect(DWORD USBOnOff);
+int  cleanUp_Exit(int exitRC);
 
 
 FILE* LogHndl;
@@ -215,6 +219,8 @@ REGSAM samWOW32 = KEY_READ | KEY_WOW64_32KEY;
 REGSAM samDesired = KEY_READ;
 long OpenK;
 long OpenRC;
+long ReadK;
+long MakeK;
 
 HKEY  hKey = HKEY_LOCAL_MACHINE;
 
@@ -318,7 +324,7 @@ int main(int argc, char *argv[])
   else
     sprintf(ACQName, "ACQ-IR-%04d%02d%02d-%02d%02d\0", iYYYY, iMonth, iDay, iHour, iMin);
 
-
+  
   /****************************************************************/
   /* Get the Runmode: (Default == 1)                              */
   /*  BLD = Go Get the Utilities via cURL                         */
@@ -379,7 +385,7 @@ int main(int argc, char *argv[])
 
     }
     else
-    if ((strnicmp(argv[i], "/INI:", 5) == 0) && (strlen(argv[i]) > 10))
+    if ((strnicmp(argv[i], "/INI:", 5) == 0) && (strlen(argv[i]) > 5))
     {
       if (strlen(argv[i]) < 254)
       {
@@ -922,7 +928,7 @@ int main(int argc, char *argv[])
               {
                 fprintf(LogHndl, "Err: Could Not Open INI File: %s - Exiting.\n", Inrec + 4);
                 printf("Err: Could Not Open INI File: %s - Exiting.\n", Inrec + 4);
-                exit(3);
+                cleanUp_Exit(3);
               }
             }
           }
@@ -964,7 +970,7 @@ int main(int argc, char *argv[])
             {
               printf("Err: Script IS NOT Running As Admin!\n     Please Re-Run As Admin!\n     Exiting.\n");
               fprintf(LogHndl, "Err: Running As NON-Admin\n     Please Re-Run as Admin!\n     Exiting.");
-              exit(3);
+              cleanUp_Exit(3);
             }
           }
           else
@@ -978,6 +984,26 @@ int main(int argc, char *argv[])
 
             consInput(Inrec + 4, 1);
             strncpy(Inprec, Conrec, 254);
+          }
+          if (strnicmp(Inrec, "USB:Protect", 11) == 0)
+          {
+            /****************************************************************/
+            /* Check Last Return Code = n                                   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            USB_Protect(1);
+          }
+          if (strnicmp(Inrec, "USB:Enable", 10) == 0)
+          {
+            /****************************************************************/
+            /* Check Last Return Code = n                                   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            USB_Protect(0);
           }
           else
           if (strnicmp(Inrec, "CPY:", 4) == 0)
@@ -1292,7 +1318,7 @@ int main(int argc, char *argv[])
             {
               fprintf(LogHndl, "Required File Not Found: %s - Exiting!\n", Inrec + 4);
               printf("Required File Not Found: %s - Exiting!\n", Inrec + 4);
-              exit(3);
+              cleanUp_Exit(3);
             }
             else
             {
@@ -1327,7 +1353,7 @@ int main(int argc, char *argv[])
             {
               fprintf(LogHndl, "\nYou have requested Achoir to Quit.\n");
               printf("\nYou have requested Achoir to Quit.\n");
-              exit(0);
+              cleanUp_Exit(0);
             }
           }
           else
@@ -1412,7 +1438,7 @@ int main(int argc, char *argv[])
               unlink(ForFile);
             
             fclose(LogHndl);
-            exit(LastRC);
+            cleanUp_Exit(LastRC);
           }
           else
           if (strnicmp(Inrec, "USR:", 4) == 0)
@@ -1699,9 +1725,8 @@ int main(int argc, char *argv[])
   {
     fprintf(LogHndl, "\nErr: Input Script Not Found:\n     %s\n\n", IniFile);
     printf("\nErr: Input Script Not Found:\n     %s\n\n", IniFile);
-    exit(1);
+    cleanUp_Exit(1);
   }
-
 
 
   /****************************************************************/
@@ -1713,57 +1738,9 @@ int main(int argc, char *argv[])
     printf("Err: You have and extra END: Hanging! Check your Logic.\n");
   }
 
-  if (access(ForFile, 0) == 0)
-    unlink(ForFile);
-
-
-  if (iHtmMode == 1)
-  {
-    fprintf(HtmHndl, "</td><td align=right>\n");
-    fprintf(HtmHndl, "<button onclick=\"window.history.forward()\">&gt;&gt;</button>\n");
-    fprintf(HtmHndl, "</td></tr></table>\n<p>\n");
-    fprintf(HtmHndl, "<iframe name=AFrame height=400 width=900 scrolling=auto src=file:./></iframe>\n");
-    fprintf(HtmHndl, "</p>\n</body></html>\n");
-
-    fclose(HtmHndl);
-  }
-
-
-  if (iRunMode == 1)
-  {
-    fprintf(LogHndl, "Inf: Setting All Artifacts to Read-Only.\n");
-    printf("Inf: Setting All Artifacts to Read-Only.\n");
-
-    sprintf(TempDir, "%s\\*.*\0", BACQDir);
-    ListDir(TempDir, "ROS");
-  }
-
-
-  /****************************************************************/
-  /* All Done with Acquisition                    `               */
-  /****************************************************************/
-  showTime("Acquisition Completed");
-
-
-  /****************************************************************/
-  /* Make a Copy of the Logfile in the ACQDirectory               */
-  /****************************************************************/
-  if (access(BACQDir, 0) == 0)
-  {
-    fprintf(LogHndl, "Inf: Copying Log File...\n");
-    printf("Inf: Copying Log File...\n");
-
-    //Very Last Log Entry - Close Log now, and copy WITHOUT LOGGING
-    fclose(LogHndl);
-
-    sprintf(CpyFile, "%s\\ACQ-IR-%04d%02d%02d-%02d%02d.Log\0", BACQDir, iYYYY, iMonth, iDay, iHour, iMin);
-    binCopy(LogFile, CpyFile, 0);
-  }
-
+  cleanUp_Exit(0);
 
   exit(0);
-  return 0;
-
 }
 
 
@@ -2904,7 +2881,7 @@ long mapsDrive(char *mapString, int mapLog)
         if (mapLog == 1)
           fprintf(LogHndl, "Err: Program Exit Requested.\n");
 
-        exit(1);
+        cleanUp_Exit(1);
       }
     }
     else
@@ -3002,3 +2979,194 @@ void showTime(char *showText)
 }
 
 
+
+void USB_Protect(DWORD USBOnOff)
+{
+  /****************************************************************/
+  /* SetUSB Protection On(1) or Off(0)                            */
+  /****************************************************************/
+  DWORD dwUSB = REG_DWORD;
+  DWORD numUSB = 0;
+  DWORD cbUSB = sizeof(numUSB);
+  int getLoop, gotSet;
+
+  gotSet = 0;
+  OpenK = RegCreateKeyEx(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\StorageDevicePolicies", 
+          NULL, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &phkResult, NULL);
+  if (OpenK == ERROR_SUCCESS)
+  {
+    ReadK = RegQueryValueEx(phkResult, "WriteProtect", NULL, &dwUSB, (LPBYTE)&numUSB, &cbUSB);
+    if (ReadK == ERROR_SUCCESS)
+    {
+      if (numUSB == 0)
+      {
+        fprintf(LogHndl, "USB WriteProtect Key: Off\n");
+        printf("USB WriteProtect Key: Off\n");
+      }
+      else
+      {
+        fprintf(LogHndl, "USB WriteProtect Key: On\n");
+        printf("USB WriteProtect Key: On\n");
+      }
+    }
+    else
+    if (ReadK == ERROR_FILE_NOT_FOUND)
+    {
+      fprintf(LogHndl,"USB WriteProtect Key Is Empty (Off)\n");
+      printf("USB WriteProtect Key Is Empty (Off)\n");
+    }
+    else
+    {
+      fprintf(LogHndl, "Error Reading USB Write Protect Key!\n");
+      printf("Error Reading USB Write Protect Key!\n");
+    }
+
+    // No Need to Set it if already set 
+    if (numUSB == USBOnOff)
+      gotSet = 1;
+    else
+    {
+      if (USBOnOff == 0)
+      {
+        fprintf(LogHndl, "Resetting WriteProtect Key To: Off\n");
+        printf("Resetting WriteProtect Key To: Off\n");
+      }
+      else
+      {
+        fprintf(LogHndl, "Resetting WriteProtect Key To: On\n");
+        printf("Resetting WriteProtect Key To: On\n");
+      }
+
+
+      MakeK = RegSetValueEx(phkResult, "WriteProtect", 0, REG_DWORD, (LPBYTE)&USBOnOff, sizeof(DWORD));
+      if (MakeK == ERROR_SUCCESS)
+      {
+        gotSet = 1;
+
+        fprintf(LogHndl, "USB WriteProtect Key Set Succesfully\n");
+        printf("USB WriteProtect Key Set Succesfully\n");
+        
+        if (USBOnOff == 1)
+        {
+          fprintf(LogHndl, " Important Note: ONLY NEW ATTACHED DRIVES WILL BE WRITE PROTECTED.\n");
+          printf(" Important Note: ONLY NEW ATTACHED DRIVES WILL BE WRITE PROTECTED.\n");
+        }
+      }
+      else
+      {
+        fprintf(LogHndl, "\n* * * USB WriteProtect Key WAS NOT Set Succesfully * * *\n");
+        printf("\n* * * USB WriteProtect Key WAS NOT Set Succesfully * * *\n");
+      }
+    }
+  }
+  else 
+    if (OpenK == ERROR_FILE_NOT_FOUND)
+    {
+      fprintf(LogHndl, "Could Not Open/Create USB WriteProtect Key\n");
+      printf("Could Not Open/Create USB WriteProtect Key\n");
+    }
+  else 
+  if (OpenK == ERROR_ACCESS_DENIED)
+  {
+    fprintf(LogHndl, "USB WriteProtect Key Access Denied\n");
+    printf("USB WriteProtect Key Access Denied\n");
+
+    if (iIsAdmin == 0)
+    {
+      fprintf(LogHndl, " USB WriteProtect Key Requires ADMIN Priveleges\n");
+      printf(" USB WriteProtect Key Requires ADMIN Priveleges\n");
+    }
+  }
+  else
+  {
+    fprintf(LogHndl, "USB WriteProtect Key Registry Error: %d\n", OpenK);
+    printf("USB WriteProtect Key Registry Error: %d\n", OpenK);
+  }
+
+
+  if (gotSet == 0)
+  {
+    getLoop = 0;
+
+    fprintf(LogHndl, "\nError Setting USB Write Protect Key!\n  Enter \"c\" to continue or \"x\" To Exit\n");
+    printf("\nError Setting USB Write Protect Key!\n  Enter \"c\" to continue or \"x\" To Exit\n");
+
+    while (getLoop == 0)
+    {
+      getKey = getche();
+      if ((getKey == 67) || (getKey == 99))
+      {
+        fprintf(LogHndl, "\nYou have requested Achoir to Continue.\n");
+        printf("\nYou have requested Achoir to Continue.\n");
+        getLoop = 1;
+      }
+
+      if ((getKey == 88) || (getKey == 120))
+      {
+        fprintf(LogHndl, "\nYou have requested Achoir to Exit.\n");
+        printf("\nYou have requested Achoir to Exit.\n");
+        cleanUp_Exit(0);
+      }
+    }
+  }
+}
+
+
+
+int cleanUp_Exit(int exitRC)
+{
+/****************************************************************/
+/* Cleanup                                                      */
+/****************************************************************/
+if (access(ForFile, 0) == 0)
+unlink(ForFile);
+
+
+if (iHtmMode == 1)
+{
+  fprintf(HtmHndl, "</td><td align=right>\n");
+  fprintf(HtmHndl, "<button onclick=\"window.history.forward()\">&gt;&gt;</button>\n");
+  fprintf(HtmHndl, "</td></tr></table>\n<p>\n");
+  fprintf(HtmHndl, "<iframe name=AFrame height=400 width=900 scrolling=auto src=file:./></iframe>\n");
+  fprintf(HtmHndl, "</p>\n</body></html>\n");
+
+  fclose(HtmHndl);
+}
+
+
+if (iRunMode == 1)
+{
+  fprintf(LogHndl, "Inf: Setting All Artifacts to Read-Only.\n");
+  printf("Inf: Setting All Artifacts to Read-Only.\n");
+
+  sprintf(TempDir, "%s\\*.*\0", BACQDir);
+  ListDir(TempDir, "ROS");
+}
+
+
+/****************************************************************/
+/* All Done with Acquisition                    `               */
+/****************************************************************/
+showTime("Acquisition Completed");
+
+
+/****************************************************************/
+/* Make a Copy of the Logfile in the ACQDirectory               */
+/****************************************************************/
+if (access(BACQDir, 0) == 0)
+{
+  fprintf(LogHndl, "Inf: Copying Log File...\n");
+  printf("Inf: Copying Log File...\n");
+
+  //Very Last Log Entry - Close Log now, and copy WITHOUT LOGGING
+  fclose(LogHndl);
+
+  sprintf(CpyFile, "%s\\ACQ-IR-%04d%02d%02d-%02d%02d.Log\0", BACQDir, iYYYY, iMonth, iDay, iHour, iMin);
+  binCopy(LogFile, CpyFile, 0);
+}
+
+
+exit(exitRC) ;
+return exitRC ;
+
+}

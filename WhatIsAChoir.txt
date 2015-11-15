@@ -1,10 +1,10 @@
-AChoir - Beta v0.31
+AChoir - Beta v0.34
 
-AChoir MSVC/WinHTTP
-===================
-AChoir has been converted to MSVC and Win HTTP.  The original AChoir (Mingw and libcurl) will 
-be left intact for those that prefer MingW under AChoir-Legacy.  However, 
-all future development will be done to this version.  
+AChoir
+======
+This is a fork of the original AChoir - Converted to MSVC and Win HTTP.  The original 
+AChoir (Mingw and libcurl) will be left intact for those that prefer MingW/libcurl as 
+AChoir-Legacy.  However, all future development will be done to this fork.  
 
 
 What is AChoir:
@@ -166,7 +166,16 @@ FOR:     Set the &FOR object.  This is a Looping object based on
 CPY:     Copy Files (CPY:<FromFile> <ToFile>) - Supports Quotes
 ARN:     Search Registry Run Key and copy the EXEs 
          (possible malware persistence)
+USB:Protect  Sets the Windows USB WriteProtect Registry key to 1
+             (Enable USB Write Protection) - Newly attached USB 
+             devices will be write protected by Windows 
+USB:Enable   Sets the Windows USB WriteProtect Registry key to 0
+             (DISABLES USB Write Protection) 
 CKY:     Check if a File exists. If it does, run until an "END:" 
+         action
+64B:     Check if 64 Bit AChoir is Running - If so, run until an "END:" 
+         action
+32B:     Check if 32 Bit AChoir is Running - If so, run until an "END:" 
          action
 CKN:     Check if a File does not exist. If it doesn't, run until 
          an "END:" action
