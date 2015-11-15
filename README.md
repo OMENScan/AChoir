@@ -35,6 +35,9 @@ prefer MingW.  However, all future development will be done to this fork.
   - Also replaced libCurl with MS WinHTTP APIs
 * AChoir v0.30 - Improve CPY: - Prevent Overwriting Files
 * AChoir v0.31 - Start and End Time Stamps and &Tim variable
+* AChoir v0.32 - Changes to support 32 and 64 Bit versions!
+* AChoir v0.33 - New Option (USB:) Turn On/Off USB Write Protect
+* AChoir v0.34 - Internal Code Cleanup
 
 
 # Brief Description:
