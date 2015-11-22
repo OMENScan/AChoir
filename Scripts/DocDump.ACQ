@@ -1,0 +1,109 @@
+***************************************************
+* Live Document Acquisition Script (1.0)          *
+* - Pulls Common File Types from disk             *
+* - Created by D0n Quix0te/OMENScan (May 2015)    *
+***************************************************
+SAY:
+SAY: * * *   Please MAKE SURE you are running this as an Administrator  * * * 
+SAY: * * * Administrator right are required for many of these utilities * * * 
+SAY:
+SAY: AChoir will scan the Hard drive and pull the following Files:
+SAY:  *.DOC, *.ODF, *.XLS, *.ODT, *.PPT, *.ODS, *.PDF
+SAY:  *.PST, *.OST, *.EML, *.MBOX, *.DBX, *.MSF
+SAY:
+PZZ: Press Any Key to Continue, or q to QUIT
+SAY:
+SAY: 00. Save The Raw $MFT and $LogFile...
+SAY:
+ACQ:\RawData
+EXE:\DSK\RawCopy.exe C:0 &Acq
+EXE:\DSK\RawCopy.exe C:2 &Acq
+SAY:
+ACQ:\DOC
+SAY:
+SAY: 1a. Now Finding All DOC files...  This may take a while...
+For:C:\*.Doc
+SAY:
+SAY: 1b. Now Copying All DOC files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+SAY:
+SAY: 1c. Now Finding All ODF files...  This may take a while...
+For:C:\*.Odf
+SAY:
+SAY: 1d. Now Copying All ODF files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+SAY:
+ACQ:\XLS
+SAY:
+SAY: 2a. Now Finding All XLS files...  This may take a while...
+For:C:\*.Xls
+SAY:
+SAY: 2b. Now Copying All XLS files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+SAY:
+SAY: 2c. Now Finding All ODT files...  This may take a while...
+For:C:\*.Odt
+SAY:
+SAY: 2d. Now Copying All ODT files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+SAY:
+ACQ:\PPT
+SAY:
+SAY: 3a. Now Finding All PPT files...  This may take a while...
+For:C:\*.Ppt
+SAY:
+SAY: 3b. Now Copying All PPT files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+SAY:
+SAY: 3c. Now Finding All ODS files...  This may take a while...
+For:C:\*.Ods
+SAY:
+SAY: 3d. Now Copying All ODS files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+SAY:
+ACQ:\PDF
+SAY:
+SAY: 4a. Now Finding All PDF files...  This may take a while...
+For:C:\*.Pdf
+SAY:
+SAY: 4b. Now Copying All PDF files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+ACQ:\PST
+SAY:
+SAY: 5a. Now Finding All PST files...  This may take a while...
+For:C:\*.Pst
+SAY:
+SAY: 5b. Now Copying All PST files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+SAY:
+SAY: 6a. Now Finding All OST files...  This may take a while...
+For:C:\*.Ost
+SAY:
+SAY: 7b. Now Copying All OST files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+SAY:
+SAY: 7c. Now Finding All EML files...  This may take a while...
+For:C:\*.Eml
+SAY:
+SAY: 7d. Now Copying All EML files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+SAY:
+SAY: 7e. Now Finding All MBOX files...  This may take a while...
+For:C:\*.mbox
+SAY:
+SAY: 7f. Now Copying All MBOX files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+SAY:
+SAY: 7g. Now Finding All DBX files...  This may take a while...
+For:C:\*.dbx
+SAY:
+SAY: 7h. Now Copying All DBX files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+SAY:
+SAY: 7i. Now Finding All MSF files...  This may take a while...
+For:C:\*.msf
+SAY:
+SAY: 7j. Now Copying All MSF files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+SAY:
+PZZ: All Done!  Press Any Key to Finish.

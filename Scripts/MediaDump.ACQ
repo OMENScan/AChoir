@@ -1,0 +1,80 @@
+***************************************************
+* Live Document Acquisition Script (1.0)          *
+* - Pulls Common Media File Types from disk       *
+* - Created by D0n Quix0te/OMENScan (May 2015)    *
+***************************************************
+SAY:
+SAY: * * *   Please MAKE SURE you are running this as an Administrator  * * * 
+SAY: * * * Administrator right are required for many of these utilities * * * 
+SAY:
+SAY: AChoir will scan the Hard drive and pull the following Files:
+SAY:  *.MOV, *.AVI, *.MPG, *.MP4, *.JPG, *.JPEG, *.GIF, *.PNG
+SAY:
+PZZ: Press Any Key to Continue, or q to QUIT
+SAY:
+SAY: 00. Save The Raw $MFT and $LogFile...
+SAY:
+ACQ:\RawData
+EXE:\DSK\RawCopy.exe C:0 &Acq
+EXE:\DSK\RawCopy.exe C:2 &Acq
+SAY:
+ACQ:\MOV
+SAY:
+SAY: 1a. Now Finding All MOV files...  This may take a while...
+For:C:\*.Mov
+SAY:
+SAY: 1b. Now Copying All MOV files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+SAY:
+ACQ:\AVI
+SAY:
+SAY: 2a. Now Finding All AVI files...  This may take a while...
+For:C:\*.Avi
+SAY:
+SAY: 2b. Now Copying All AVI files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+SAY:
+ACQ:\MPG
+SAY:
+SAY: 3a. Now Finding All MPG files...  This may take a while...
+For:C:\*.Mpg
+SAY:
+SAY: 3b. Now Copying All MPG files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+SAY:
+SAY: 4a. Now Finding All MP4 files...  This may take a while...
+For:C:\*.Mp4
+SAY:
+SAY: 4b. Now Copying All MP4 files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+SAY:
+ACQ:\JPG
+SAY:
+SAY: 5a. Now Finding All JPG files...  This may take a while...
+For:C:\*.Jpg
+SAY:
+SAY: 5b. Now Copying All JPG files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+SAY:
+SAY: 5c. Now Finding All JPEG files...  This may take a while...
+For:C:\*.Jpeg
+SAY:
+SAY: 5d. Now Copying All JPEG files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+SAY:
+ACQ:\GIF
+SAY:
+SAY: 6a. Now Finding All GIF files...  This may take a while...
+For:C:\*.Gif
+SAY:
+SAY: 6b. Now Copying All GIF files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+SAY:
+ACQ:\PNG
+SAY:
+SAY: 7a. Now Finding All PNG files...  This may take a while...
+For:C:\*.Png
+SAY:
+SAY: 7b. Now Copying All PNG files...
+CPY:"&For" "&Acq\&Num-&Fnm"
+PZZ: All Done!  Press Any Key to Finish.
