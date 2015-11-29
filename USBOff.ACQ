@@ -1,0 +1,16 @@
+***************************************************
+* Turn Off USB Writing - Enable Write Protect     *
+***************************************************
+SYS:CLS
+SAY:
+SAY:Checking For Admin Rights... 
+SAY:
+ADM:Force
+SAY:
+SAY: This Script Will Disable USB Writing by enabling USB Write Protect Key...
+SAY:
+PZZ: Press Any Key To Continue (or "q" to Quit)
+SAY:
+USB:Protect
+PZZ: Press Any Key To Continue
+Ini:Menu.ACQ

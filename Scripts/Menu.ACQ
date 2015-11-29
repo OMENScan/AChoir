@@ -17,6 +17,8 @@ Say:     > Achoir    (Full Live Acquisition)
 Say:     > NoMem     (Acquisition WITHOUT Memory Dump)
 Say:     > DocDump   (Search And Copy Common Document FileTypes)
 Say:     > MediaDump (Search And Copy Common Media FileTypes)
+Say:     > USBOn     (Allow USB Writing)
+Say:     > USBOff    (Start USB Write Protect - Disables USB Writing)
 Say:     > Remote    (Acquisition Using/Map Remote Server)
 Say:     > Quit      (Quit)
 Say:
