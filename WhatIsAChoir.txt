@@ -157,6 +157,7 @@ MAP:     Map to a remote drive share (\\<server>\<share>) and use
 ACQ:     Tell Achoir to create a unique Acquisition directory
 DIR:     Set the &Dir object and create the directory if needed
 FIL:     Set the &Fil object (File)
+DRV:     Set the &Drv object (Drive - ie. X:)
 HSH:ACQ  Hash everything in the &ACQ directory and subdirectories
 HSH:Dir  Hash everything in the &DIR directory and subdirectories
 FOR:     Set the &FOR object.  This is a Looping object based on 

@@ -1,0 +1,127 @@
+***************************************************
+* Mount an EWF (.E01) File and Pull Artifacts     *
+* - Created by D0n Quixote/OMENScan (Jan 2016)    *
+*   - Requires Admin                              *
+*   - Requires 64 Bit Windows                     *
+*     If you are using 32 Bit Windows:            *
+*     Use the EWF32.Acq Script instead            *
+***************************************************
+SAY:
+SAY: AChoir will Mount an EWF Evidence File (.E01) and pull Artifacts 
+SAY: from the Mounted Drive.  You will be asked for the Full Path to 
+SAY: the File, and for the Drive Letter to use (ie. M:).
+SAY:
+SAY: * * *   Please MAKE SURE you are running this as an Administrator  * * * 
+SAY:
+PZZ: Press Any Key to Continue, or q to QUIT
+SAY:
+ADM:Force
+SAY:
+INP: Full Path To Evidence (.E01) File: 
+REQ:&Inp
+FIL:&Inp
+SAY:
+INP: Drive Letter To Use (ie. X:):
+DRV:&Inp
+SAY:
+SAY:Attempting to Mount &Fil as &Drv 
+EXE:\EWF\64Bit\osfmount.com -a -t file -m &Drv -f &Fil
+SAY:
+SAY:Checking for the presence of Windows on the Mounted Drive:
+SAY:   &Drv\Windows\System32\ntoskrnl.exe
+SAY:
+REQ:&Drv\Windows\System32\ntoskrnl.exe
+SAY:
+PZZ: Press Any Key to Continue, or q to QUIT
+SAY: 1a. Copy Raw $MFT and $LogFile...
+SAY:
+ACQ:\RawData
+EXE:\DSK\RawCopy64.exe &Drv0 &Acq
+EXE:\DSK\RawCopy64.exe &Drv2 &Acq
+SAY:
+SAY: 1b. Now Parsing $MFT...
+SAY:
+EXE:\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT 
+SAY:
+SAY: 1c. Now Parsing USNJrnl...
+SAY:
+SYS:fsutil usn readjournal &Drv csv > &Acq\USN64Jrnl.dat
+SAY:
+SAY: 1d. Now Extracting USNJrnl...
+SAY:
+EXE:\DSK\ExtractUSNJrnl64.exe &Drv &Acq
+SAY:
+SAY: 2a. Parsing and Copying System Registry Hives/Files...
+SAY:
+ACQ:\Reg
+RegFileExport "&Drv\Windows\system32\config\SAM" "Reg-SAM.txt"
+RegFileExport "&Drv\Windows\system32\config\SECURITY" "Reg-SECURITY.txt"
+RegFileExport "&Drv\Windows\system32\config\SOFTWARE" "Reg-SOFTWARE.txt"
+RegFileExport "&Drv\Windows\system32\config\SYSTEM" "Reg-SYSTEM.txt"
+For:&Drv\Windows\system32\config\*.*
+CPY:"&For" "&Acq\&Fnm"
+SAY:
+SAY: 2a. Parsing and Copying USER Registry Hives/Files...
+SAY:
+FOR:&Drv\Users\NTUSER.DAT
+EXE:\SYS\RegfileExport.exe &For "&Acq\NTUSER(&Num).EXP"
+*YS:Echo F | XCopy &For "&Acq\NTUSER.DAT(&Num)" /H
+CPY:"&For" "&Acq\&Fnm(&Num)"
+SAY:
+SAY: 2b. RegRipping Common Hives...
+SAY:
+SAY: ***Scanning Software hive***
+SYS:\RRV\RegRipper2.8-master\rip.exe -r &Drv\Windows\System32\Config\software -f software > &Acq\Software.regrip
+SAY:
+SAY: ***Scanning System hive***
+SYS:\RRV\RegRipper2.8-master\rip.exe -r &Drv\Windows\System32\Config\system -f system > &Acq\System.regrip 
+SAY:
+SAY: ***Scanning SAM hive***
+SYS:\RRV\RegRipper2.8-master\rip.exe -r &Drv\Windows\System32\Config\sam -f sam > &Acq\Sam.regrip
+SAY:
+SAY: ***Scanning Security hive*** 
+SYS:\RRV\RegRipper2.8-master\rip -r &Drv\Windows\System32\Config\SECURITY –f security > &AcSecurity.regrip
+SAY:
+SAY: 3. Parsing Prefetch Directory...
+SAY:
+ACQ:\SYS
+For:&Drv\Windows\prefetch\*.*
+CPY:"&For" "&Acq\&Fnm"
+SYS:Dir &Drv\Windows\prefetch /a /q /r > &Acq\Prefetch.dat
+EXE:\SYS\WinPrefetchView.exe /folder &Drv\Windows\Prefetch /scomma &Acq\WinPrefetchview.dat
+SAY:
+SAY: 4. Parsing Hosts And Services Directory...
+SAY:
+For:&Drv\Windows\System32\Drivers\Etc\*.*
+CPY:"&For" "&Acq\&Fnm"
+SAY:
+SAY: 5. Gathering AutoRun Information...
+SAY:
+EXE:\SYS\Autoruns.exe
+SAY:
+SAY: 6a. Parsing EventViewer Logs Hives...
+SAY:
+ACQ:\Evt
+SYS:\SYS\PSLogList.exe /accepteula -s -l &Drv\Windows\System32\Winevt\logs\Security.evtx  > &Acq\EvtSec.dat
+SYS:\SYS\PSLogList.exe /accepteula -s -l &Drv\Windows\System32\Winevt\logs\Application.evtx > &Acq\EvtApp.dat
+SYS:\SYS\PSLogList.exe /accepteula -s -l &Drv\Windows\System32\Winevt\logs\System.evtx > &Acq\EvtSys.dat
+SAY:
+SAY: 6b. Copying EventViewer Logs Hives...
+SAY:
+For:&Drv\Windows\System32\winevt\Logs\*.*
+CPY:"&For" "&Acq\&Fnm"
+SAY:
+SAY: 7. Now Extracting Browser History...
+SAY:
+ACQ:\Brw
+EXE:\SYS\BrowsingHistoryView.exe 
+SAY:
+SAY: Acquisition Complete...
+SAY:
+SAY: Now Hashing Artifacts...
+HSH:ACQ
+SAY:
+SAY: Now DISMOUNTING Evidence File...
+EXE:\EWF\64Bit\osfmount.com -d -m &Drv
+SAY:
+PZZ: All Done!  Press Any Key to Finish.

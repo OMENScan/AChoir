@@ -42,6 +42,7 @@
 /* AChoir v0.32 - Changes to support 32 and 64 Bit versions!    */
 /* AChoir v0.33 - Turn On/Off USB Write Protect                 */
 /* AChoir v0.34 - Internal Code Cleanup                         */
+/* AChoir v0.35 - Add DRV: Action to Set &Drv                   */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -82,7 +83,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.34\0";
+char Version[10] = "v0.35\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -897,6 +898,21 @@ int main(int argc, char *argv[])
 
             fprintf(LogHndl, "Set: File Has Been Set To: %s\n", CurrFil);
             printf("Set: File Has Been Set To: %s\n", CurrFil);
+
+          }
+          else
+          if (strnicmp(Inrec, "Drv:", 4) == 0)
+          {
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            if ((Inrec[5] == ':') && (strlen(Inrec) == 6))
+            {
+              strncpy(DiskDrive, Inrec + 4, 2);
+              printf("Set: Disk Drive Set: %s\n", DiskDrive);
+            }
+            else
+             printf("Err: Invalid Disk Drive Setting: %s\n", Inrec + 4);
 
           }
           else

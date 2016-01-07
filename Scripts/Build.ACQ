@@ -191,6 +191,22 @@ SAY: --- Unzipping RegRipper 2.8 ---
 SAY:
 EXE:unzip.exe -o &Dir\&Fil -d &Dir
 SAY:
+SAY: --- Getting OSFMount 32 and 64 Bit (from GitHub/OMENScan) ---
+SAY:
+DIR:\EWF
+FIL:OSFMount32.zip
+EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\OSFMount32.txt https://github.com/OMENScan/AChoir/blob/master/Tools/osfmount32.zip?raw=true
+SAY:
+SAY: --- Unzipping OSFMount 32 Bit ---
+SAY:
+EXE:unzip.exe -o &Dir\&Fil -d &Dir\32Bit
+FIL:OSFMount64.zip
+EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\OSFMount64.txt https://github.com/OMENScan/AChoir/blob/master/Tools/osfmount64.zip?raw=true
+SAY:
+SAY: --- Unzipping OSFMount 64 Bit ---
+SAY:
+EXE:unzip.exe -o &Dir\&Fil -d &Dir\64Bit
+SAY:
 SAY: Download and Build Complete...
 SAY:
 SAY: Now Hashing The Files...
