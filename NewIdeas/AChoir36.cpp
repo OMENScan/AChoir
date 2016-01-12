@@ -44,6 +44,8 @@
 /* AChoir v0.34 - Internal Code Cleanup                         */
 /* AChoir v0.35 - Add DRV: Action to Set &Drv                   */
 /* AChoir v0.36 - Add Variables 0-9 (VR0: - VR9:) (&VR0 - &VR9) */
+/*              - Fix wierd Win7 "Application Data" Path        */ 
+/*                 Recursion Anomoly                            */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -2528,7 +2530,7 @@ int ListDir(char *DirName, char *LisType)
   char *Slash;
 
   int iLisType;
-
+  size_t iMaxSize;
 
 
   /****************************************************************/
@@ -2548,7 +2550,6 @@ int ListDir(char *DirName, char *LisType)
 
   /****************************************************************/
   /* Loop throught the directory looking for those files.         */
-  /*   Count up the tracks, mixes, and total bytecount            */
   /****************************************************************/
   strcpy(RootDir, DirName);
 
@@ -2596,6 +2597,16 @@ int ListDir(char *DirName, char *LisType)
       memset(inName, 0, FILENAME_MAX);
       strcpy(inName, ffblk.name);
 
+      iMaxSize = strlen(RootDir);
+      iMaxSize += strlen(inName);
+      if (iMaxSize >= FILENAME_MAX)
+      {
+        fprintf(LogHndl, "Err: Max Path Exceeded: %s\\%s\n", RootDir, inName);
+        printf("Err: Max Path Exceeded: %s\\%s\n", RootDir, inName);
+
+        return 0;
+      }
+      
 
       /****************************************************************/
       /* SubDirectory Search                                          */
