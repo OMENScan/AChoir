@@ -1,4 +1,4 @@
-AChoir - Beta v0.34
+AChoir - Beta v0.36
 
 AChoir
 ======
@@ -158,6 +158,7 @@ ACQ:     Tell Achoir to create a unique Acquisition directory
 DIR:     Set the &Dir object and create the directory if needed
 FIL:     Set the &Fil object (File)
 DRV:     Set the &Drv object (Drive - ie. X:)
+VR0: - VR9:  Set the &VR0 - &VR9 variables 
 HSH:ACQ  Hash everything in the &ACQ directory and subdirectories
 HSH:Dir  Hash everything in the &DIR directory and subdirectories
 FOR:     Set the &FOR object.  This is a Looping object based on 
@@ -209,6 +210,7 @@ Objects:
 &Map     A variable used to hold the last Mapped Drive Letter (Z:, Y:, etc...)
 &Tmp     The Window %Temp% variable
 &FNM     Each &FOR File Name (Without Path)
+&VR0 - &VR9  Variables set by the VR0: - VR9: Actions
 
 %<variable>% - AChoir can also expand the native DOS/Windows Environment Variables
  Note: To use a native % (prevent expansion) in a script, use %% 

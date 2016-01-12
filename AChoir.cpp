@@ -43,6 +43,9 @@
 /* AChoir v0.33 - Turn On/Off USB Write Protect                 */
 /* AChoir v0.34 - Internal Code Cleanup                         */
 /* AChoir v0.35 - Add DRV: Action to Set &Drv                   */
+/* AChoir v0.36 - Add Variables 0-9 (VR0: - VR9:) (&VR0 - &VR9) */
+/*              - Fix wierd Win7 "Application Data" Path        */ 
+/*                 Recursion Anomoly                            */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -83,7 +86,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.35\0";
+char Version[10] = "v0.36\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -167,7 +170,8 @@ char LastRec[2048];
 char ThisRec[2048];
 char cpyChar;
 
-char FilArray[MaxArray][MaxArray];
+int  iVar;
+char VarArray[2560]; // Ten 256 Byte Variables (&Var0 - &Var9)
 
 int  iMonth, iDay, iYear, iHour, iMin, iSec, iYYYY;
 
@@ -298,6 +302,8 @@ int main(int argc, char *argv[])
   memset(inMapp, 0, 255);
   memset(inUser, 0, 255);
   memset(inPass, 0, 255);
+
+  memset(VarArray, 0, 2560);
 
   strncpy(inFnam, "AChoir.ACQ\0", 11);
 
@@ -763,6 +769,75 @@ int main(int argc, char *argv[])
               iPtr += 3;
             }
             else
+            if (strnicmp(o32VarRec + iPtr, "&VR", 3) == 0)
+            {
+              switch (o32VarRec[iPtr+3])
+              {
+                case '0':
+                  iVar = 0;
+                break;
+
+                case '1':
+                  iVar = 256;
+                break;
+
+                case '2':
+                  iVar = 256 * 2;
+                break;
+
+                case '3':
+                  iVar = 256 * 3;
+                break;
+
+                case '4':
+                  iVar = 256 * 4;
+                break;
+
+                case '5':
+                  iVar = 256 * 5;
+                break;
+
+                case '6':
+                  iVar = 256 * 6;
+                break;
+
+                case '7':
+                  iVar = 256 * 7;
+                break;
+
+                case '8':
+                  iVar = 256 * 8;
+                break;
+
+                case '9':
+                  iVar = 256 * 9;
+                break;
+
+                /**********************************************************/
+                /* Bad Var Name                                           */
+                /**********************************************************/
+                default:
+                  iVar = -1;
+                break;
+              }
+
+              if (iVar == -1)
+              {
+                fprintf(LogHndl, "Err: Invalid Variable: %.4s\n", o32VarRec + iPtr);
+                printf("Err: Invalid Variable: %.4s\n", o32VarRec + iPtr);
+
+                sprintf(Inrec + oPtr, "%.4s\0", o32VarRec + iPtr);
+                oPtr = strlen(Inrec);
+                iPtr += 3;
+              }
+              else
+              {
+                sprintf(Inrec + oPtr, "%s\0", VarArray+iVar);
+                oPtr = strlen(Inrec);
+                iPtr += 3;
+              }
+            }
+            else
             {
               Inrec[oPtr] = o32VarRec[iPtr];
               oPtr++;
@@ -899,6 +974,72 @@ int main(int argc, char *argv[])
             fprintf(LogHndl, "Set: File Has Been Set To: %s\n", CurrFil);
             printf("Set: File Has Been Set To: %s\n", CurrFil);
 
+          }
+          else
+          if ((strnicmp(Inrec, "VR", 2) == 0) && (Inrec[3] == ':'))
+          {
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            switch (Inrec[2])
+            {
+              case '0':
+                iVar = 0;
+              break;
+
+              case '1':
+                iVar = 256;
+              break;
+
+              case '2':
+                iVar = 256 * 2;
+              break;
+
+              case '3':
+                iVar = 256 * 3;
+              break;
+
+              case '4':
+                iVar = 256 * 4;
+              break;
+
+              case '5':
+                iVar = 256 * 5;
+              break;
+
+              case '6':
+                iVar = 256 * 6;
+              break;
+
+              case '7':
+                iVar = 256 * 7;
+              break;
+
+              case '8':
+                iVar = 256 * 8;
+              break;
+
+              case '9':
+                iVar = 256 * 9;
+              break;
+              
+              /**********************************************************/
+              /* Bad Var Name                                           */
+              /**********************************************************/
+              default:
+                iVar = -1;
+              break;
+            }
+
+            if (iVar == -1)
+            {
+              fprintf(LogHndl, "Err: Invalid Variable Define Action: %.4s\n", Inrec);
+              printf("Err: Invalid Variable Define Action: %.4s\n", Inrec);
+            }
+            else
+            {
+              strncpy(VarArray+iVar, Inrec+4, 255);
+            }
           }
           else
           if (strnicmp(Inrec, "Drv:", 4) == 0)
@@ -2389,7 +2530,7 @@ int ListDir(char *DirName, char *LisType)
   char *Slash;
 
   int iLisType;
-
+  size_t iMaxSize;
 
 
   /****************************************************************/
@@ -2409,7 +2550,6 @@ int ListDir(char *DirName, char *LisType)
 
   /****************************************************************/
   /* Loop throught the directory looking for those files.         */
-  /*   Count up the tracks, mixes, and total bytecount            */
   /****************************************************************/
   strcpy(RootDir, DirName);
 
@@ -2457,6 +2597,16 @@ int ListDir(char *DirName, char *LisType)
       memset(inName, 0, FILENAME_MAX);
       strcpy(inName, ffblk.name);
 
+      iMaxSize = strlen(RootDir);
+      iMaxSize += strlen(inName);
+      if (iMaxSize >= FILENAME_MAX)
+      {
+        fprintf(LogHndl, "Err: Max Path Exceeded: %s%s\n", RootDir, inName);
+        printf("Err: Max Path Exceeded: %s%s\n", RootDir, inName);
+
+        return 0;
+      }
+      
 
       /****************************************************************/
       /* SubDirectory Search                                          */
