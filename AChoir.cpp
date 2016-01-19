@@ -46,6 +46,7 @@
 /* AChoir v0.36 - Add Variables 0-9 (VR0: - VR9:) (&VR0 - &VR9) */
 /*              - Fix wierd Win7 "Application Data" Path        */ 
 /*                 Recursion Anomoly                            */
+/* AChoir v0.37 - Remove DST Calculation - Add Checks to CPY:   */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -86,7 +87,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.36\0";
+char Version[10] = "v0.37\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -178,6 +179,10 @@ int  iMonth, iDay, iYear, iHour, iMin, iSec, iYYYY;
 time_t timeval;
 struct tm *lclTime;
 char FullDateTime[25] = "01/01/0001 - 01:01:01\0";
+char OldDate[30] = "\0";
+struct tm *Old_CTime;
+struct tm *Old_MTime;
+struct tm *Old_ATime;
 
 //unsigned long LCurrTime;
 //char CDate[15] = "01/01/0001\0";
@@ -186,6 +191,7 @@ char FullDateTime[25] = "01/01/0001 - 01:01:01\0";
 char MD5In1[256] = "\0";
 char MD5In2[256] = "\0";
 char MD5Out[256] = "\0";
+char MD5Tmp[256] = "\0";
 
 int  iNeedSize;
 int  iLeftSize;
@@ -211,6 +217,7 @@ size_t iPrm1, iPrm2, iPrm3;
 char *iPtr1, *iPtr2, *iPtr3;
 
 struct stat Frmstat;
+struct stat Toostat;
 FILETIME TmpTime;
 FILETIME ToCTime;
 FILETIME ToMTime;
@@ -2777,6 +2784,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
     /****************************************************************/
     stat(FrmFile, &Frmstat);
 
+
     /****************************************************************/
     /* The code below has been removed because it is flaky          */
     /*                                                              */
@@ -2851,18 +2859,74 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
       /****************************************************************/
       /* MD5 The Files                                                */
       /****************************************************************/
+      memset(MD5Tmp, 0, 255);
       FileMD5(FrmFile);
-
+      strncpy(MD5Tmp, MD5Out, 255);
+      
       if (binLog == 1)
+      {
         fprintf(LogHndl, "Inf: Source File MD5.....: %s\n", MD5Out);
-
+        fprintf(LogHndl, "Inf: Source MetaData.....: %ld-%lld-%lld-%lld\n", Frmstat.st_size, Frmstat.st_ctime, Frmstat.st_atime, Frmstat.st_mtime);
+      }
       printf("Inf: Source File MD5.....: %s\n", MD5Out);
+      printf("Inf: Source MetaData.....: %ld-%lld-%lld-%lld\n", Frmstat.st_size, Frmstat.st_ctime, Frmstat.st_atime, Frmstat.st_mtime);
 
+      stat(tmpTooFile, &Toostat);
       FileMD5(tmpTooFile);
       if (binLog == 1)
+      {
         fprintf(LogHndl, "Inf: Destination File MD5: %s\n", MD5Out);
-
+        fprintf(LogHndl, "Inf: Destination MetaData: %ld-%lld-%lld-%lld\n", Toostat.st_size, Toostat.st_ctime, Toostat.st_atime, Toostat.st_mtime);
+      }
       printf("Inf: Destination File MD5: %s\n", MD5Out);
+      printf("Inf: Destination MetaData: %ld-%lld-%lld-%lld\n", Toostat.st_size, Toostat.st_ctime, Toostat.st_atime, Toostat.st_mtime);
+
+      if (strnicmp(MD5Tmp, MD5Out, 255) != 0)
+      {
+        printf("Err: MD5 MisMatch!\n");
+        if (binLog == 1)
+         fprintf(LogHndl, "Err: MD5 MisMatch!\n");
+      }
+
+      if (Frmstat.st_size != Toostat.st_size)
+      {
+        printf("Err: Size Mismatch!\n");
+        if (binLog == 1)
+         fprintf(LogHndl, "Err: Size MisMatch!\n");
+      }
+
+      if (Frmstat.st_ctime != Toostat.st_ctime)
+      {
+        Old_CTime = localtime(&Frmstat.st_ctime);
+        strftime(OldDate, 25, "%m/%d/%y@%H:%M:%S\0", Old_CTime);
+
+        printf("Err: Create Time Mismatch! Actual Create Time: %s\n", OldDate);
+
+        if (binLog == 1)
+          fprintf(LogHndl, "Err: Create Time MisMatch! Actual Create Time: %s\n", OldDate);
+      }
+
+      if (Frmstat.st_mtime != Toostat.st_mtime)
+      {
+        Old_MTime = localtime(&Frmstat.st_mtime);
+        strftime(OldDate, 25, "%m/%d/%y@%H:%M:%S\0", Old_MTime);
+
+        printf("Err: Modify Time Mismatch! Actual Modify Time: %s\n", OldDate);
+
+        if (binLog == 1)
+          fprintf(LogHndl, "Err: Modify MisMatch! Actual Modify Time: %s\n", OldDate);
+      }
+
+      if (Frmstat.st_atime != Toostat.st_atime)
+      {
+        Old_ATime = localtime(&Frmstat.st_atime);
+        strftime(OldDate, 25, "%m/%d/%y@%H:%M:%S\0", Old_ATime);
+
+        printf("Err: Access Time Mismatch! Actual Access Time: %s\n", OldDate);
+
+        if (binLog == 1)
+          fprintf(LogHndl, "Err: Access MisMatch! Actual Access Time: %s\n", OldDate);
+      }
     }
     else
     {
@@ -2906,26 +2970,26 @@ void Time_tToFileTime(time_t InTimeT, int whichTime)
 
   /****************************************************************/
   /* Set DST to -1 and run gmtime to see if the time was DST      */
-  /*  Why does DST EVEN MATTER in UTC?  Sigh....                  */
   /****************************************************************/
   convgtm->tm_isdst = -1;
   cmpTime = mktime(convgtm);
 
 
   /****************************************************************/
-  /* Was it DST?  If so, add 3600  - I... Never Mind..            */
+  /* Was it DST?                                                  */
   /****************************************************************/
   wIsDST = convgtm->tm_isdst;
 
 
   /****************************************************************/
   /* This was during DST - Subtract an hour and reconvert         */
+  /*  Code Removed: 01/18/2016                                    */
   /****************************************************************/
-  if (wIsDST == 0)
-  {
-    InTimeT = InTimeT - 3600;
-    convgtm = gmtime(&InTimeT);
-  }
+  //if (wIsDST == 0)
+  //{
+  //  InTimeT = InTimeT - 3600;
+  //  convgtm = gmtime(&InTimeT);
+  //}
 
 
   /****************************************************************/
