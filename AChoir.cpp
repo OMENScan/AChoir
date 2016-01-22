@@ -47,6 +47,7 @@
 /*              - Fix wierd Win7 "Application Data" Path        */ 
 /*                 Recursion Anomoly                            */
 /* AChoir v0.37 - Remove DST Calculation - Add Checks to CPY:   */
+/* AChoir v0.38 - New DST Convergence Code                      */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -87,7 +88,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.37\0";
+char Version[10] = "v0.38\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -2738,6 +2739,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
 
   char tmpTooFile[4096];
   int iFileCount = 0;
+  int TimeNotGood = 0;
 
   FILE* FrmHndl;
   FILE* TooHndl;
@@ -2854,7 +2856,66 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
       //SetFileTime(TooHndl, &ftCreate, &ftAccess, &ftWrite);
       SetFileTime(HndlToo, &ToCTime, &ToATime, &ToMTime);
       CloseHandle(HndlToo);
+      
 
+      /****************************************************************/
+      /* Check to see if Windows converted it correctly               */
+      /*   This code should not even be neccesary.  Alas, it is.      */
+      /****************************************************************/
+      stat(tmpTooFile, &Toostat);
+      TimeNotGood = 0;
+
+      // Check Create Time for wierd TZ Anomoly
+      if (Frmstat.st_ctime == (Toostat.st_ctime + 3600))
+      {
+        TimeNotGood = 1;
+        Time_tToFileTime(Frmstat.st_ctime + 3600, 3);
+      }
+      else
+      if (Frmstat.st_ctime == (Toostat.st_ctime - 3600))
+      {
+        TimeNotGood = 1;
+        Time_tToFileTime(Frmstat.st_ctime - 3600, 3);
+      }
+
+      // Check Modify Time for wierd TZ Anomoly
+      if (Frmstat.st_mtime == (Toostat.st_mtime + 3600))
+      {
+        TimeNotGood = 1;
+        Time_tToFileTime(Frmstat.st_mtime + 3600, 2);
+      }
+      else
+      if (Frmstat.st_mtime == (Toostat.st_mtime - 3600))
+      {
+        TimeNotGood = 1;
+        Time_tToFileTime(Frmstat.st_mtime - 3600, 2);
+      }
+
+      // Check Access Time for wierd TZ Anomoly
+      if (Frmstat.st_atime == (Toostat.st_atime + 3600))
+      {
+        TimeNotGood = 1;
+        Time_tToFileTime(Frmstat.st_atime + 3600, 1);
+      }
+      else
+      if (Frmstat.st_atime == (Toostat.st_atime - 3600))
+      {
+        TimeNotGood = 1;
+        Time_tToFileTime(Frmstat.st_atime - 3600, 1);
+      }
+
+      if (TimeNotGood == 1)
+      {
+        printf("Inf: Converging Mismatched TimeStamp(s)\n");
+        fprintf(LogHndl, "Inf: Converging Mismatched TimeStamp(s)\n");
+
+        HndlToo = CreateFile(tmpTooFile, FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+          OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+        SetFileTime(HndlToo, &ToCTime, &ToATime, &ToMTime);
+        CloseHandle(HndlToo);
+      }
+      
 
       /****************************************************************/
       /* MD5 The Files                                                */
