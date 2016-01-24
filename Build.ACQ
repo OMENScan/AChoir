@@ -74,7 +74,7 @@ SAY: --- Getting PSTools (from Microsoft SysInternals) ---
 SAY:
 DIR:\SYS
 FIL:PSTools.zip
-EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\PSTools.txt https://download.sysinternals.com/files/PSTools.zip
+EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\PSTools.txt https://download.sysinternals.com/files/pstools.zip
 SAY:
 SAY: --- Unzipping PSTools ---
 SAY:
@@ -102,7 +102,7 @@ SAY:
 SAY: --- Getting AutoRuns (from Microsoft SysInternals) ---
 SAY:
 FIL:AutoRuns.zip
-EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\AutoRuns.txt https://download.sysinternals.com/files/Autoruns.zip
+EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\AutoRuns.txt https://download.sysinternals.com/files/autoruns.zip
 SAY:
 SAY: --- Unzipping AutoRuns ---
 SAY:
@@ -111,7 +111,7 @@ SAY:
 SAY: --- Getting Handle (from Microsoft SysInternals) ---
 SAY:
 FIL:Handle.zip
-EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\Handle.txt https://download.sysinternals.com/files/Handle.zip
+EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\Handle.txt https://download.sysinternals.com/files/handle.zip
 SAY:
 SAY: --- Unzipping Handle ---
 SAY:
