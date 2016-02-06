@@ -3362,8 +3362,8 @@ void USB_Protect(DWORD USBOnOff)
         
         if (USBOnOff == 1)
         {
-          fprintf(LogHndl, " Important Note: ONLY NEW ATTACHED DRIVES WILL BE WRITE PROTECTED.\n");
-          printf(" Important Note: ONLY NEW ATTACHED DRIVES WILL BE WRITE PROTECTED.\n");
+          fprintf(LogHndl, "\n Important Note: ONLY NEW ATTACHED DRIVES WILL BE WRITE PROTECTED.\n");
+          printf("\n Important Note: ONLY NEW ATTACHED DRIVES WILL BE WRITE PROTECTED.\n");
         }
       }
       else
