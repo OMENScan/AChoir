@@ -48,6 +48,7 @@
 /*                 Recursion Anomoly                            */
 /* AChoir v0.37 - Remove DST Calculation - Add Checks to CPY:   */
 /* AChoir v0.38 - New DST Convergence Code                      */
+/* AChoir v0.39 - Add LBL: and JMP: for Conditional Execution   */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -88,7 +89,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.38\0";
+char Version[10] = "v0.39\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -256,6 +257,7 @@ char inUser[255];
 char inPass[255];
 char inMapp[255];
 char inFnam[255];
+char JmpLbl[255];
 int  iGoodMap = 0;
 int  iArgsMap = 0;
 int  getKey;
@@ -860,6 +862,27 @@ int main(int argc, char *argv[])
           if (Inrec[0] == '*');
           else
           if (strlen(Inrec) < 5);
+          else
+          if (strnicmp(Inrec, "Lbl:", 4) == 0); // Just acknowledge its OK
+          else
+          if (strnicmp(Inrec, "Jmp:", 4) == 0)
+          {
+            // Jump to a Label (LBL:)
+            RunMe = 0;
+            rewind(IniHndl);
+
+            memset(JmpLbl, 0, 255);
+            sprintf(JmpLbl, "Lbl:%.200s", Inrec + 4);
+            strtok(JmpLbl, "\n"); strtok(JmpLbl, "\r");
+
+            while (fgets(Tmprec, 1000, IniHndl))
+            {
+              strtok(Tmprec, "\n"); strtok(Tmprec, "\r");
+
+              if (strnicmp(Tmprec, JmpLbl, 200) == 0)
+                break;
+            }
+          }
           else
           if (strnicmp(Inrec, "Acq:", 4) == 0)
           {
@@ -3339,8 +3362,8 @@ void USB_Protect(DWORD USBOnOff)
         
         if (USBOnOff == 1)
         {
-          fprintf(LogHndl, " Important Note: ONLY NEW ATTACHED DRIVES WILL BE WRITE PROTECTED.\n");
-          printf(" Important Note: ONLY NEW ATTACHED DRIVES WILL BE WRITE PROTECTED.\n");
+          fprintf(LogHndl, "\n Important Note: ONLY NEW ATTACHED DRIVES WILL BE WRITE PROTECTED.\n");
+          printf("\n Important Note: ONLY NEW ATTACHED DRIVES WILL BE WRITE PROTECTED.\n");
         }
       }
       else

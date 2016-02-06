@@ -4,6 +4,7 @@
 * - Created by D0n Quixote/OMENScan (May 2015)    *
 * - Inspired by many other tools                  *
 ***************************************************
+LBL:StartMenu
 SYS:CLS
 Say:
 Say:          ***************************************************
@@ -23,7 +24,11 @@ Say:     > Remote    (Acquisition Using/Map Remote Server)
 Say:     > Quit      (Quit)
 Say:
 Inp:Script Name> 
+CKN:&Inp.ACQ
 Say:
+Pzz: That Script Does NOT Exist, Press Any Key to Retry (or "q" to quit)
+JMP:StartMenu
+END:
 Ini:&Inp.ACQ
 Pzz:Press Any Key to Retry (or "q" to quit)
 Ini:Menu.ACQ

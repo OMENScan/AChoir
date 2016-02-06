@@ -1,4 +1,4 @@
-AChoir - Beta v0.36
+AChoir - Beta v0.39
 
 AChoir
 ======
@@ -190,6 +190,8 @@ RC>:     If the Last GET:, SYS: or EXE: command return code was >
 RC<:     If the Last GET:, SYS: or EXE: command return code was <
          run the statements until an END:
 END:     End Conditional Statement execution.
+LBL:<LabelName>     Define a Label that can be Jumped to (JMP:<LabelName>)
+JMP:<LabelName>     Jump to a defined Label (LBL:<LabelName>)
 
 
 
