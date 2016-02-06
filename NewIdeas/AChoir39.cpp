@@ -862,11 +862,6 @@ int main(int argc, char *argv[])
           if (Inrec[0] == '*');
           else
           if (strlen(Inrec) < 5);
-
-
-
-
-
           else
           if (strnicmp(Inrec, "Lbl:", 4) == 0); // Just acknowledge its OK
           else
@@ -877,25 +872,17 @@ int main(int argc, char *argv[])
             rewind(IniHndl);
 
             memset(JmpLbl, 0, 255);
-            sprintf(JmpLbl, "Jmp:%.200s", Inrec + 4);
+            sprintf(JmpLbl, "Lbl:%.200s", Inrec + 4);
+            strtok(JmpLbl, "\n"); strtok(JmpLbl, "\r");
 
             while (fgets(Tmprec, 1000, IniHndl))
             {
-              strtok(Tmprec, "\n");
-              strtok(Tmprec, "\r");
+              strtok(Tmprec, "\n"); strtok(Tmprec, "\r");
 
               if (strnicmp(Tmprec, JmpLbl, 200) == 0)
                 break;
-
             }
           }
-
-
-
-
-
-
-
           else
           if (strnicmp(Inrec, "Acq:", 4) == 0)
           {
