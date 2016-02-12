@@ -61,8 +61,6 @@ EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\ExtractUsnJrnl.txt https://github.com
 FIL:ExtractUsnJrnl64.exe
 EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\ExtractUsnJrnl64.txt https://github.com/jschicht/ExtractUsnJrnl/blob/master/ExtractUsnJrnl64.exe?raw=true
 SAY:
-SAY: --- Getting Forensics Acquisition Utilities (FAU) (from GMG Systems Inc) ---
-SAY:
 SAY: --- Getting USNJrnl2Csv (From GitHub/JSchicht) ---
 SAY:
 FIL:UsnJrnl2Csv.exe
@@ -74,11 +72,28 @@ SAY: --- Getting PSTools (from Microsoft SysInternals) ---
 SAY:
 DIR:\SYS
 FIL:PSTools.zip
-EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\PSTools.txt https://download.sysinternals.com/files/pstools.zip
+EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\PSTools.txt https://download.sysinternals.com/files/PSTools.zip
 SAY:
 SAY: --- Unzipping PSTools ---
 SAY:
 EXE:unzip.exe -o &Dir\&Fil -d &Dir
+CKN:&Dir\PsLogList.exe
+SAY:
+SAY: --- PSTools Did Not Download Correctly - Trying a Different (blob) Name ---
+SAY:
+EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\PSTools2.txt https://download.sysinternals.com/files/pstools.zip
+EXE:unzip.exe -o &Dir\&Fil -d &Dir
+CKN:&Dir\PsLogList.exe
+SAY:
+SAY: --- PSTools STILL Did Not Download Correctly - Just Letting You Know ---
+SAY:
+END:
+CKY:&Dir\PsLogList.exe
+SAY:
+SAY: --- PSTools Downloaded Correctly ---
+SAY:
+END:
+END:
 SAY:
 SAY: --- Getting Prefetch Parser (From Red Wolf) ---
 SAY:
@@ -102,20 +117,54 @@ SAY:
 SAY: --- Getting AutoRuns (from Microsoft SysInternals) ---
 SAY:
 FIL:AutoRuns.zip
-EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\AutoRuns.txt https://download.sysinternals.com/files/autoruns.zip
+EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\AutoRuns.txt https://download.sysinternals.com/files/Autoruns.zip
 SAY:
 SAY: --- Unzipping AutoRuns ---
 SAY:
 EXE:unzip.exe -o &Dir\&Fil -d &Dir
+CKN:&Dir\AutoRuns.exe
+SAY:
+SAY: --- Autoruns Did Not Download Correctly - Trying a Different (blob) Name ---
+SAY:
+EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\AutoRuns2.txt https://download.sysinternals.com/files/autoruns.zip
+EXE:unzip.exe -o &Dir\&Fil -d &Dir
+CKY:&Dir\Autoruns.exe
+SAY:
+SAY: --- Autoruns Downloaded Correctly ---
+SAY:
+END:
+CKN:&Dir\Autoruns.exe
+SAY:
+SAY: --- Autoruns STILL Did Not Download Correctly - Just Letting You Know ---
+SAY:
+END:
+END:
 SAY:
 SAY: --- Getting Handle (from Microsoft SysInternals) ---
 SAY:
 FIL:Handle.zip
-EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\Handle.txt https://download.sysinternals.com/files/handle.zip
+EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\Handle.txt https://download.sysinternals.com/files/Handle.zip
 SAY:
 SAY: --- Unzipping Handle ---
 SAY:
 EXE:unzip.exe -o &Dir\&Fil -d &Dir
+CKN:&Dir\Handle.exe
+SAY:
+SAY: --- Handle Did Not Download Correctly - Trying a Different (blob) Name ---
+SAY:
+EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\Handle2.txt https://download.sysinternals.com/files/handle.zip
+EXE:unzip.exe -o &Dir\&Fil -d &Dir
+CKY:&Dir\Handle.exe
+SAY:
+SAY: --- Handle Downloaded Correctly ---
+SAY:
+END:
+CKN:&Dir\Handle.exe
+SAY:
+SAY: --- Handle STILL Did Not Download Correctly - Just Letting You Know ---
+SAY:
+END:
+END:
 SAY:
 SAY: --- Getting LastActivityView (From NirSoft) ---
 SAY:
