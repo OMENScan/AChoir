@@ -1,0 +1,19 @@
+***************************************************
+* Get the BitLocker Key                           *
+***************************************************
+SYS:CLS
+SAY:
+SAY:Checking For Admin Rights... 
+SAY:
+ADM:Force
+ACQ:\BDE
+SAY:
+SAY: This Script Will Display the BitLocker Key and save it to a Text File ...
+SAY: - Filename: &Acq\BLocKey.txt
+SAY:
+PZZ: Press Any Key To Continue (or "q" to Quit)
+SAY:
+SYS:C:\Windows\Sysnative\manage-bde.exe -protectors -get c: > &Acq\BLocKey.txt
+SYS:Type &Acq\BLocKey.txt
+SAY:
+PZZ: Press Any Key To Continue
