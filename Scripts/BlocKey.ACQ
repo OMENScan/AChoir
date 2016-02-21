@@ -13,7 +13,23 @@ SAY: - Filename: &Acq\BLocKey.txt
 SAY:
 PZZ: Press Any Key To Continue (or "q" to Quit)
 SAY:
+SAY: Checking For System32 Version
+SAY:
+CKY:C:\Windows\System32\manage-bde.exe
+SYS:C:\Windows\System32\manage-bde.exe -protectors -get c: > &Acq\BLocKey.txt
+SYS:Type &Acq\BLocKey.txt
+END:
+CKN:C:\Windows\System32\manage-bde.exe
+SAY: 32Bit Version not Found.  Trying 64Bit (Sysnative) Version
+SAY:
+CKN:C:\Windows\Sysnative\manage-bde.exe
+SAY: I Couldn't Find the 64Bit Version Either!
+SAY:
+END:
+CKY:C:\Windows\Sysnative\manage-bde.exe
 SYS:C:\Windows\Sysnative\manage-bde.exe -protectors -get c: > &Acq\BLocKey.txt
 SYS:Type &Acq\BLocKey.txt
 SAY:
+END:
+END:
 PZZ: Press Any Key To Continue
