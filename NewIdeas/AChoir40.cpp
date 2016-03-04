@@ -3496,8 +3496,8 @@ showTime("Acquisition Completed");
 
 if (iXitCmd == 1)
 {
-  fprintf(LogHndl, "Xit: Queuing Exit Program:\n %s\n", XitCmd);
-  printf("Xit: Queuing Exit Program:\n %s\n", XitCmd);
+  fprintf(LogHndl, "\nXit: Queuing Exit Program:\n %s\n", XitCmd);
+  printf("\nXit: Queuing Exit Program:\n %s\n", XitCmd);
 }
 
 /****************************************************************/
@@ -3505,8 +3505,8 @@ if (iXitCmd == 1)
 /****************************************************************/
 if (access(BACQDir, 0) == 0)
 {
-  fprintf(LogHndl, "Inf: Copying Log File...\n");
-  printf("Inf: Copying Log File...\n");
+  fprintf(LogHndl, "\nInf: Copying Log File...\n");
+  printf("\nInf: Copying Log File...\n");
 
   //Very Last Log Entry - Close Log now, and copy WITHOUT LOGGING
   fclose(LogHndl);

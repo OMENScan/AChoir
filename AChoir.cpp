@@ -49,6 +49,7 @@
 /* AChoir v0.37 - Remove DST Calculation - Add Checks to CPY:   */
 /* AChoir v0.38 - New DST Convergence Code                      */
 /* AChoir v0.39 - Add LBL: and JMP: for Conditional Execution   */
+/* AChoir v0.40 - Add XIT: <Exit Command - Run on Exit>         */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -89,7 +90,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.39\0";
+char Version[10] = "v0.40\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -262,6 +263,9 @@ int  iGoodMap = 0;
 int  iArgsMap = 0;
 int  getKey;
 
+int  iXitCmd = 0;
+char XitCmd[4096];
+
 int main(int argc, char *argv[])
 {
   int i;
@@ -302,6 +306,8 @@ int main(int argc, char *argv[])
   /* Set Defaults                                                 */
   /****************************************************************/
   iIsAdmin = 0;
+  iXitCmd = 0;
+
   memset(CurrDir, 0, 1024);
   memset(TempDir, 0, 1024);
   memset(BaseDir, 0, 1024);
@@ -1662,6 +1668,31 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\r");
 
             mapsDrive(Inrec + 4, 1);
+          }
+          else
+          if (strnicmp(Inrec, "XIT:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Setup A Command to Run on Exit.                              */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+            iXitCmd = 1;
+
+            // Are we requesting an explicit path?
+            if (Inrec[4] == '\\')
+            {
+              memset(XitCmd, 0, 4096);
+              sprintf(XitCmd, "%s%s\0", BaseDir, Inrec + 4);
+            }
+            else
+            {
+              memset(XitCmd, 0, 4096);
+              sprintf(XitCmd, "%s\0", Inrec + 4);
+            }
+
+            fprintf(LogHndl, "\nExit Program Set:\nXit: %s\n", XitCmd);
+            printf("\nExit Program Set:\nXit: %s\n", XitCmd);
           }
           else
           if (strnicmp(Inrec, "SYS:", 4) == 0)
@@ -3463,14 +3494,19 @@ if (iRunMode == 1)
 /****************************************************************/
 showTime("Acquisition Completed");
 
+if (iXitCmd == 1)
+{
+  fprintf(LogHndl, "\nXit: Queuing Exit Program:\n %s\n", XitCmd);
+  printf("\nXit: Queuing Exit Program:\n %s\n", XitCmd);
+}
 
 /****************************************************************/
 /* Make a Copy of the Logfile in the ACQDirectory               */
 /****************************************************************/
 if (access(BACQDir, 0) == 0)
 {
-  fprintf(LogHndl, "Inf: Copying Log File...\n");
-  printf("Inf: Copying Log File...\n");
+  fprintf(LogHndl, "\nInf: Copying Log File...\n");
+  printf("\nInf: Copying Log File...\n");
 
   //Very Last Log Entry - Close Log now, and copy WITHOUT LOGGING
   fclose(LogHndl);
@@ -3479,6 +3515,14 @@ if (access(BACQDir, 0) == 0)
   binCopy(LogFile, CpyFile, 0);
 }
 
+
+/****************************************************************/
+/* Run Final Exit Program - This will not be logged             */
+/****************************************************************/
+if (iXitCmd == 1)
+{
+  LastRC = system(XitCmd);
+}
 
 exit(exitRC) ;
 return exitRC ;
