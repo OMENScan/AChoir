@@ -38,6 +38,14 @@ prefer MingW.  However, all future development will be done to this fork.
 * AChoir v0.32 - Changes to support 32 and 64 Bit versions!
 * AChoir v0.33 - New Option (USB:) Turn On/Off USB Write Protect
 * AChoir v0.34 - Internal Code Cleanup
+* AChoir v0.35 - Add DRV: Action to Set &Drv
+* AChoir v0.36 - Add Variables 0-9 (VR0: - VR9:) (&VR0 - &VR9)
+* - Fix wierd Win7 "Application Data" Path
+*   Recursion Anomoly
+* AChoir v0.37 - Remove DST Calculation - Add Checks to CPY:
+* AChoir v0.38 - New DST Convergence Code
+* AChoir v0.39 - Add LBL: and JMP: for Conditional Execution
+* AChoir v0.40 - Add XIT: <Exit Command - Run on Exit>
 
 
 # Brief Description:
