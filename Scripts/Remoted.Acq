@@ -33,8 +33,8 @@ SAY:
 SAY: 3a. Copy Raw $MFT and $LogFile...
 SAY:
 ACQ:\RawData
-EXE:&Map\DSK\RawCopy64.exe C:0 &Acq
-EXE:&Map\DSK\RawCopy64.exe C:2 &Acq
+EXE:&Map\DSK\RawCopy.exe C:0 &Acq
+EXE:&Map\DSK\RawCopy.exe C:2 &Acq
 SAY:
 SAY: 3b. Now Parsing $MFT...
 SAY:
@@ -42,11 +42,11 @@ EXE:&Map\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT
 SAY:
 SAY: 3c. Now Parsing USNJrnl...
 SAY:
-SYS:fsutil usn readjournal C: csv > &Acq\USN64Jrnl.dat
+SYS:fsutil usn readjournal C: csv > &Acq\USNJrnl.dat
 SAY:
 SAY: 3d. Now Extracting USNJrnl...
 SAY:
-EXE:&Map\DSK\ExtractUSNJrnl64.exe C: &Acq
+EXE:&Map\DSK\ExtractUSNJrnl.exe C: &Acq
 SAY:
 SAY: 4a. Gathering System Information...
 SAY:
@@ -78,28 +78,41 @@ SYS:Reg Export HKCR &Acq\RegHKCR.dat
 SYS:Reg Export HKCC &Acq\RegHKCC.dat
 SYS:Reg Export HKU  &Acq\RegHKU.dat
 SAY:
-SAY: 6a. Parsing EventViewer Logs Hives...
+SAY: 6a. Parsing EventViewer Logs...
 SAY:
 ACQ:\Evt
-SYS:&Map\SYS\PSLogList.exe /accepteula -s Security > &Acq\EvtSec.dat
-SYS:&Map\SYS\PSLogList.exe /accepteula -s Application > &Acq\EvtApp.dat
-SYS:&Map\SYS\PSLogList.exe /accepteula -s System > &Acq\EvtSys.dat
+SYS:\SYS\PSLogList.exe /accepteula -s Security > &Acq\EvtSec.dat
+SYS:\SYS\PSLogList.exe /accepteula -s Application > &Acq\EvtApp.dat
+SYS:\SYS\PSLogList.exe /accepteula -s System > &Acq\EvtSys.dat
 SAY:
-SAY: 6b. Copying EventViewer Logs Hives...
+SAY: 6b. Copying (System32) Bit EventViewer Logs...
 SAY:
-*YS:Copy &Win\sysnative\winevt\Logs\*.* &Acq\*.*
+ACQ:\Evt\Sys32
+For:&Win\System32\winevt\Logs\*.*
+CPY:"&For" "&Acq\&Fnm"
+SAY:
+SAY: 6c. Copying (Sysnative) Bit EventViewer Logs...
+SAY:
+ACQ:\Evt\Nativ
 For:&Win\sysnative\winevt\Logs\*.*
 CPY:"&For" "&Acq\&Fnm"
 SAY:
-SAY: 7. Parsing Hosts And Services Directory...
+SAY: 7. Parsing (System32) Hosts And Services Directory...
 SAY:
 ACQ:\SYS
-*YS:Copy &Win\sysnative\Drivers\Etc\*.*  &Acq\*.*
+ACQ:\SYS\Sys32
+For:&Win\System32\Drivers\Etc\*.*
+CPY:"&For" "&Acq\&Fnm"
+SAY:
+SAY: 7a. Parsing (Sysnative) Hosts And Services Directory...
+SAY:
+ACQ:\SYS\Nativ
 For:&Win\sysnative\Drivers\Etc\*.*
 CPY:"&For" "&Acq\&Fnm"
 SAY:
 SAY: 8. Parsing Environment Variables...
 SAY:
+ACQ:\SYS
 SYS:Set > &Acq\EnVar.dat
 SAY:
 SAY: 9. Parsing The Patch List...
@@ -127,7 +140,12 @@ SYS:Arp -a > &Acq\ArpInfo.dat
 SAY:
 SAY: 14. Gathering NetBIOS Information...
 SAY:
-SYS:&Win\sysnative\NBTStat.exe -scn > &Acq\NetBios.dat
+CKY:&Win\System32\NBTStat.exe
+SYS:&Win\System32\NBTStat.exe -scn > &Acq\NetBios.dat
+END:
+CKY:&Win\sysnative\NBTStat.exe
+SYS:&Win\sysnative\NBTStat.exe -scn >> &Acq\NetBios.dat
+END:
 SAY:
 SAY: 15. Gathering Open Files/Process Information...
 SAY:
@@ -163,13 +181,9 @@ ARN:
 SAY:
 SYS:&Map\SYS\Autorunsc.exe /accepteula -a * -c -h > &Acq\AutoRun.dat
 SAY:
-SAY: 22a. Gathering Current (Open) User Registry...
+SAY: 22. Gathering All User Registries...
 SAY:
 ACQ:\Reg
-EXE:&Map\DSK\RawCopy64.exe %userProfile%\NTUSER.DAT &Acq
-SAY:
-SAY: 22b. Gathering All User Registries...
-SAY:
 FOR:C:\Users\NTUSER.DAT
 EXE:&Map\SYS\RegfileExport.exe "&For" &Acq\NTUSER(&Num).EXP
 *YS:Echo F | XCopy &For "&Acq\NTUSER.DAT(&Num)" /H
