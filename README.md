@@ -46,6 +46,7 @@ prefer MingW.  However, all future development will be done to this fork.
 * AChoir v0.38 - New DST Convergence Code
 * AChoir v0.39 - Add LBL: and JMP: for Conditional Execution
 * AChoir v0.40 - Add XIT: <Exit Command - Run on Exit>
+* AChoir v0.41 - Add ARN:<Offline Registry File> Offline SOFTWARE Registry parse of Autorun programs 
 
 
 # Brief Description:

@@ -31,8 +31,8 @@ SAY:
 SAY: 3a. Copy Raw $MFT and $LogFile...
 SAY:
 ACQ:\RawData
-EXE:\DSK\RawCopy64.exe C:0 &Acq
-EXE:\DSK\RawCopy64.exe C:2 &Acq
+EXE:\DSK\RawCopy64.exe /FileNamePath:c:0 /OutputPath:&Acq
+EXE:\DSK\RawCopy64.exe /FileNamePath:c:2 /OutputPath:&Acq
 SAY:
 SAY: 3b. Now Parsing $MFT...
 SAY:
@@ -162,7 +162,7 @@ SAY:
 SAY: 22a. Gathering Current (Open) User Registry...
 SAY:
 ACQ:\Reg
-EXE:\DSK\RawCopy64.exe %userProfile%\NTUSER.DAT &Acq
+SYS:Reg Save HKCU &Acq\NTUSER.DAT
 SAY:
 SAY: 22b. Gathering All User Registries...
 SAY:

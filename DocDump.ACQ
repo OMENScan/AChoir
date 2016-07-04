@@ -16,8 +16,8 @@ SAY:
 SAY: 00. Save The Raw $MFT and $LogFile...
 SAY:
 ACQ:\RawData
-EXE:\DSK\RawCopy.exe C:0 &Acq
-EXE:\DSK\RawCopy.exe C:2 &Acq
+EXE:\DSK\RawCopy.exe /FileNamePath:c:0 /OutputPath:&Acq
+EXE:\DSK\RawCopy.exe /FileNamePath:c:2 /OutputPath:&Acq
 SAY:
 ACQ:\DOC
 SAY:

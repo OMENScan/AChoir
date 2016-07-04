@@ -36,8 +36,8 @@ PZZ: Press Any Key to Continue, or q to QUIT
 SAY: 1a. Copy Raw $MFT and $LogFile...
 SAY:
 ACQ:\RawData
-EXE:\DSK\RawCopy64.exe &Drv0 &Acq
-EXE:\DSK\RawCopy64.exe &Drv2 &Acq
+EXE:\DSK\RawCopy64.exe /FileNamePath:c:0 /OutputPath:&Acq
+EXE:\DSK\RawCopy64.exe /FileNamePath:c:2 /OutputPath:&Acq
 SAY:
 SAY: 1b. Now Parsing $MFT...
 SAY:
@@ -115,6 +115,11 @@ SAY: 7. Now Extracting Browser History...
 SAY:
 ACQ:\Brw
 EXE:\SYS\BrowsingHistoryView.exe 
+SAY:
+SAY: 8. Parsing Offline Registry AutoRun Keys
+SAY:
+ACQ:\Arn
+ARN:&Drv\Windows\System32\Config\SOFTWARE
 SAY:
 SAY: Acquisition Complete...
 SAY:

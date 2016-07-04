@@ -50,6 +50,8 @@
 /* AChoir v0.38 - New DST Convergence Code                      */
 /* AChoir v0.39 - Add LBL: and JMP: for Conditional Execution   */
 /* AChoir v0.40 - Add XIT: <Exit Command - Run on Exit>         */
+/* AChoir v0.41 - Offline Registry parse of AutoRun Keys        */
+/*                for DeadBox analysis                          */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -85,12 +87,14 @@
 
 #include <winhttp.h>
 #include <Winnetwk.h>
+#include <Offreg.h>
+// #pragma comment (lib, "offreg.lib")
 
 #define NUL '\0'
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.40\0";
+char Version[10] = "v0.41\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -228,23 +232,45 @@ FILETIME ToATime;
 LPFILETIME OutFileTime;
 
 LPCTSTR lpSubKey = TEXT("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\0");
+
+DWORD rcDword;
+DWORD nSubkeys;
+DWORD nValues;
+PCWSTR ORlpSubKey = L"Microsoft\\Windows\\CurrentVersion\\Run\0";
+PCWSTR ORlp6432 = L"Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Run\0";
+
+LPCTSTR DLL32Path = TEXT(".\\32Bit\\");
+LPCTSTR DLL64Path = TEXT(".\\64Bit\\");
+
 DWORD ulOptions = 0;
 REGSAM samWOW64 = KEY_READ | KEY_WOW64_64KEY;
 REGSAM samWOW32 = KEY_READ | KEY_WOW64_32KEY;
 REGSAM samDesired = KEY_READ;
+
 long OpenK;
 long OpenRC;
 long ReadK;
 long MakeK;
 
 HKEY  hKey = HKEY_LOCAL_MACHINE;
+ORHKEY ORhKey = HKEY_LOCAL_MACHINE;
 
 HKEY   phkResult;
+ORHKEY ORphkResult;
+
+size_t sizeofChars = 0;
+size_t convertedChars = 0;
+wchar_t w_ORFName[2028];
+LPWSTR lpORFName = w_ORFName;
+
 DWORD  dwIndex = 0;
 TCHAR  lpValueName[2048];
 DWORD  lpcchValueName = 2048;
 LPTSTR lpData[2048];
 DWORD  lpcbData = 2048;
+
+wchar_t  w_lpValueName[2048];
+PWSTR ORlpValueName = w_lpValueName;
 
 int  samLoop = 0;
 char o32VarRec[4096];
@@ -338,6 +364,15 @@ int main(int argc, char *argv[])
   TempVar = getenv("temp");
   ProgVar = getenv("programfiles");
 
+
+  /****************************************************************/
+  /* Setup The 64Bit or 32Bit DLL Loading Directory               */
+  /****************************************************************/
+  if (strnicmp(Procesr, "AMD64", 5) == 0)
+    SetDllDirectory(DLL64Path);
+  else
+    SetDllDirectory(DLL32Path);
+  
 
   /****************************************************************/
   /* Build the &ACQ Incident Number                               */
@@ -1228,16 +1263,221 @@ int main(int argc, char *argv[])
             }
           }
           else
-          if (strnicmp(Inrec, "ARN:", 4) == 0)
+          if ((strnicmp(Inrec, "ARN:", 4) == 0) && (strlen(Inrec) > 6))
           {
             /****************************************************************/
-            /* Dump AutoRun Keys                                            */
+            /* Dump AutoRun Keys from OFFLINE Registry in Command           */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            Squish(Inrec);
+
+            fprintf(LogHndl, "\nArn: Parsing Offline Registry AutoRun Keys:\n     %s\n", Inrec+4);
+            printf("\nArn: Parsing Offline Registry AutoRun Keys:\n     %s\n", Inrec + 4);
+
+
+            /****************************************************************/
+            /* Lets generate a Full Path Name to get the drive letter       */
+            /****************************************************************/
+            rcDword = GetFullPathName(Inrec+4, FILENAME_MAX, FullFName, NULL);
+
+
+            /****************************************************************/
+            /* Convert the File Name to a Wide String first                 */
+            /****************************************************************/
+            convertedChars = 0;
+            sizeofChars = strlen(Inrec + 3); // Really its +4 but we want a 1 byte buffer
+            mbstowcs_s(&convertedChars, lpORFName, sizeofChars, Inrec+4, _TRUNCATE);
+
+              
+            /****************************************************************/
+            /* Open the Offline Registry Hive                               */
+            /****************************************************************/
+            if (OROpenHive(lpORFName, &ORhKey) != ERROR_SUCCESS)
+            {
+              fprintf(LogHndl, "Arn: COULD NOT Open Offline Registry: %ls\n", lpORFName);
+              printf("Arn: COULD NOT Open Offline Registry: %ls\n", lpORFName);
+              break;
+            }
+              
+
+            // Debug Code - Get number of Keys and Values 
+            // if (ORQueryInfoKey(ORhKey, NULL, NULL, &nSubkeys, NULL, NULL, &nValues, NULL, NULL, NULL, NULL) == ERROR_SUCCESS)
+            //   printf("Keys and Values: %ld/%ld\n", nSubkeys, nValues);
+            // else
+            //   printf("COULD NOT Query Registry Keys and Values");
+            // End Debug Code
+
+
+            /****************************************************************/
+            /* Run Registry Scan Twice - First Time Native,                 */
+            /*              2nd Time Check Wow6432Node Keys                 */
+            /****************************************************************/
+            for (samLoop = 0; samLoop < 2; samLoop++)
+            {
+              /****************************************************************/
+              /* Dump Offline Registry AutoRun Keys                           */
+              /****************************************************************/
+              if (samLoop == 0)
+                OpenK = OROpenKey(ORhKey, ORlpSubKey, &ORphkResult);
+              else
+                OpenK = OROpenKey(ORhKey, ORlp6432, &ORphkResult);
+
+              if (OpenK == ERROR_SUCCESS)
+              {
+                for (dwIndex = 0; dwIndex < 1000; dwIndex++)
+                {
+                  lpcchValueName = 2048;
+                  lpcbData = 2048;
+
+                  OpenRC = OREnumValue(ORphkResult, dwIndex, ORlpValueName, &lpcchValueName, NULL, (LPBYTE)lpData, &lpcbData);
+                  if (OpenRC == ERROR_SUCCESS)
+                  {
+                    /****************************************************************/
+                    /* Parse out the .exe - Ignore quotes                           */
+                    /****************************************************************/
+                    memset(Arnrec, 0, 2048);
+                    memset(Cpyrec, 0, 4096);
+
+
+                    /****************************************************************/
+                    /* Check for possibl caller program (rundll32, cmd, etc...)     */
+                    /****************************************************************/
+                    snprintf(Arnrec, 2047, "%ls\0", (LPBYTE)lpData);
+                                            
+                    ArnLen = strlen(Arnrec);
+                    for (ArnPtr = 0; ArnPtr < ArnLen; ArnPtr++)
+                    {
+                      if (strnicmp(Arnrec + ArnPtr, "rundll32", 8) == 0)
+                        ArnPtr += 7;
+                      else
+                      if (strnicmp(Arnrec + ArnPtr, "rundll32.exe", 12) == 0)
+                        ArnPtr += 11;
+                      else
+                      if (strnicmp(Arnrec + ArnPtr, "cmd /c", 6) == 0)
+                        ArnPtr += 5;
+                      else
+                       if (strnicmp(Arnrec + ArnPtr, "cmd.exe /c", 10) == 0)
+                        ArnPtr += 9;
+                      else
+                      if (Arnrec[ArnPtr] == ' ');
+                      else
+                      if (Arnrec[ArnPtr] == '"');
+                      else
+                       break;
+                    }
+                    iPtr1 = Arnrec + ArnPtr;
+
+                    /****************************************************************/
+                    /* Check for .dll or .exe                                       */
+                    /****************************************************************/
+                    iPtr2 = stristr(Arnrec, ".dll");
+                    if (iPtr2 > 0)
+                      iPtr2[4] = '\0';
+                    else
+                    {
+                      iPtr2 = stristr(Arnrec, ".exe");
+                      if (iPtr2 > 0)
+                        iPtr2[4] = '\0';
+                    }
+                    
+                    if ((iPtr3 = strrchr(iPtr1, '\\')) != NULL)
+                    {
+                      if (strlen(iPtr3 + 1) > 1)
+                        iPtr3++;
+                      else
+                        iPtr3 = iPtr1;
+                    }
+                    else
+                      iPtr3 = iPtr1;
+
+
+                    /****************************************************************/
+                    /* If the program is there, Copy it                             */
+                    /****************************************************************/
+                    varConvert(iPtr1);
+
+
+                    /****************************************************************/
+                    /* Substitute the drive letter from the Full path               */
+                    /*  I am doing this because in a deadbox analysis, the registry */
+                    /*  entries would point to the system drive - BUT since this is */
+                    /*  an Offline Registry, It likely points to a mounted drive    */
+                    /*  which will probably have a different drive letter.  So we   */
+                    /*  assume here that the Reg and Progs will be the same drive   */
+                    /****************************************************************/
+                    if (o32VarRec[1] == ':')
+                      o32VarRec[0] = FullFName[0];
+
+                    if (o64VarRec[1] == ':')
+                      o64VarRec[0] = FullFName[0];
+
+                    if (access(o32VarRec, 0) == 0)
+                    {
+                      sprintf(Cpyrec, "%s\\%s\\%ls-%s\0", BACQDir, ACQDir, ORlpValueName, iPtr3);
+
+                      fprintf(LogHndl, "\nArn: %ls\n     %s\n", ORlpValueName, o32VarRec);
+                      printf("\nArn: %ls\n     %s\n", ORlpValueName, o32VarRec);
+
+                      binCopy(o32VarRec, Cpyrec, 1);
+                    }
+                    else
+                    {
+                      fprintf(LogHndl, "\nArn: Not Found - %ls\n     %s\n", ORlpValueName, o32VarRec);
+                      printf("\nArn: Not Found - %ls\n     %s\n", ORlpValueName, o32VarRec);
+                    }
+
+
+                    /****************************************************************/
+                    /* Always check for 64bit versions - Since this is DeadBox      */
+                    /****************************************************************/
+                    if (access(o64VarRec, 0) == 0)
+                    {
+                      sprintf(Cpyrec, "%s\\%s\\%ls(64)-%s\0", BACQDir, ACQDir, ORlpValueName, iPtr3);
+
+                      fprintf(LogHndl, "\nArn: (64bit)%ls\n     %s\n", ORlpValueName, o64VarRec);
+                      printf("\nArn: (64bit)%Ls\n     %s\n", ORlpValueName, o64VarRec);
+
+                      binCopy(o64VarRec, Cpyrec, 1);
+                    }
+                    else
+                    {
+                      fprintf(LogHndl, "\nArn: Not Found (64bit) - %ls\n     %s\n", ORlpValueName, o64VarRec);
+                      printf("\nArn: Not Found (64bit) - %ls\n     %s\n", ORlpValueName, o64VarRec);
+                    }
+                  }
+                  else
+                  if (OpenRC == ERROR_NO_MORE_ITEMS)
+                    break;
+                  else
+                    printf("Error: %d\n", OpenRC);
+                }
+
+                ORCloseKey(ORphkResult);
+              }
+              else if (OpenK == ERROR_FILE_NOT_FOUND)
+                printf("\nArn: Run Key Doesnt exist\n");
+              else if (OpenK == ERROR_ACCESS_DENIED)
+                printf("\nArn: Run Key Access Denied\n");
+              else
+                printf("\nArn: Registry Error: %d\n", OpenK);
+            }
+          }
+          else
+          if ((strnicmp(Inrec, "ARN:", 4) == 0) && (strlen(Inrec) < 7))
+          {
+            /****************************************************************/
+            /* Dump AutoRun Keys (Live Registry)                            */
             /****************************************************************/
             strtok(Inrec, "\n");
             strtok(Inrec, "\r");
 
             Squish(Inrec);
             
+            fprintf(LogHndl, "\nArn: Parsing Live Registry AutoRun Keys\n");
+            printf("\nArn: Parsing Live Registry AutoRun Keys\n");
+
 
             /****************************************************************/
             /* If 32B - Run Registry Scan Twice - First Time Native,        */

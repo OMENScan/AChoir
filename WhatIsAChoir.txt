@@ -1,4 +1,4 @@
-AChoir - Beta v0.40
+AChoir - Beta v0.41
 
 AChoir
 ======
@@ -150,15 +150,18 @@ INI:     SWITCH to another Script File (INI:F:\NewScript.Acq)
 GET:     Get a file using HTTP
 EXE:     Run a Program
 SYS:     Execute a System Command
-USR:     <UserId> to use when mapping a drive (Optional)
-PWD:     <Password> to use when mapping a drive (Optional)
+USR:<UserId> 
+         UserId to use when mapping a drive (Optional)
+PWD:<Password> 
+         Password to use when mapping a drive (Optional)
 MAP:     Map to a remote drive share (\\<server>\<share>) and use 
          it as the Acquisition Directory 
 ACQ:     Tell Achoir to create a unique Acquisition directory
 DIR:     Set the &Dir object and create the directory if needed
 FIL:     Set the &Fil object (File)
 DRV:     Set the &Drv object (Drive - ie. X:)
-VR0: - VR9:  Set the &VR0 - &VR9 variables 
+VR0: - VR9:  
+         Set the &VR0 - &VR9 variables 
 HSH:ACQ  Hash everything in the &ACQ directory and subdirectories
 HSH:Dir  Hash everything in the &DIR directory and subdirectories
 FOR:     Set the &FOR object.  This is a Looping object based on 
@@ -168,6 +171,10 @@ FOR:     Set the &FOR object.  This is a Looping object based on
 CPY:     Copy Files (CPY:<FromFile> <ToFile>) - Supports Quotes
 ARN:     Search Registry Run Key and copy the EXEs 
          (possible malware persistence)
+ARN:<Offline Registry> 
+         By adding an Explicit Path to a SOFTWARE Offline Registry 
+         File, AChoir will try to find the Run Keys and copy the 
+         EXEs.  This is the DeadBox equivalent of ARN:
 USB:Protect  Sets the Windows USB WriteProtect Registry key to 1
              (Enable USB Write Protection) - Newly attached USB 
              devices will be write protected by Windows 
@@ -190,9 +197,12 @@ RC>:     If the Last GET:, SYS: or EXE: command return code was >
 RC<:     If the Last GET:, SYS: or EXE: command return code was <
          run the statements until an END:
 END:     End Conditional Statement execution.
-LBL:<LabelName>     Define a Label that can be Jumped to (JMP:<LabelName>)
-JMP:<LabelName>     Jump to a defined Label (LBL:<LabelName>)
-XIT: <Exit Command> Run Command or Program on Exit
+LBL:<LabelName>
+         Define a Label that can be Jumped to (JMP:<LabelName>)
+JMP:<LabelName>
+         Jump to a defined Label (LBL:<LabelName>)
+XIT:<Exit Command> 
+         Run Command or Program on Exit
 
 
 Objects:

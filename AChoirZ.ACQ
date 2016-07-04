@@ -38,8 +38,8 @@ SAY:
 SAY: 3a. Copy Raw $MFT and $LogFile...
 SAY:
 ACQ:\RawData
-EXE:\DSK\RawCopy.exe C:0 &Acq
-EXE:\DSK\RawCopy.exe C:2 &Acq
+EXE:\DSK\RawCopy.exe /FileNamePath:c:0 /OutputPath:&Acq
+EXE:\DSK\RawCopy.exe /FileNamePath:c:2 /OutputPath:&Acq
 SAY:
 SAY: 3b. Now Parsing $MFT...
 SAY:
@@ -189,13 +189,12 @@ SAY:
 SAY: 22a. Gathering Current (Open) User Registry...
 SAY:
 ACQ:\Reg
-EXE:\DSK\RawCopy.exe %userProfile%\NTUSER.DAT &Acq
+SYS:Reg Save HKCU &Acq\NTUSER.DAT
 SAY:
 SAY: 22b. Gathering All User Registries...
 SAY:
 FOR:C:\Users\NTUSER.DAT
 EXE:\SYS\RegfileExport.exe "&For" &Acq\NTUSER(&Num).EXP
-*YS:Echo F | XCopy "&For" "&Acq\NTUSER.DAT(&Num)" /H
 CPY:"&For" "&Acq\&Fnm(&Num)"
 SAY:
 SAY: 23. Now Extracting Browser History...
