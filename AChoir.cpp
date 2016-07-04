@@ -52,6 +52,7 @@
 /* AChoir v0.40 - Add XIT: <Exit Command - Run on Exit>         */
 /* AChoir v0.41 - Offline Registry parse of AutoRun Keys        */
 /*                for DeadBox analysis                          */
+/* AChoir v0.42 - Change HTML display to only Root Folder       */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -94,7 +95,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.41\0";
+char Version[10] = "v0.42\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -313,6 +314,7 @@ int main(int argc, char *argv[])
     
   //LCurrTime = time(NULL);
   char *ForSlash;
+  char *RootSlash;
 
   char cName[MAX_COMPUTERNAME_LENGTH + 1];
   DWORD len = 55;
@@ -971,8 +973,18 @@ int main(int argc, char *argv[])
 
               if (iHtmMode == 1)
               {
-                fprintf(HtmHndl, "</td><td align=center>\n");
-                fprintf(HtmHndl, "<a href=file:%s target=AFrame> %s </a>\n", ACQDir, ACQDir);
+                /**********************************************************/
+                /* Only Disply the FIRST Level                            */
+                /**********************************************************/
+                ForSlash = strrchr(TempDir, '\\');
+                RootSlash = TempDir + strlen(BACQDir);
+
+                //if (strrchr(ACQDir, '\\') == NULL)
+                if (ForSlash == RootSlash)
+                {
+                  fprintf(HtmHndl, "</td><td align=center>\n");
+                  fprintf(HtmHndl, "<a href=file:%s target=AFrame> %s </a>\n", ACQDir, ACQDir);
+                }
               }
             }
 
