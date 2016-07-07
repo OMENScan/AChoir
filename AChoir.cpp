@@ -44,7 +44,7 @@
 /* AChoir v0.34 - Internal Code Cleanup                         */
 /* AChoir v0.35 - Add DRV: Action to Set &Drv                   */
 /* AChoir v0.36 - Add Variables 0-9 (VR0: - VR9:) (&VR0 - &VR9) */
-/*              - Fix wierd Win7 "Application Data" Path        */ 
+/*              - Fix wierd Win7 "Application Data" Path        */
 /*                 Recursion Anomoly                            */
 /* AChoir v0.37 - Remove DST Calculation - Add Checks to CPY:   */
 /* AChoir v0.38 - New DST Convergence Code                      */
@@ -53,6 +53,7 @@
 /* AChoir v0.41 - Offline Registry parse of AutoRun Keys        */
 /*                for DeadBox analysis                          */
 /* AChoir v0.42 - Change HTML display to only Root Folder       */
+/* AChoir v0.43 - Match DLL Delay Loading to &Dir Directory     */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -95,7 +96,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.42\0";
+char Version[10] = "v0.43\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -240,8 +241,7 @@ DWORD nValues;
 PCWSTR ORlpSubKey = L"Microsoft\\Windows\\CurrentVersion\\Run\0";
 PCWSTR ORlp6432 = L"Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Run\0";
 
-LPCTSTR DLL32Path = TEXT(".\\32Bit\\");
-LPCTSTR DLL64Path = TEXT(".\\64Bit\\");
+char    WDLLPath[256];
 
 DWORD ulOptions = 0;
 REGSAM samWOW64 = KEY_READ | KEY_WOW64_64KEY;
@@ -368,13 +368,17 @@ int main(int argc, char *argv[])
 
 
   /****************************************************************/
-  /* Setup The 64Bit or 32Bit DLL Loading Directory               */
+  /* Setup The initial 64Bit or 32Bit DLL Loading Directory       */
   /****************************************************************/
+  memset(WDLLPath, 0, 256);
+
   if (strnicmp(Procesr, "AMD64", 5) == 0)
-    SetDllDirectory(DLL64Path);
+    sprintf(WDLLPath, "%s\\64Bit\0", BaseDir);
   else
-    SetDllDirectory(DLL32Path);
-  
+    sprintf(WDLLPath, "%s\\32Bit\0", BaseDir);
+
+  SetDllDirectory((LPCSTR)WDLLPath);
+
 
   /****************************************************************/
   /* Build the &ACQ Incident Number                               */
@@ -498,12 +502,22 @@ int main(int argc, char *argv[])
 
 
   /****************************************************************/
-  /* Should we Map a Drive First?  If yes, set the BaseDir too.   */
+  /* Should we Map a Drive First?  If yes, set the BaseDir and    */
+  /*  DLL Directory too.                                          */
   /****************************************************************/
   if (iArgsMap == 1)
   {
     mapsDrive(inMapp, 0);
     strncpy(BaseDir, MapDrive, 4);
+
+    memset(WDLLPath, 0, 256);
+
+    if (strnicmp(Procesr, "AMD64", 5) == 0)
+      sprintf(WDLLPath, "%s\\64Bit\0", BaseDir);
+    else
+      sprintf(WDLLPath, "%s\\32Bit\0", BaseDir);
+
+    SetDllDirectory((LPCSTR)WDLLPath);
   }
 
 
@@ -1285,14 +1299,14 @@ int main(int argc, char *argv[])
 
             Squish(Inrec);
 
-            fprintf(LogHndl, "\nArn: Parsing Offline Registry AutoRun Keys:\n     %s\n", Inrec+4);
+            fprintf(LogHndl, "\nArn: Parsing Offline Registry AutoRun Keys:\n     %s\n", Inrec + 4);
             printf("\nArn: Parsing Offline Registry AutoRun Keys:\n     %s\n", Inrec + 4);
 
 
             /****************************************************************/
             /* Lets generate a Full Path Name to get the drive letter       */
             /****************************************************************/
-            rcDword = GetFullPathName(Inrec+4, FILENAME_MAX, FullFName, NULL);
+            rcDword = GetFullPathName(Inrec + 4, FILENAME_MAX, FullFName, NULL);
 
 
             /****************************************************************/
@@ -1300,9 +1314,9 @@ int main(int argc, char *argv[])
             /****************************************************************/
             convertedChars = 0;
             sizeofChars = strlen(Inrec + 3); // Really its +4 but we want a 1 byte buffer
-            mbstowcs_s(&convertedChars, lpORFName, sizeofChars, Inrec+4, _TRUNCATE);
-
-              
+            mbstowcs_s(&convertedChars, lpORFName, sizeofChars, Inrec + 4, _TRUNCATE);
+            
+                          
             /****************************************************************/
             /* Open the Offline Registry Hive                               */
             /****************************************************************/
