@@ -44,7 +44,7 @@ SYS:fsutil usn readjournal C: csv > &Acq\USNJrnl.dat
 SAY:
 SAY: 3d. Now Extracting USNJrnl...
 SAY:
-EXE:&Map\DSK\ExtractUSNJrnl.exe C: &Acq
+EXE:&Map\DSK\ExtractUSNJrnl.exe /DevicePath:c: /OutputPath:&Acq
 SAY:
 SAY: 4a. Gathering System Information...
 SAY:

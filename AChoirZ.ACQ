@@ -47,7 +47,7 @@ EXE:\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT
 SAY:
 SAY: 3c. Now Extracting USNJrnl...
 SAY:
-EXE:\DSK\ExtractUSNJrnl.exe C: &Acq
+EXE:\DSK\ExtractUSNJrnl.exe /DevicePath:c: /OutputPath:&Acq
 SAY:
 SAY: 3d. Now Parsing USNJrnl...
 SAY:

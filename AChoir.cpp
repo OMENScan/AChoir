@@ -54,6 +54,7 @@
 /*                for DeadBox analysis                          */
 /* AChoir v0.42 - Change HTML display to only Root Folder       */
 /* AChoir v0.43 - Match DLL Delay Loading to &Dir Directory     */
+/* AChoir v0.44 - Fix root folder edge case                     */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -96,7 +97,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.43\0";
+char Version[10] = "v0.44\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -161,6 +162,7 @@ char *TempVar = "C:\\Windows\\Temp";
 char *ProgVar = "C:\\Program Files";
 
 int  WGetIni, WGetIsGood, WGotIsGood;
+size_t  lastChar;
 
 char *iWGetFIL;
 char WGetFile[1024] = "C:\\AChoir\\Achoir.dat\0";
@@ -356,6 +358,14 @@ int main(int argc, char *argv[])
   /* What Directory are we in?                                    */
   /****************************************************************/
   getcwd(BaseDir, 1000);
+
+  /****************************************************************/
+  /* Remove any Trailing Slashes.  This happens if CWD is a       */
+  /*  mapped network drive (since it is at the root directory)    */
+  /****************************************************************/
+  lastChar = strlen(BaseDir);
+  if ((BaseDir[lastChar-1] == '\\') && (lastChar > 2))
+    BaseDir[lastChar-1] = '\0';
 
 
   /****************************************************************/

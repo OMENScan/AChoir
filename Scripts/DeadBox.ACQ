@@ -35,7 +35,7 @@ SYS:fsutil usn readjournal &Drv csv > &Acq\USN64Jrnl.dat
 SAY:
 SAY: 1d. Now Extracting USNJrnl...
 SAY:
-EXE:\DSK\ExtractUSNJrnl64.exe &Drv &Acq
+EXE:\DSK\ExtractUSNJrnl64.exe /DevicePath:&Drv /OutputPath:&Acq
 SAY:
 SAY: 2a. Parsing and Copying System Registry Hives/Files...
 SAY:
