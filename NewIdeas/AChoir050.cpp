@@ -44,11 +44,19 @@
 /* AChoir v0.34 - Internal Code Cleanup                         */
 /* AChoir v0.35 - Add DRV: Action to Set &Drv                   */
 /* AChoir v0.36 - Add Variables 0-9 (VR0: - VR9:) (&VR0 - &VR9) */
-/*              - Fix wierd Win7 "Application Data" Path        */ 
+/*              - Fix wierd Win7 "Application Data" Path        */
 /*                 Recursion Anomoly                            */
 /* AChoir v0.37 - Remove DST Calculation - Add Checks to CPY:   */
 /* AChoir v0.38 - New DST Convergence Code                      */
 /* AChoir v0.39 - Add LBL: and JMP: for Conditional Execution   */
+/* AChoir v0.40 - Add XIT: <Exit Command - Run on Exit>         */
+/* AChoir v0.41 - Offline Registry parse of AutoRun Keys        */
+/*                for DeadBox analysis                          */
+/* AChoir v0.42 - Change HTML display to only Root Folder       */
+/* AChoir v0.43 - Match DLL Delay Loading to &Dir Directory     */
+/* AChoir v0.44 - Fix root folder edge case                     */
+/* AChoir v0.50 - Add CMD: - Like SYS: But uses a CMD.Exe shell */
+/*                In &Dir - Check Hash for AChoir ReactOS Shell */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -84,12 +92,14 @@
 
 #include <winhttp.h>
 #include <Winnetwk.h>
+#include <Offreg.h>
+// #pragma comment (lib, "offreg.lib")
 
 #define NUL '\0'
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.39\0";
+char Version[10] = "v0.50\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -142,6 +152,8 @@ char MD5File[1024] = "C:\\AChoir\\Hashes.txt\0";
 char ForFile[1024] = "C:\\AChoir\\ForFiles\0";
 char IniFile[1024] = "C:\\AChoir\\AChoir.ACQ\0";
 char HtmFile[1024] = "C:\\AChoir\\Index.html\0";
+char CmdExe[1024] = "C:\\AChoir\\cmd.exe\0";
+char CmdHash[35] = "e4b22e2282044ebb76adad0b57422467\0";
 char TempDir[1024] = "C:\\AChoir\0";
 char BaseDir[1024] = "C:\\AChoir\0";
 char CurrDir[1024] = "\0";
@@ -154,6 +166,7 @@ char *TempVar = "C:\\Windows\\Temp";
 char *ProgVar = "C:\\Program Files";
 
 int  WGetIni, WGetIsGood, WGotIsGood;
+size_t  lastChar;
 
 char *iWGetFIL;
 char WGetFile[1024] = "C:\\AChoir\\Achoir.dat\0";
@@ -227,23 +240,44 @@ FILETIME ToATime;
 LPFILETIME OutFileTime;
 
 LPCTSTR lpSubKey = TEXT("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\0");
+
+DWORD rcDword;
+DWORD nSubkeys;
+DWORD nValues;
+PCWSTR ORlpSubKey = L"Microsoft\\Windows\\CurrentVersion\\Run\0";
+PCWSTR ORlp6432 = L"Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Run\0";
+
+char    WDLLPath[256];
+
 DWORD ulOptions = 0;
 REGSAM samWOW64 = KEY_READ | KEY_WOW64_64KEY;
 REGSAM samWOW32 = KEY_READ | KEY_WOW64_32KEY;
 REGSAM samDesired = KEY_READ;
+
 long OpenK;
 long OpenRC;
 long ReadK;
 long MakeK;
 
 HKEY  hKey = HKEY_LOCAL_MACHINE;
+ORHKEY ORhKey = HKEY_LOCAL_MACHINE;
 
 HKEY   phkResult;
+ORHKEY ORphkResult;
+
+size_t sizeofChars = 0;
+size_t convertedChars = 0;
+wchar_t w_ORFName[2028];
+LPWSTR lpORFName = w_ORFName;
+
 DWORD  dwIndex = 0;
 TCHAR  lpValueName[2048];
 DWORD  lpcchValueName = 2048;
 LPTSTR lpData[2048];
 DWORD  lpcbData = 2048;
+
+wchar_t  w_lpValueName[2048];
+PWSTR ORlpValueName = w_lpValueName;
 
 int  samLoop = 0;
 char o32VarRec[4096];
@@ -262,6 +296,9 @@ int  iGoodMap = 0;
 int  iArgsMap = 0;
 int  getKey;
 
+int  iXitCmd = 0;
+char XitCmd[4096];
+
 int main(int argc, char *argv[])
 {
   int i;
@@ -274,7 +311,7 @@ int main(int argc, char *argv[])
   char Cpyrec[4096];
   char Exerec[4096];
   char Arnrec[2048];
-  
+
   DWORD dwSize = 0;
   DWORD dwDownloaded = 0;
   LPSTR pszOutBuffer;
@@ -283,6 +320,7 @@ int main(int argc, char *argv[])
     
   //LCurrTime = time(NULL);
   char *ForSlash;
+  char *RootSlash;
 
   char cName[MAX_COMPUTERNAME_LENGTH + 1];
   DWORD len = 55;
@@ -302,6 +340,8 @@ int main(int argc, char *argv[])
   /* Set Defaults                                                 */
   /****************************************************************/
   iIsAdmin = 0;
+  iXitCmd = 0;
+
   memset(CurrDir, 0, 1024);
   memset(TempDir, 0, 1024);
   memset(BaseDir, 0, 1024);
@@ -323,6 +363,14 @@ int main(int argc, char *argv[])
   /****************************************************************/
   getcwd(BaseDir, 1000);
 
+  /****************************************************************/
+  /* Remove any Trailing Slashes.  This happens if CWD is a       */
+  /*  mapped network drive (since it is at the root directory)    */
+  /****************************************************************/
+  lastChar = strlen(BaseDir);
+  if ((BaseDir[lastChar-1] == '\\') && (lastChar > 2))
+    BaseDir[lastChar-1] = '\0';
+
 
   /****************************************************************/
   /* Get Envars                                                   */
@@ -331,6 +379,19 @@ int main(int argc, char *argv[])
   Procesr = getenv("processor_architecture");
   TempVar = getenv("temp");
   ProgVar = getenv("programfiles");
+
+
+  /****************************************************************/
+  /* Setup The initial 64Bit or 32Bit DLL Loading Directory       */
+  /****************************************************************/
+  memset(WDLLPath, 0, 256);
+
+  if (strnicmp(Procesr, "AMD64", 5) == 0)
+    sprintf(WDLLPath, "%s\\64Bit\0", BaseDir);
+  else
+    sprintf(WDLLPath, "%s\\32Bit\0", BaseDir);
+
+  SetDllDirectory((LPCSTR)WDLLPath);
 
 
   /****************************************************************/
@@ -455,12 +516,22 @@ int main(int argc, char *argv[])
 
 
   /****************************************************************/
-  /* Should we Map a Drive First?  If yes, set the BaseDir too.   */
+  /* Should we Map a Drive First?  If yes, set the BaseDir and    */
+  /*  DLL Directory too.                                          */
   /****************************************************************/
   if (iArgsMap == 1)
   {
     mapsDrive(inMapp, 0);
     strncpy(BaseDir, MapDrive, 4);
+
+    memset(WDLLPath, 0, 256);
+
+    if (strnicmp(Procesr, "AMD64", 5) == 0)
+      sprintf(WDLLPath, "%s\\64Bit\0", BaseDir);
+    else
+      sprintf(WDLLPath, "%s\\32Bit\0", BaseDir);
+
+    SetDllDirectory((LPCSTR)WDLLPath);
   }
 
 
@@ -930,8 +1001,18 @@ int main(int argc, char *argv[])
 
               if (iHtmMode == 1)
               {
-                fprintf(HtmHndl, "</td><td align=center>\n");
-                fprintf(HtmHndl, "<a href=file:%s target=AFrame> %s </a>\n", ACQDir, ACQDir);
+                /**********************************************************/
+                /* Only Disply the FIRST Level                            */
+                /**********************************************************/
+                ForSlash = strrchr(TempDir, '\\');
+                RootSlash = TempDir + strlen(BACQDir);
+
+                //if (strrchr(ACQDir, '\\') == NULL)
+                if (ForSlash == RootSlash)
+                {
+                  fprintf(HtmHndl, "</td><td align=center>\n");
+                  fprintf(HtmHndl, "<a href=file:%s target=AFrame> %s </a>\n", ACQDir, ACQDir);
+                }
               }
             }
 
@@ -1222,16 +1303,221 @@ int main(int argc, char *argv[])
             }
           }
           else
-          if (strnicmp(Inrec, "ARN:", 4) == 0)
+          if ((strnicmp(Inrec, "ARN:", 4) == 0) && (strlen(Inrec) > 6))
           {
             /****************************************************************/
-            /* Dump AutoRun Keys                                            */
+            /* Dump AutoRun Keys from OFFLINE Registry in Command           */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            Squish(Inrec);
+
+            fprintf(LogHndl, "\nArn: Parsing Offline Registry AutoRun Keys:\n     %s\n", Inrec + 4);
+            printf("\nArn: Parsing Offline Registry AutoRun Keys:\n     %s\n", Inrec + 4);
+
+
+            /****************************************************************/
+            /* Lets generate a Full Path Name to get the drive letter       */
+            /****************************************************************/
+            rcDword = GetFullPathName(Inrec + 4, FILENAME_MAX, FullFName, NULL);
+
+
+            /****************************************************************/
+            /* Convert the File Name to a Wide String first                 */
+            /****************************************************************/
+            convertedChars = 0;
+            sizeofChars = strlen(Inrec + 3); // Really its +4 but we want a 1 byte buffer
+            mbstowcs_s(&convertedChars, lpORFName, sizeofChars, Inrec + 4, _TRUNCATE);
+            
+                          
+            /****************************************************************/
+            /* Open the Offline Registry Hive                               */
+            /****************************************************************/
+            if (OROpenHive(lpORFName, &ORhKey) != ERROR_SUCCESS)
+            {
+              fprintf(LogHndl, "Arn: COULD NOT Open Offline Registry: %ls\n", lpORFName);
+              printf("Arn: COULD NOT Open Offline Registry: %ls\n", lpORFName);
+              break;
+            }
+              
+
+            // Debug Code - Get number of Keys and Values 
+            // if (ORQueryInfoKey(ORhKey, NULL, NULL, &nSubkeys, NULL, NULL, &nValues, NULL, NULL, NULL, NULL) == ERROR_SUCCESS)
+            //   printf("Keys and Values: %ld/%ld\n", nSubkeys, nValues);
+            // else
+            //   printf("COULD NOT Query Registry Keys and Values");
+            // End Debug Code
+
+
+            /****************************************************************/
+            /* Run Registry Scan Twice - First Time Native,                 */
+            /*              2nd Time Check Wow6432Node Keys                 */
+            /****************************************************************/
+            for (samLoop = 0; samLoop < 2; samLoop++)
+            {
+              /****************************************************************/
+              /* Dump Offline Registry AutoRun Keys                           */
+              /****************************************************************/
+              if (samLoop == 0)
+                OpenK = OROpenKey(ORhKey, ORlpSubKey, &ORphkResult);
+              else
+                OpenK = OROpenKey(ORhKey, ORlp6432, &ORphkResult);
+
+              if (OpenK == ERROR_SUCCESS)
+              {
+                for (dwIndex = 0; dwIndex < 1000; dwIndex++)
+                {
+                  lpcchValueName = 2048;
+                  lpcbData = 2048;
+
+                  OpenRC = OREnumValue(ORphkResult, dwIndex, ORlpValueName, &lpcchValueName, NULL, (LPBYTE)lpData, &lpcbData);
+                  if (OpenRC == ERROR_SUCCESS)
+                  {
+                    /****************************************************************/
+                    /* Parse out the .exe - Ignore quotes                           */
+                    /****************************************************************/
+                    memset(Arnrec, 0, 2048);
+                    memset(Cpyrec, 0, 4096);
+
+
+                    /****************************************************************/
+                    /* Check for possibl caller program (rundll32, cmd, etc...)     */
+                    /****************************************************************/
+                    snprintf(Arnrec, 2047, "%ls\0", (LPBYTE)lpData);
+                                            
+                    ArnLen = strlen(Arnrec);
+                    for (ArnPtr = 0; ArnPtr < ArnLen; ArnPtr++)
+                    {
+                      if (strnicmp(Arnrec + ArnPtr, "rundll32", 8) == 0)
+                        ArnPtr += 7;
+                      else
+                      if (strnicmp(Arnrec + ArnPtr, "rundll32.exe", 12) == 0)
+                        ArnPtr += 11;
+                      else
+                      if (strnicmp(Arnrec + ArnPtr, "cmd /c", 6) == 0)
+                        ArnPtr += 5;
+                      else
+                       if (strnicmp(Arnrec + ArnPtr, "cmd.exe /c", 10) == 0)
+                        ArnPtr += 9;
+                      else
+                      if (Arnrec[ArnPtr] == ' ');
+                      else
+                      if (Arnrec[ArnPtr] == '"');
+                      else
+                       break;
+                    }
+                    iPtr1 = Arnrec + ArnPtr;
+
+                    /****************************************************************/
+                    /* Check for .dll or .exe                                       */
+                    /****************************************************************/
+                    iPtr2 = stristr(Arnrec, ".dll");
+                    if (iPtr2 > 0)
+                      iPtr2[4] = '\0';
+                    else
+                    {
+                      iPtr2 = stristr(Arnrec, ".exe");
+                      if (iPtr2 > 0)
+                        iPtr2[4] = '\0';
+                    }
+                    
+                    if ((iPtr3 = strrchr(iPtr1, '\\')) != NULL)
+                    {
+                      if (strlen(iPtr3 + 1) > 1)
+                        iPtr3++;
+                      else
+                        iPtr3 = iPtr1;
+                    }
+                    else
+                      iPtr3 = iPtr1;
+
+
+                    /****************************************************************/
+                    /* If the program is there, Copy it                             */
+                    /****************************************************************/
+                    varConvert(iPtr1);
+
+
+                    /****************************************************************/
+                    /* Substitute the drive letter from the Full path               */
+                    /*  I am doing this because in a deadbox analysis, the registry */
+                    /*  entries would point to the system drive - BUT since this is */
+                    /*  an Offline Registry, It likely points to a mounted drive    */
+                    /*  which will probably have a different drive letter.  So we   */
+                    /*  assume here that the Reg and Progs will be the same drive   */
+                    /****************************************************************/
+                    if (o32VarRec[1] == ':')
+                      o32VarRec[0] = FullFName[0];
+
+                    if (o64VarRec[1] == ':')
+                      o64VarRec[0] = FullFName[0];
+
+                    if (access(o32VarRec, 0) == 0)
+                    {
+                      sprintf(Cpyrec, "%s\\%s\\%ls-%s\0", BACQDir, ACQDir, ORlpValueName, iPtr3);
+
+                      fprintf(LogHndl, "\nArn: %ls\n     %s\n", ORlpValueName, o32VarRec);
+                      printf("\nArn: %ls\n     %s\n", ORlpValueName, o32VarRec);
+
+                      binCopy(o32VarRec, Cpyrec, 1);
+                    }
+                    else
+                    {
+                      fprintf(LogHndl, "\nArn: Not Found - %ls\n     %s\n", ORlpValueName, o32VarRec);
+                      printf("\nArn: Not Found - %ls\n     %s\n", ORlpValueName, o32VarRec);
+                    }
+
+
+                    /****************************************************************/
+                    /* Always check for 64bit versions - Since this is DeadBox      */
+                    /****************************************************************/
+                    if (access(o64VarRec, 0) == 0)
+                    {
+                      sprintf(Cpyrec, "%s\\%s\\%ls(64)-%s\0", BACQDir, ACQDir, ORlpValueName, iPtr3);
+
+                      fprintf(LogHndl, "\nArn: (64bit)%ls\n     %s\n", ORlpValueName, o64VarRec);
+                      printf("\nArn: (64bit)%Ls\n     %s\n", ORlpValueName, o64VarRec);
+
+                      binCopy(o64VarRec, Cpyrec, 1);
+                    }
+                    else
+                    {
+                      fprintf(LogHndl, "\nArn: Not Found (64bit) - %ls\n     %s\n", ORlpValueName, o64VarRec);
+                      printf("\nArn: Not Found (64bit) - %ls\n     %s\n", ORlpValueName, o64VarRec);
+                    }
+                  }
+                  else
+                  if (OpenRC == ERROR_NO_MORE_ITEMS)
+                    break;
+                  else
+                    printf("Error: %d\n", OpenRC);
+                }
+
+                ORCloseKey(ORphkResult);
+              }
+              else if (OpenK == ERROR_FILE_NOT_FOUND)
+                printf("\nArn: Run Key Doesnt exist\n");
+              else if (OpenK == ERROR_ACCESS_DENIED)
+                printf("\nArn: Run Key Access Denied\n");
+              else
+                printf("\nArn: Registry Error: %d\n", OpenK);
+            }
+          }
+          else
+          if ((strnicmp(Inrec, "ARN:", 4) == 0) && (strlen(Inrec) < 7))
+          {
+            /****************************************************************/
+            /* Dump AutoRun Keys (Live Registry)                            */
             /****************************************************************/
             strtok(Inrec, "\n");
             strtok(Inrec, "\r");
 
             Squish(Inrec);
             
+            fprintf(LogHndl, "\nArn: Parsing Live Registry AutoRun Keys\n");
+            printf("\nArn: Parsing Live Registry AutoRun Keys\n");
+
 
             /****************************************************************/
             /* If 32B - Run Registry Scan Twice - First Time Native,        */
@@ -1664,6 +1950,31 @@ int main(int argc, char *argv[])
             mapsDrive(Inrec + 4, 1);
           }
           else
+          if (strnicmp(Inrec, "XIT:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Setup A Command to Run on Exit.                              */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+            iXitCmd = 1;
+
+            // Are we requesting an explicit path?
+            if (Inrec[4] == '\\')
+            {
+              memset(XitCmd, 0, 4096);
+              sprintf(XitCmd, "%s%s\0", BaseDir, Inrec + 4);
+            }
+            else
+            {
+              memset(XitCmd, 0, 4096);
+              sprintf(XitCmd, "%s\0", Inrec + 4);
+            }
+
+            fprintf(LogHndl, "\nExit Program Set:\nXit: %s\n", XitCmd);
+            printf("\nExit Program Set:\nXit: %s\n", XitCmd);
+          }
+          else
           if (strnicmp(Inrec, "SYS:", 4) == 0)
           {
             /****************************************************************/
@@ -1762,6 +2073,104 @@ int main(int argc, char *argv[])
                 printf("Spawn Error(%d): %s\n", errno, strerror(errno));
               }
               fprintf(LogHndl, "Return Code: %d\n", LastRC);
+            }
+          }
+          else
+          if (strnicmp(Inrec, "CMD:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Spawn an Executable using the ReactOS/AChoir command Shell   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+
+            /****************************************************************/
+            /* First make sure we have the CMD.EXE and the Hash is Right    */
+            /****************************************************************/
+            memset(CmdExe, 0, 1024);
+            sprintf(CmdExe, "%s\\cmd.exe\0", BaseDir);
+
+            if (access(CmdExe, 0) != 0)
+            {
+              fprintf(LogHndl, "Err: AChoir Safe Command Shell Not Found!\n");
+              printf("Err: AChoir Safe Command Shell Not Found!\n");
+            }
+            else
+            {
+              FileMD5(CmdExe);
+              if (strnicmp(MD5Out, CmdHash, 32) != 0)
+              {
+                fprintf(LogHndl, "Err: Command Shell Not Approved for AChoir!\n");
+                printf("Err: Command Shell Not Approved for AChoir!\n");
+              }
+              else
+              {
+                Squish(Inrec);
+                memset(Exerec, 0, 4096);
+                strncpy(Exerec, Inrec + 4, 4092);
+                twoSplit(Exerec);
+
+                // Are we requesting an explicit path?
+                if (Exerec[0] == '\\')
+                {
+                  memset(TempDir, 0, 1024);
+                  sprintf(TempDir, "%s%s\0", BaseDir, Exerec + iPrm1);
+                }
+                else
+                {
+                  memset(TempDir, 0, 1024);
+                  sprintf(TempDir, "%s\0", Exerec + iPrm1);
+                }
+                
+
+                /****************************************************************/
+                /* Can we Hash the File, or is it an Internal Command?          */
+                /****************************************************************/
+                if (access(TempDir, 0) != 0)
+                 strncpy(MD5Out, "UnKnown or Not Found\0", 21);
+                else
+                 FileMD5(TempDir);
+
+
+                if (iPrm3 > 0)
+                {
+                  fprintf(LogHndl, "\nCMD: %s\n   : %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2, Exerec + iPrm3);
+                  printf("\nCMD: %s\n   : %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2, Exerec + iPrm3);
+                  fprintf(LogHndl, "Inf: Program Hash: %s\n", MD5Out);
+                  printf("Inf: Program Hash: %s\n", MD5Out);
+
+                  LastRC = (int)spawnlp(P_WAIT, CmdExe, CmdExe, "/c", TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
+                }
+                else
+                if (iPrm2 > 0)
+                {
+                  fprintf(LogHndl, "\nCMD: %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2);
+                  printf("\nCMD: %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2);
+                  fprintf(LogHndl, "Inf: Program Hash: %s\n", MD5Out);
+                  printf("Inf: Program Hash: %s\n", MD5Out);
+
+                  LastRC = (int)spawnlp(P_WAIT, CmdExe, CmdExe, "/c", TempDir, Exerec + iPrm2, NULL);
+                }
+                else
+                {
+                  fprintf(LogHndl, "\nCMD: %s\n", Exerec + iPrm1);
+                  printf("\nCMD: %s\n", Exerec + iPrm1);
+                  fprintf(LogHndl, "Inf: Program Hash: %s\n", MD5Out);
+                  printf("Inf: Program Hash: %s\n", MD5Out);
+
+                  LastRC = (int)spawnlp(P_WAIT, CmdExe, CmdExe, "/c", TempDir, NULL);
+                }
+
+
+                if (LastRC != 0)
+                {
+                  fprintf(LogHndl, "Spawn Error(%d): %s\n", errno, strerror(errno));
+                  printf("Spawn Error(%d): %s\n", errno, strerror(errno));
+                }
+                fprintf(LogHndl, "Return Code: %d\n", LastRC);
+               
+              }
             }
           }
           else
@@ -3463,14 +3872,19 @@ if (iRunMode == 1)
 /****************************************************************/
 showTime("Acquisition Completed");
 
+if (iXitCmd == 1)
+{
+  fprintf(LogHndl, "\nXit: Queuing Exit Program:\n %s\n", XitCmd);
+  printf("\nXit: Queuing Exit Program:\n %s\n", XitCmd);
+}
 
 /****************************************************************/
 /* Make a Copy of the Logfile in the ACQDirectory               */
 /****************************************************************/
 if (access(BACQDir, 0) == 0)
 {
-  fprintf(LogHndl, "Inf: Copying Log File...\n");
-  printf("Inf: Copying Log File...\n");
+  fprintf(LogHndl, "\nInf: Copying Log File...\n");
+  printf("\nInf: Copying Log File...\n");
 
   //Very Last Log Entry - Close Log now, and copy WITHOUT LOGGING
   fclose(LogHndl);
@@ -3479,6 +3893,14 @@ if (access(BACQDir, 0) == 0)
   binCopy(LogFile, CpyFile, 0);
 }
 
+
+/****************************************************************/
+/* Run Final Exit Program - This will not be logged             */
+/****************************************************************/
+if (iXitCmd == 1)
+{
+  LastRC = system(XitCmd);
+}
 
 exit(exitRC) ;
 return exitRC ;
