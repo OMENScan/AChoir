@@ -2094,7 +2094,9 @@ int main(int argc, char *argv[])
             if (access(CmdExe, 0) != 0)
             {
               fprintf(LogHndl, "Err: AChoir Safe Command Shell Not Found!\n");
+              fprintf(LogHndl, "     Bypassing %s\n\n", Inrec);
               printf("Err: AChoir Safe Command Shell Not Found!\n");
+              printf("     Bypassing %s\n\n", Inrec);
             }
             else
             {
@@ -2102,7 +2104,9 @@ int main(int argc, char *argv[])
               if (strnicmp(MD5Out, CmdHash, 32) != 0)
               {
                 fprintf(LogHndl, "Err: Command Shell Not Approved for AChoir!\n");
+                fprintf(LogHndl, "     Bypassing %s\n\n", Inrec);
                 printf("Err: Command Shell Not Approved for AChoir!\n");
+                printf("     Bypassing %s\n\n", Inrec);
               }
               else
               {
