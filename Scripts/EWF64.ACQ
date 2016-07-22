@@ -36,8 +36,8 @@ PZZ: Press Any Key to Continue, or q to QUIT
 SAY: 1a. Copy Raw $MFT and $LogFile...
 SAY:
 ACQ:\RawData
-EXE:\DSK\RawCopy64.exe /FileNamePath:c:0 /OutputPath:&Acq
-EXE:\DSK\RawCopy64.exe /FileNamePath:c:2 /OutputPath:&Acq
+EXE:\DSK\RawCopy64.exe /FileNamePath:&Drv0 /OutputPath:&Acq
+EXE:\DSK\RawCopy64.exe /FileNamePath:&Drv2 /OutputPath:&Acq
 SAY:
 SAY: 1b. Now Parsing $MFT...
 SAY:
@@ -45,7 +45,8 @@ EXE:\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT
 SAY:
 SAY: 1c. Now Parsing USNJrnl...
 SAY:
-SYS:fsutil usn readjournal &Drv csv > &Acq\USN64Jrnl.dat
+CMD:fsutil usn enumdata 1 0 1 &Drv csv > &Acq\USN64Jrnl.dat
+CMD:fsutil usn readjournal &Drv csv >> &Acq\USN64Jrnl.dat
 SAY:
 SAY: 1d. Now Extracting USNJrnl...
 SAY:
@@ -71,23 +72,23 @@ SAY:
 SAY: 2b. RegRipping Common Hives...
 SAY:
 SAY: ***Scanning Software hive***
-SYS:\RRV\RegRipper2.8-master\rip.exe -r &Drv\Windows\System32\Config\software -f software > &Acq\Software.regrip
+CMD:\RRV\RegRipper2.8-master\rip.exe -r &Drv\Windows\System32\Config\software -f software > &Acq\Software.regrip
 SAY:
 SAY: ***Scanning System hive***
-SYS:\RRV\RegRipper2.8-master\rip.exe -r &Drv\Windows\System32\Config\system -f system > &Acq\System.regrip 
+CMD:\RRV\RegRipper2.8-master\rip.exe -r &Drv\Windows\System32\Config\system -f system > &Acq\System.regrip 
 SAY:
 SAY: ***Scanning SAM hive***
-SYS:\RRV\RegRipper2.8-master\rip.exe -r &Drv\Windows\System32\Config\sam -f sam > &Acq\Sam.regrip
+CMD:\RRV\RegRipper2.8-master\rip.exe -r &Drv\Windows\System32\Config\sam -f sam > &Acq\Sam.regrip
 SAY:
 SAY: ***Scanning Security hive*** 
-SYS:\RRV\RegRipper2.8-master\rip -r &Drv\Windows\System32\Config\SECURITY –f security > &AcSecurity.regrip
+CMD:\RRV\RegRipper2.8-master\rip -r &Drv\Windows\System32\Config\SECURITY –f security > &AcSecurity.regrip
 SAY:
 SAY: 3. Parsing Prefetch Directory...
 SAY:
 ACQ:\SYS
 For:&Drv\Windows\prefetch\*.*
 CPY:"&For" "&Acq\&Fnm"
-SYS:Dir &Drv\Windows\prefetch /a /q /r > &Acq\Prefetch.dat
+CMD:Dir &Drv\Windows\prefetch /a /q /r > &Acq\Prefetch.dat
 EXE:\SYS\WinPrefetchView.exe /folder &Drv\Windows\Prefetch /scomma &Acq\WinPrefetchview.dat
 SAY:
 SAY: 4. Parsing Hosts And Services Directory...
@@ -102,9 +103,9 @@ SAY:
 SAY: 6a. Parsing EventViewer Logs Hives...
 SAY:
 ACQ:\Evt
-SYS:\SYS\PSLogList.exe /accepteula -s -l &Drv\Windows\System32\Winevt\logs\Security.evtx  > &Acq\EvtSec.dat
-SYS:\SYS\PSLogList.exe /accepteula -s -l &Drv\Windows\System32\Winevt\logs\Application.evtx > &Acq\EvtApp.dat
-SYS:\SYS\PSLogList.exe /accepteula -s -l &Drv\Windows\System32\Winevt\logs\System.evtx > &Acq\EvtSys.dat
+CMD:\SYS\PSLogList.exe /accepteula -s -l &Drv\Windows\System32\Winevt\logs\Security.evtx  > &Acq\EvtSec.dat
+CMD:\SYS\PSLogList.exe /accepteula -s -l &Drv\Windows\System32\Winevt\logs\Application.evtx > &Acq\EvtApp.dat
+CMD:\SYS\PSLogList.exe /accepteula -s -l &Drv\Windows\System32\Winevt\logs\System.evtx > &Acq\EvtSys.dat
 SAY:
 SAY: 6b. Copying EventViewer Logs Hives...
 SAY:

@@ -1,7 +1,7 @@
 ***************************************************
 * Get the BitLocker Key                           *
 ***************************************************
-SYS:CLS
+CMD:CLS
 SAY:
 SAY:Checking For Admin Rights... 
 SAY:
@@ -16,8 +16,8 @@ SAY:
 SAY: Checking For System32 Version
 SAY:
 CKY:C:\Windows\System32\manage-bde.exe
-SYS:C:\Windows\System32\manage-bde.exe -protectors -get c: > &Acq\BLocKey.txt
-SYS:Type &Acq\BLocKey.txt
+CMD:C:\Windows\System32\manage-bde.exe -protectors -get c: > &Acq\BLocKey.txt
+CMD:Type &Acq\BLocKey.txt
 END:
 CKN:C:\Windows\System32\manage-bde.exe
 SAY: 32Bit Version not Found.  Trying 64Bit (Sysnative) Version
@@ -27,8 +27,8 @@ SAY: I Couldn't Find the 64Bit Version Either!
 SAY:
 END:
 CKY:C:\Windows\Sysnative\manage-bde.exe
-SYS:C:\Windows\Sysnative\manage-bde.exe -protectors -get c: > &Acq\BLocKey.txt
-SYS:Type &Acq\BLocKey.txt
+CMD:C:\Windows\Sysnative\manage-bde.exe -protectors -get c: > &Acq\BLocKey.txt
+CMD:Type &Acq\BLocKey.txt
 SAY:
 END:
 END:

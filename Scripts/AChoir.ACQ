@@ -31,7 +31,7 @@ SAY:
 ACQ:\SYS
 For:&Win\prefetch\*.*
 CPY:"&For" "&Acq\&Fnm"
-SYS:Dir &Win\prefetch /a /q /r > &Acq\Prefetch.dat
+CMD:Dir &Win\prefetch /a /q /r > &Acq\Prefetch.dat
 EXE:\SYS\WinPrefetchView.exe /scomma &Acq\WinPrefetchview.dat
 SAY:
 SAY: 3a. Copy Raw $MFT and $LogFile...
@@ -50,12 +50,13 @@ EXE:\DSK\ExtractUSNJrnl.exe /DevicePath:c: /OutputPath:&Acq
 SAY:
 SAY: 3d. Now Parsing USNJrnl...
 SAY:
-SYS:fsutil usn readjournal C: csv > &Acq\USNJrnl.dat
+CMD:fsutil usn enumdata 1 0 1 C: csv > &Acq\USN64Jrnl.dat
+CMD:fsutil usn readjournal C: csv >> &Acq\USN64Jrnl.dat
 SAY:
 SAY: 4a. Gathering System Information...
 SAY:
 ACQ:\
-SYS:\SYS\PSInfo.exe /accepteula -s > &Acq\Info.dat
+CMD:\SYS\PSInfo.exe /accepteula -s > &Acq\Info.dat
 SAY:
 SAY: 4b. Gathering System Audit Information...
 SAY:
@@ -63,31 +64,31 @@ EXE:\SYS\WinAudit.exe /r=gsoPxuTUeERNtnzDaIbMpmidcSArCOHG /f=&Acq\WinAudit.htm /
 SAY:
 SAY: 4c. Gathering Group Policy Information...
 SAY:
-SYS:GPResult /R /Z > &Acq\GPResult.txt
+CMD:GPResult /R /Z > &Acq\GPResult.txt
 SAY:
 SAY: 5a. Saving Registry Hives...
 SAY:
 ACQ:\Reg
-SYS:reg save HKLM\SECURITY &Acq\Security.RegSave
-SYS:reg save HKLM\SOFTWARE &Acq\Software.RegSave
-SYS:reg save HKLM\SAM &Acq\SAM.RegSave
-SYS:reg save HKLM\SYSTEM &Acq\System.RegSave
-SYS:reg save HKLM\HARDWARE &Acq\Hardware.RegSave
+CMD:reg save HKLM\SECURITY &Acq\Security.RegSave
+CMD:reg save HKLM\SOFTWARE &Acq\Software.RegSave
+CMD:reg save HKLM\SAM &Acq\SAM.RegSave
+CMD:reg save HKLM\SYSTEM &Acq\System.RegSave
+CMD:reg save HKLM\HARDWARE &Acq\Hardware.RegSave
 SAY:
 SAY: 5b. Parsing (Exporting) Registry Hives...
 SAY:
-SYS:Reg Export HKLM &Acq\RegHKLM.dat
-SYS:Reg Export HKCU &Acq\RegHKCU.dat
-SYS:Reg Export HKCR &Acq\RegHKCR.dat
-SYS:Reg Export HKCC &Acq\RegHKCC.dat
-SYS:Reg Export HKU  &Acq\RegHKU.dat
+CMD:Reg Export HKLM &Acq\RegHKLM.dat
+CMD:Reg Export HKCU &Acq\RegHKCU.dat
+CMD:Reg Export HKCR &Acq\RegHKCR.dat
+CMD:Reg Export HKCC &Acq\RegHKCC.dat
+CMD:Reg Export HKU  &Acq\RegHKU.dat
 SAY:
 SAY: 6a. Parsing EventViewer Logs...
 SAY:
 ACQ:\Evt
-SYS:\SYS\PSLogList.exe /accepteula -s Security > &Acq\EvtSec.dat
-SYS:\SYS\PSLogList.exe /accepteula -s Application > &Acq\EvtApp.dat
-SYS:\SYS\PSLogList.exe /accepteula -s System > &Acq\EvtSys.dat
+CMD:\SYS\PSLogList.exe /accepteula -s Security > &Acq\EvtSec.dat
+CMD:\SYS\PSLogList.exe /accepteula -s Application > &Acq\EvtApp.dat
+CMD:\SYS\PSLogList.exe /accepteula -s System > &Acq\EvtSys.dat
 SAY:
 SAY: 6b. Copying (System32) Bit EventViewer Logs...
 SAY:
@@ -117,59 +118,59 @@ SAY:
 SAY: 8. Parsing Environment Variables...
 SAY:
 ACQ:\SYS
-SYS:Set > &Acq\EnVar.dat
+CMD:Set > &Acq\EnVar.dat
 SAY:
 SAY: 9. Parsing The Patch List...
 SAY:
-SYS:WMIC qfe list > &Acq\QFEList.dat
+CMD:WMIC qfe list > &Acq\QFEList.dat
 SAY:
 SAY: 10. Gathering Running Process List Information...
 SAY:
-SYS:Tasklist /v > &Acq\Tasklist.dat
-SYS:Tasklist /M > &Acq\TaskAll.dat
-SYS:\SYS\PSList.exe /accepteula -x > &Acq\PSList.dat
+CMD:Tasklist /v > &Acq\Tasklist.dat
+CMD:Tasklist /M > &Acq\TaskAll.dat
+CMD:\SYS\PSList.exe /accepteula -x > &Acq\PSList.dat
 SAY:
 SAY: 11. Gathering Connection Information...
 SAY:
-SYS:NetStat -abno > &Acq\NetStat.dat
+CMD:NetStat -abno > &Acq\NetStat.dat
 SAY:
 SAY: 12. Gathering IP Config Information...
 SAY:
-SYS:IPConfig /all > &Acq\IPConfig.dat
-SYS:IPConfig /DisplayDNS > &Acq\IPCfgDNS.dat
+CMD:IPConfig /all > &Acq\IPConfig.dat
+CMD:IPConfig /DisplayDNS > &Acq\IPCfgDNS.dat
 SAY:
 SAY: 13. Gathering ARP Information...
 SAY:
-SYS:Arp -a > &Acq\ArpInfo.dat
+CMD:Arp -a > &Acq\ArpInfo.dat
 SAY:
 SAY: 14. Gathering NetBIOS Information...
 SAY:
 CKY:&Win\System32\NBTStat.exe
-SYS:&Win\System32\NBTStat.exe -scn > &Acq\NetBios.dat
+CMD:&Win\System32\NBTStat.exe -scn > &Acq\NetBios.dat
 END:
 CKY:&Win\sysnative\NBTStat.exe
-SYS:&Win\sysnative\NBTStat.exe -scn >> &Acq\NetBios.dat
+CMD:&Win\sysnative\NBTStat.exe -scn >> &Acq\NetBios.dat
 END:
 SAY:
 SAY: 15. Gathering Open Files/Process Information...
 SAY:
 ACQ:\SYS
-SYS:\SYS\Handle.exe /accepteula > &Acq\OpenFiles.dat
+CMD:\SYS\Handle.exe /accepteula > &Acq\OpenFiles.dat
 SAY:
 SAY: 16. Gathering Scheduled Task Information...
 SAY:
-SYS:At > &Acq\SchedTasks.dat
-SYS:Schtasks /query /fo LIST /v >> &Acq\SchedTasks.dat
+CMD:At > &Acq\SchedTasks.dat
+CMD:Schtasks /query /fo LIST /v >> &Acq\SchedTasks.dat
 SAY:
 SAY: 17. Gathering System Logon Information...
 SAY:
-SYS:\SYS\PSLoggedon.exe /accepteula > &Acq\Logon.dat
+CMD:\SYS\PSLoggedon.exe /accepteula > &Acq\Logon.dat
 SAY:
 SAY: 18. Gathering Services Information...
 SAY:
-SYS:Net Start > &Acq\Services.dat
-SYS:sc query type= service state= all > &Acq\Services-2.dat
-SYS:Tasklist /SVC > &Acq\Services-3.dat
+CMD:Net Start > &Acq\Services.dat
+CMD:sc query type= service state= all > &Acq\Services-2.dat
+CMD:Tasklist /SVC > &Acq\Services-3.dat
 SAY:
 SAY: 19. Gathering Last Activity Information...
 SAY:
@@ -184,12 +185,12 @@ SAY:
 ACQ:\Arn
 ARN:
 SAY:
-SYS:\SYS\Autorunsc.exe /accepteula -a * -c -h > &Acq\AutoRun.dat
+CMD:\SYS\Autorunsc.exe /accepteula -a * -c -h > &Acq\AutoRun.dat
 SAY:
 SAY: 22a. Gathering Current (Open) User Registry...
 SAY:
 ACQ:\Reg
-SYS:Reg Save HKCU &Acq\NTUSER.DAT
+CMD:Reg Save HKCU &Acq\NTUSER.DAT
 SAY:
 SAY: 22b. Gathering All User Registries...
 SAY:

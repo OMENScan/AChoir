@@ -36,8 +36,8 @@ PZZ: Press Any Key to Continue, or q to QUIT
 SAY: 1a. Copy Raw $MFT and $LogFile...
 SAY:
 ACQ:\RawData
-EXE:\DSK\RawCopy.exe /FileNamePath:c:0 /OutputPath:&Acq
-EXE:\DSK\RawCopy.exe /FileNamePath:c:2 /OutputPath:&Acq
+EXE:\DSK\RawCopy.exe /FileNamePath:&Drv0 /OutputPath:&Acq
+EXE:\DSK\RawCopy.exe /FileNamePath:&Drv2 /OutputPath:&Acq
 SAY:
 SAY: 1b. Now Parsing $MFT...
 SAY:
@@ -45,7 +45,8 @@ EXE:\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT
 SAY:
 SAY: 1c. Now Parsing USNJrnl...
 SAY:
-SYS:fsutil usn readjournal &Drv csv > &Acq\USNJrnl.dat
+CMD:fsutil usn enumdata 1 0 1 &Drv csv > &Acq\USN64Jrnl.dat
+CMD:fsutil usn readjournal &Drv csv >> &Acq\USN64Jrnl.dat
 SAY:
 SAY: 1d. Now Extracting USNJrnl...
 SAY:
