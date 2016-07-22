@@ -1751,7 +1751,7 @@ Initialize()
         ConOutPuts(_T("(C) Copyright 1998-") _T(COPYRIGHT_YEAR) _T(" ReactOS Team.\n"));
 
         /* Notify User This is an AChoir Version of the Shell */
-        ConOutPuts(_T("AChoir-") _T("v0.44\n"));
+        ConOutPuts(_T("AChoir-") _T("v0.50\n"));
     }
 
     if (AutoRun)

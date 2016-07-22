@@ -153,7 +153,7 @@ char ForFile[1024] = "C:\\AChoir\\ForFiles\0";
 char IniFile[1024] = "C:\\AChoir\\AChoir.ACQ\0";
 char HtmFile[1024] = "C:\\AChoir\\Index.html\0";
 char CmdExe[1024] = "C:\\AChoir\\cmd.exe\0";
-char CmdHash[35] = "e4b22e2282044ebb76adad0b57422467\0";
+char CmdHash[35] = "d05c529f0eebb6aaf10cbdecde14d310\0";
 char TempDir[1024] = "C:\\AChoir\0";
 char BaseDir[1024] = "C:\\AChoir\0";
 char CurrDir[1024] = "\0";
@@ -2042,8 +2042,8 @@ int main(int argc, char *argv[])
               {
                 fprintf(LogHndl, "\nExe: %s\n   : %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2, Exerec + iPrm3);
                 printf("\nExe: %s\n   : %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2, Exerec + iPrm3);
-                fprintf(LogHndl, "Inf: Program Hash: %s\n", MD5Out);
-                printf("Inf: Program Hash: %s\n", MD5Out);
+                fprintf(LogHndl, "MD5: %s\n", MD5Out);
+                printf("MD5: %s\n", MD5Out);
 
                 LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
               }
@@ -2052,8 +2052,8 @@ int main(int argc, char *argv[])
               {
                 fprintf(LogHndl, "\nExe: %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2);
                 printf("\nExe: %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2);
-                fprintf(LogHndl, "Inf: Program Hash: %s\n", MD5Out);
-                printf("Inf: Program Hash: %s\n", MD5Out);
+                fprintf(LogHndl, "MD5: %s\n", MD5Out);
+                printf("MD5: %s\n", MD5Out);
 
                 LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, Exerec + iPrm2, NULL);
               }
@@ -2061,8 +2061,8 @@ int main(int argc, char *argv[])
               {
                 fprintf(LogHndl, "\nExe: %s\n", Exerec + iPrm1);
                 printf("\nExe: %s\n", Exerec + iPrm1);
-                fprintf(LogHndl, "Inf: Program Hash: %s\n", MD5Out);
-                printf("Inf: Program Hash: %s\n", MD5Out);
+                fprintf(LogHndl, "MD5: %s\n", MD5Out);
+                printf("MD5: %s\n", MD5Out);
                 LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, NULL);
               }
 
@@ -2103,9 +2103,9 @@ int main(int argc, char *argv[])
               FileMD5(CmdExe);
               if (strnicmp(MD5Out, CmdHash, 32) != 0)
               {
-                fprintf(LogHndl, "Err: Command Shell Not Approved for AChoir!\n");
+                fprintf(LogHndl, "Err: Command Shell Not Approved for AChoir (Bad Hash)!\n");
                 fprintf(LogHndl, "     Bypassing %s\n\n", Inrec);
-                printf("Err: Command Shell Not Approved for AChoir!\n");
+                printf("Err: Command Shell Not Approved for AChoir (Bad Hash)!\n");
                 printf("     Bypassing %s\n\n", Inrec);
               }
               else
@@ -2132,7 +2132,7 @@ int main(int argc, char *argv[])
                 /* Can we Hash the File, or is it an Internal Command?          */
                 /****************************************************************/
                 if (access(TempDir, 0) != 0)
-                 strncpy(MD5Out, "UnKnown or Not Found\0", 21);
+                 strncpy(MD5Out, "(N/A)\0", 10);
                 else
                  FileMD5(TempDir);
 
@@ -2141,8 +2141,8 @@ int main(int argc, char *argv[])
                 {
                   fprintf(LogHndl, "\nCMD: %s\n   : %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2, Exerec + iPrm3);
                   printf("\nCMD: %s\n   : %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2, Exerec + iPrm3);
-                  fprintf(LogHndl, "Inf: Program Hash: %s\n", MD5Out);
-                  printf("Inf: Program Hash: %s\n", MD5Out);
+                  fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+                  printf("MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
 
                   LastRC = (int)spawnlp(P_WAIT, CmdExe, CmdExe, "/c", TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
                 }
@@ -2151,8 +2151,8 @@ int main(int argc, char *argv[])
                 {
                   fprintf(LogHndl, "\nCMD: %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2);
                   printf("\nCMD: %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2);
-                  fprintf(LogHndl, "Inf: Program Hash: %s\n", MD5Out);
-                  printf("Inf: Program Hash: %s\n", MD5Out);
+                  fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+                  printf("MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
 
                   LastRC = (int)spawnlp(P_WAIT, CmdExe, CmdExe, "/c", TempDir, Exerec + iPrm2, NULL);
                 }
@@ -2160,8 +2160,8 @@ int main(int argc, char *argv[])
                 {
                   fprintf(LogHndl, "\nCMD: %s\n", Exerec + iPrm1);
                   printf("\nCMD: %s\n", Exerec + iPrm1);
-                  fprintf(LogHndl, "Inf: Program Hash: %s\n", MD5Out);
-                  printf("Inf: Program Hash: %s\n", MD5Out);
+                  fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+                  printf("MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
 
                   LastRC = (int)spawnlp(P_WAIT, CmdExe, CmdExe, "/c", TempDir, NULL);
                 }

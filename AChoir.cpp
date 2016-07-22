@@ -55,6 +55,8 @@
 /* AChoir v0.42 - Change HTML display to only Root Folder       */
 /* AChoir v0.43 - Match DLL Delay Loading to &Dir Directory     */
 /* AChoir v0.44 - Fix root folder edge case                     */
+/* AChoir v0.50 - Add CMD: - Like SYS: But uses a CMD.Exe shell */
+/*                In &Dir - Check Hash for AChoir ReactOS Shell */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -97,7 +99,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.44\0";
+char Version[10] = "v0.50\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -150,6 +152,8 @@ char MD5File[1024] = "C:\\AChoir\\Hashes.txt\0";
 char ForFile[1024] = "C:\\AChoir\\ForFiles\0";
 char IniFile[1024] = "C:\\AChoir\\AChoir.ACQ\0";
 char HtmFile[1024] = "C:\\AChoir\\Index.html\0";
+char CmdExe[1024] = "C:\\AChoir\\cmd.exe\0";
+char CmdHash[35] = "d05c529f0eebb6aaf10cbdecde14d310\0";
 char TempDir[1024] = "C:\\AChoir\0";
 char BaseDir[1024] = "C:\\AChoir\0";
 char CurrDir[1024] = "\0";
@@ -307,7 +311,7 @@ int main(int argc, char *argv[])
   char Cpyrec[4096];
   char Exerec[4096];
   char Arnrec[2048];
-  
+
   DWORD dwSize = 0;
   DWORD dwDownloaded = 0;
   LPSTR pszOutBuffer;
@@ -2038,8 +2042,8 @@ int main(int argc, char *argv[])
               {
                 fprintf(LogHndl, "\nExe: %s\n   : %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2, Exerec + iPrm3);
                 printf("\nExe: %s\n   : %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2, Exerec + iPrm3);
-                fprintf(LogHndl, "Inf: Program Hash: %s\n", MD5Out);
-                printf("Inf: Program Hash: %s\n", MD5Out);
+                fprintf(LogHndl, "MD5: %s\n", MD5Out);
+                printf("MD5: %s\n", MD5Out);
 
                 LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
               }
@@ -2048,8 +2052,8 @@ int main(int argc, char *argv[])
               {
                 fprintf(LogHndl, "\nExe: %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2);
                 printf("\nExe: %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2);
-                fprintf(LogHndl, "Inf: Program Hash: %s\n", MD5Out);
-                printf("Inf: Program Hash: %s\n", MD5Out);
+                fprintf(LogHndl, "MD5: %s\n", MD5Out);
+                printf("MD5: %s\n", MD5Out);
 
                 LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, Exerec + iPrm2, NULL);
               }
@@ -2057,8 +2061,8 @@ int main(int argc, char *argv[])
               {
                 fprintf(LogHndl, "\nExe: %s\n", Exerec + iPrm1);
                 printf("\nExe: %s\n", Exerec + iPrm1);
-                fprintf(LogHndl, "Inf: Program Hash: %s\n", MD5Out);
-                printf("Inf: Program Hash: %s\n", MD5Out);
+                fprintf(LogHndl, "MD5: %s\n", MD5Out);
+                printf("MD5: %s\n", MD5Out);
                 LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, NULL);
               }
 
@@ -2069,6 +2073,108 @@ int main(int argc, char *argv[])
                 printf("Spawn Error(%d): %s\n", errno, strerror(errno));
               }
               fprintf(LogHndl, "Return Code: %d\n", LastRC);
+            }
+          }
+          else
+          if (strnicmp(Inrec, "CMD:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Spawn an Executable using the ReactOS/AChoir command Shell   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+
+            /****************************************************************/
+            /* First make sure we have the CMD.EXE and the Hash is Right    */
+            /****************************************************************/
+            memset(CmdExe, 0, 1024);
+            sprintf(CmdExe, "%s\\cmd.exe\0", BaseDir);
+
+            if (access(CmdExe, 0) != 0)
+            {
+              fprintf(LogHndl, "Err: AChoir Safe Command Shell Not Found!\n");
+              fprintf(LogHndl, "     Bypassing %s\n\n", Inrec);
+              printf("Err: AChoir Safe Command Shell Not Found!\n");
+              printf("     Bypassing %s\n\n", Inrec);
+            }
+            else
+            {
+              FileMD5(CmdExe);
+              if (strnicmp(MD5Out, CmdHash, 32) != 0)
+              {
+                fprintf(LogHndl, "Err: Command Shell Not Approved for AChoir (Bad Hash)!\n");
+                fprintf(LogHndl, "     Bypassing %s\n\n", Inrec);
+                printf("Err: Command Shell Not Approved for AChoir (Bad Hash)!\n");
+                printf("     Bypassing %s\n\n", Inrec);
+              }
+              else
+              {
+                Squish(Inrec);
+                memset(Exerec, 0, 4096);
+                strncpy(Exerec, Inrec + 4, 4092);
+                twoSplit(Exerec);
+
+                // Are we requesting an explicit path?
+                if (Exerec[0] == '\\')
+                {
+                  memset(TempDir, 0, 1024);
+                  sprintf(TempDir, "%s%s\0", BaseDir, Exerec + iPrm1);
+                }
+                else
+                {
+                  memset(TempDir, 0, 1024);
+                  sprintf(TempDir, "%s\0", Exerec + iPrm1);
+                }
+                
+
+                /****************************************************************/
+                /* Can we Hash the File, or is it an Internal Command?          */
+                /****************************************************************/
+                if (access(TempDir, 0) != 0)
+                 strncpy(MD5Out, "(N/A)\0", 10);
+                else
+                 FileMD5(TempDir);
+
+
+                if (iPrm3 > 0)
+                {
+                  fprintf(LogHndl, "\nCMD: %s\n   : %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2, Exerec + iPrm3);
+                  printf("\nCMD: %s\n   : %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2, Exerec + iPrm3);
+                  fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+                  printf("MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+
+                  LastRC = (int)spawnlp(P_WAIT, CmdExe, CmdExe, "/c", TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
+                }
+                else
+                if (iPrm2 > 0)
+                {
+                  fprintf(LogHndl, "\nCMD: %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2);
+                  printf("\nCMD: %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2);
+                  fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+                  printf("MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+
+                  LastRC = (int)spawnlp(P_WAIT, CmdExe, CmdExe, "/c", TempDir, Exerec + iPrm2, NULL);
+                }
+                else
+                {
+                  fprintf(LogHndl, "\nCMD: %s\n", Exerec + iPrm1);
+                  printf("\nCMD: %s\n", Exerec + iPrm1);
+                  fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+                  printf("MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+
+                  LastRC = (int)spawnlp(P_WAIT, CmdExe, CmdExe, "/c", TempDir, NULL);
+                }
+
+
+                if (LastRC != 0)
+                {
+                  fprintf(LogHndl, "Spawn Error(%d): %s\n", errno, strerror(errno));
+                  printf("Spawn Error(%d): %s\n", errno, strerror(errno));
+                }
+                fprintf(LogHndl, "Return Code: %d\n", LastRC);
+               
+              }
             }
           }
           else
