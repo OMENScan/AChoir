@@ -47,6 +47,8 @@ prefer MingW.  However, all future development will be done to this fork.
 * AChoir v0.39 - Add LBL: and JMP: for Conditional Execution
 * AChoir v0.40 - Add XIT: <Exit Command - Run on Exit>
 * AChoir v0.41 - Add ARN:<Offline Registry File> Offline SOFTWARE Registry parse of Autorun programs 
+* AChoir v0.44 - Fix root folder edge case
+* AChoir v0.50 - Add CMD: - Like SYS: But uses a CMD.Exe shell, In &Dir - Check Hash for AChoir ReactOS Shell
 
 
 # Brief Description:
