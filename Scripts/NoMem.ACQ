@@ -39,8 +39,8 @@ EXE:\DSK\ExtractUSNJrnl.exe /DevicePath:c: /OutputPath:&Acq
 SAY:
 SAY: 3d. Now Parsing USNJrnl...
 SAY:
-CMD:fsutil usn enumdata 1 0 1 C: csv > &Acq\USN64Jrnl.dat
-CMD:fsutil usn readjournal C: csv >> &Acq\USN64Jrnl.dat
+CMD:fsutil usn enumdata 1 0 1 C: > &Acq\USNJrnl.dat
+CMD:fsutil usn readjournal C: csv >> &Acq\USNJrnl.dat
 SAY:
 SAY: 4a. Gathering System Information...
 SAY:

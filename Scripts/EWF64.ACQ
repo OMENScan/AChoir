@@ -45,8 +45,8 @@ EXE:\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT
 SAY:
 SAY: 1c. Now Parsing USNJrnl...
 SAY:
-CMD:fsutil usn enumdata 1 0 1 &Drv csv > &Acq\USN64Jrnl.dat
-CMD:fsutil usn readjournal &Drv csv >> &Acq\USN64Jrnl.dat
+CMD:fsutil usn enumdata 1 0 1 &Drv > &Acq\USNJrnl.dat
+CMD:fsutil usn readjournal &Drv csv >> &Acq\USNJrnl.dat
 SAY:
 SAY: 1d. Now Extracting USNJrnl...
 SAY:
