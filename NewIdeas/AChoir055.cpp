@@ -57,6 +57,9 @@
 /* AChoir v0.44 - Fix root folder edge case                     */
 /* AChoir v0.50 - Add CMD: - Like SYS: But uses a CMD.Exe shell */
 /*                In &Dir - Check Hash for AChoir ReactOS Shell */
+/* AChoir v0.55 - Add LST: - Looping Object (&LST) that reads   */
+/*                 entries from a file.  Also Add SID (file     */
+/*                 owner) copy on the CPY: command.             */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -617,8 +620,10 @@ int main(int argc, char *argv[])
     SetPrivilege(SecTokn, "SeRestorePrivilege", 1);
   }
   else
-    printf("Err: Error Setting Elevated Priveleges\n");
-  
+  {
+    printf("\nErr: Error Setting Elevated Priveleges. Some Options will be bypassed.\n\n");
+    fprintf(LogHndl, "\nErr: Error Setting Elevated Priveleges. Some Options will be bypassed.\n\n");
+  }
 
   fprintf(LogHndl, "Inf: Directory Has Been Set To: %s\\%s\n", BaseDir, CurrDir);
   fprintf(LogHndl, "Set: Input Script Set:\n     %s\n\n", IniFile);
@@ -788,8 +793,10 @@ int main(int argc, char *argv[])
           {
             Looper = 0;
 
-            fprintf(LogHndl, "Err: This Version of AChoir does not yet support Nested Looping (&LST + &FOR:)\n");
-            printf("Err: Err: This Version of AChoir does not yet support Nested Looping (&LST + &FOR)\n");
+            fprintf(LogHndl, "Err: AChoir does not yet support Nested Looping (&LST + &FOR)\n     > %s\n", Tmprec);
+            printf("Err: AChoir does not yet support Nested Looping (&LST + &FOR)\n     > %s\n", Tmprec);
+
+            strncpy(Tmprec, "***: Command Bypassed\0\0\0\0\0\0\0\0\0", 25);
           }
           
           
@@ -3336,21 +3343,18 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
     /* Get the SID (File Owner) of the file - Security Descripter   */
     /****************************************************************/
     gotOwner = 0;
-    if (PrivSet == 1) 
+
+    // First Call is to get the Length and Malloc the buffer
+    GetFileSecurity(FrmFile, OWNER_SECURITY_INFORMATION, SecDesc, 0, &SecLen);
+    SecDesc = (PSECURITY_DESCRIPTOR)malloc(SecLen);
+
+    // Second Call actually populates the Security Description Structure
+    if (GetFileSecurity(FrmFile, OWNER_SECURITY_INFORMATION, SecDesc, SecLen, &LenSec))
     {
-      // First Call is to get the Length and Malloc the buffer
-      GetFileSecurity(FrmFile, OWNER_SECURITY_INFORMATION, SecDesc, 0, &SecLen);
-      SecDesc = (PSECURITY_DESCRIPTOR)malloc(SecLen);
+      gotOwner = 1;
 
-      // Second Call actually populates the Security Description Structure
-      if (GetFileSecurity(FrmFile, OWNER_SECURITY_INFORMATION, SecDesc, SecLen, &LenSec))
-      {
-        gotOwner = 1;
-
-        GetSecurityDescriptorOwner(SecDesc, &pSidOwner, &pFlag);
-
-        convert_sid_to_string_sid(pSidOwner, SidString);
-      }
+      GetSecurityDescriptorOwner(SecDesc, &pSidOwner, &pFlag);
+      convert_sid_to_string_sid(pSidOwner, SidString);
     }
 
 
@@ -3501,9 +3505,9 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         }
         else
         {
-          printf("Inf: File Owner NOT Set (%s)\n", SidString);
+          printf("Inf: Can NOT Set Target File Owner(%s)\n", SidString);
           if (binLog == 1)
-            fprintf(LogHndl, "Inf: File Owner NOT Set (%s)\n", SidString);
+            fprintf(LogHndl, "Inf: Can NOT Set Target File Owner (%s)\n", SidString);
         }
 
         if (SecDesc)
@@ -4115,18 +4119,21 @@ BOOL SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, BOOL bEnablePrivilege)
 /****************************************************************/
 char * convert_sid_to_string_sid(const PSID psid, char *sid_str)
 {
-  char t[32];
-  DWORD i;
+  char tSid[32];
+  DWORD iSid;
 
   if (!psid)
     return NULL;
+
   strcpy(sid_str, "S-1-");
-  sprintf(t, "%u", GetSidIdentifierAuthority(psid)->Value[5]);
-  strcat(sid_str, t);
-  for (i = 0; i < *GetSidSubAuthorityCount(psid); ++i)
+  
+  sprintf(tSid, "%u", GetSidIdentifierAuthority(psid)->Value[5]);
+  strcat(sid_str, tSid);
+  
+  for (iSid = 0; iSid < *GetSidSubAuthorityCount(psid); ++iSid)
   {
-    sprintf(t, "-%lu", *GetSidSubAuthority(psid, i));
-    strcat(sid_str, t);
+    sprintf(tSid, "-%lu", *GetSidSubAuthority(psid, iSid));
+    strcat(sid_str, tSid);
   }
   return sid_str;
 }
