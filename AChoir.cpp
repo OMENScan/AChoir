@@ -4106,7 +4106,7 @@ BOOL SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, BOOL bEnablePrivilege)
   if (GetLastError() == ERROR_NOT_ALL_ASSIGNED)
 
   {
-    printf("Err: The token does not have the specified privilege. \n");
+    printf("Inf: Could Not Set Special Privilege: %s\n", lpszPrivilege);
     return FALSE;
   }
 
