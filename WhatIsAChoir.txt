@@ -1,4 +1,4 @@
-AChoir - Beta v0.50
+AChoir - Beta v0.55
 
 AChoir
 ======
@@ -169,6 +169,11 @@ FOR:     Set the &FOR object.  This is a Looping object based on
          Files - For instance "FOR:C:\Users\*.DAT" will define
          All *.DAT Files under C:\Users. In this way a single 
          command can be run iteratively against all of these files. 
+LST:<FileName> 
+         Set the &LST object.  This is a Looping object based on 
+         Lines in the <FilName>. In this way a single command can
+         be run iteratively replacing the &For variable with each
+         entry in the <FileName>. 
 CPY:     Copy Files (CPY:<FromFile> <ToFile>) - Supports Quotes
 ARN:     Search Registry Run Key and copy the EXEs 
          (possible malware persistence)
@@ -214,6 +219,7 @@ Objects:
 &Fil     The Current File Object
 &Acq     The Current Acquisition Directory
 &For     An array of File objects set by the FOR: action
+&Lst     An array of text objects set by the LST: action
 &Num     The array number of each &For Object
 &Win     The Windows Root Directory
 &CHK     The FileName that was Checked for (non) existence by the

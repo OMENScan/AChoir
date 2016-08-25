@@ -49,7 +49,7 @@ prefer MingW.  However, all future development will be done to this fork.
 * AChoir v0.41 - Add ARN:<Offline Registry File> Offline SOFTWARE Registry parse of Autorun programs 
 * AChoir v0.44 - Fix root folder edge case
 * AChoir v0.50 - Add CMD: - Like SYS: But uses a CMD.Exe shell, In &Dir - Check Hash for AChoir ReactOS Shell
-
+* AChoir v0.55 - Add LST: - Looping Object (&LST) that reads entries from a file.  Also Add SID (file owner) copy on the CPY: command.
 
 # Brief Description:
 Every Incident Responder eventually comes to the conclusion that they need to 

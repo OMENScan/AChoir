@@ -57,6 +57,9 @@
 /* AChoir v0.44 - Fix root folder edge case                     */
 /* AChoir v0.50 - Add CMD: - Like SYS: But uses a CMD.Exe shell */
 /*                In &Dir - Check Hash for AChoir ReactOS Shell */
+/* AChoir v0.55 - Add LST: - Looping Object (&LST) that reads   */
+/*                 entries from a file.  Also Add SID (file     */
+/*                 owner) copy on the CPY: command.             */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -93,13 +96,19 @@
 #include <winhttp.h>
 #include <Winnetwk.h>
 #include <Offreg.h>
+
 // #pragma comment (lib, "offreg.lib")
+// #pragma comment(lib, "cmcfg32.lib")
+
+#include "accctrl.h"
+#include "aclapi.h"
+#include <sddl.h>
 
 #define NUL '\0'
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.50\0";
+char Version[10] = "v0.55\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -135,11 +144,14 @@ BOOL IsUserAdmin(VOID);
 void showTime(char *showText);
 void USB_Protect(DWORD USBOnOff);
 int  cleanUp_Exit(int exitRC);
+BOOL SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, BOOL bEnablePrivilege);
+char * convert_sid_to_string_sid(const PSID psid, char *sid_str);
 
 
 FILE* LogHndl;
 FILE* CpyHndl;
 FILE* ForHndl;
+FILE* LstHndl;
 FILE* MD5Hndl;
 FILE* IniHndl;
 FILE* WGetHndl;
@@ -150,6 +162,7 @@ char CpyFile[1024] = "C:\\AChoir\\AChoir.exe\0";
 char ChkFile[1024] = "C:\\AChoir\\AChoir.exe\0";
 char MD5File[1024] = "C:\\AChoir\\Hashes.txt\0";
 char ForFile[1024] = "C:\\AChoir\\ForFiles\0";
+char LstFile[1024] = "C:\\AChoir\\LstFiles\0";
 char IniFile[1024] = "C:\\AChoir\\AChoir.ACQ\0";
 char HtmFile[1024] = "C:\\AChoir\\Index.html\0";
 char CmdExe[1024] = "C:\\AChoir\\cmd.exe\0";
@@ -164,6 +177,9 @@ char *WinRoot = "C:\\Windows";
 char *Procesr = "AMD64";
 char *TempVar = "C:\\Windows\\Temp";
 char *ProgVar = "C:\\Program Files";
+
+HANDLE SecTokn;
+int PrivSet = 0;
 
 int  WGetIni, WGetIsGood, WGotIsGood;
 size_t  lastChar;
@@ -304,10 +320,11 @@ int main(int argc, char *argv[])
   int i;
   int iPtr;
   size_t oPtr, ArnLen, ArnPtr;
-  int RunMe, ForMe, Looper, LoopNum;
+  int RunMe, ForMe, LstMe, Looper, LoopNum;
 
   char Tmprec[2048];
   char Filrec[2048];
+  char Lstrec[2048];
   char Cpyrec[4096];
   char Exerec[4096];
   char Arnrec[2048];
@@ -542,6 +559,7 @@ int main(int argc, char *argv[])
   sprintf(IniFile, "%s\\%s\0", BaseDir, inFnam);
   sprintf(WGetFile, "%s\\AChoir.Dat\0", BaseDir);
   sprintf(ForFile, "%s\\ForFiles\0", BaseDir);
+  sprintf(LstFile, "%s\\LstFiles\0", BaseDir);
   sprintf(ChkFile, "%s\\AChoir.exe\0", BaseDir);
   sprintf(BACQDir, "%s\\%s\0", BaseDir, ACQName);
 
@@ -586,6 +604,25 @@ int main(int argc, char *argv[])
     printf("Inf: Running As NON-Admin\n\n");
     fprintf(LogHndl, "Inf: Running As NON-Admin\n\n");
     iIsAdmin = 0;
+  }
+
+
+  /****************************************************************/
+  /* Get Basic Security Priveleges we will need before starting   */
+  /****************************************************************/
+  PrivSet = 0;
+  if (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, &SecTokn))
+  {
+    PrivSet = 1;
+    SetPrivilege(SecTokn, "SeTakeOwnershipPrivilege", 1);
+    SetPrivilege(SecTokn, "SeSecurityPrivilege", 1);
+    SetPrivilege(SecTokn, "SeBackupPrivilege", 1);
+    SetPrivilege(SecTokn, "SeRestorePrivilege", 1);
+  }
+  else
+  {
+    printf("\nErr: Error Setting Elevated Priveleges. Some Options will be bypassed.\n\n");
+    fprintf(LogHndl, "\nErr: Error Setting Elevated Priveleges. Some Options will be bypassed.\n\n");
   }
 
   fprintf(LogHndl, "Inf: Directory Has Been Set To: %s\\%s\n", BaseDir, CurrDir);
@@ -659,6 +696,10 @@ int main(int argc, char *argv[])
       else
       {
         Looper = 1;
+
+        /****************************************************************/
+        /* ForFiles Looper Setup                                        */
+        /****************************************************************/
         if (stristr(Tmprec, "&FOR") > 0)
         {
           ForMe = 1;
@@ -678,14 +719,36 @@ int main(int argc, char *argv[])
 
 
         /****************************************************************/
-        /* Loop (FOR:) until Looper = 1                                 */
+        /* LstFiles Looper Setup                                        */
+        /****************************************************************/
+        if (stristr(Tmprec, "&LST") > 0)
+        {
+          LstMe = 1;
+          memset(Lstrec, 0, 2048);
+
+          LstHndl = fopen(LstFile, "r");
+
+          if (LstHndl == NULL)
+          {
+            fprintf(LogHndl, "Err: &LST Directory not found: %s\n", LstFile);
+            printf("Err: &LST Directory not found: %s\n", LstFile);
+            Looper = 0;
+          }
+        }
+        else
+          LstMe = 0;
+        
+
+        /****************************************************************/
+        /* Loop (FOR: and LST:) until Looper = 1                        */
         /****************************************************************/
         LoopNum = 0;
         while (Looper == 1)
         {
-          if (ForMe == 0)
+          if ((ForMe == 0) && (LstMe == 0))
             Looper = 0;
           else
+          if ((ForMe == 1) && (LstMe == 0))
           {
             if (fgets(Filrec, 1000, ForHndl))
             {
@@ -712,9 +775,31 @@ int main(int argc, char *argv[])
             else
               break;
           }
+          else
+          if ((ForMe == 0) && (LstMe == 1))
+          {
+            if (fgets(Lstrec, 1000, LstHndl))
+            {
+              Looper = 1;
+              LoopNum++;
 
+              strtok(Filrec, "\n");
+              strtok(Filrec, "\r");
+            }
+            else
+              break;
+          }
+          else
+          {
+            Looper = 0;
 
+            fprintf(LogHndl, "Err: AChoir does not yet support Nested Looping (&LST + &FOR)\n     > %s\n", Tmprec);
+            printf("Err: AChoir does not yet support Nested Looping (&LST + &FOR)\n     > %s\n", Tmprec);
 
+            strncpy(Tmprec, "***: Command Bypassed\0\0\0\0\0\0\0\0\0", 25);
+          }
+          
+          
           /****************************************************************/
           /* Expand the record, replacing variables                       */
           /****************************************************************/
@@ -797,6 +882,13 @@ int main(int argc, char *argv[])
             if (strnicmp(o32VarRec + iPtr, "&For", 4) == 0)
             {
               sprintf(Inrec + oPtr, "%s", Filrec);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Lst", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%s", Lstrec);
               oPtr = strlen(Inrec);
               iPtr += 3;
             }
@@ -1891,6 +1983,17 @@ int main(int argc, char *argv[])
             }
           }
           else
+          if (strnicmp(Inrec, "LST:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Get the Object Listing for the &LST variable (Loop)          */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            sprintf(LstFile, "%s\\%s\0", BaseDir, Inrec+4);
+          }
+          else
           if (strnicmp(Inrec, "END:", 4) == 0)
           {
             /****************************************************************/
@@ -2314,6 +2417,9 @@ int main(int argc, char *argv[])
 
         if ((ForMe == 1) && (ForHndl != NULL))
           fclose(ForHndl);
+
+        if ((LstMe == 1) && (LstHndl != NULL))
+          fclose(LstHndl);
 
       }
 
@@ -3176,11 +3282,21 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   char tmpTooFile[4096];
   int iFileCount = 0;
   int TimeNotGood = 0;
+  int gotOwner = 0;
+  int setOwner = 0;
 
   FILE* FrmHndl;
   FILE* TooHndl;
+  HANDLE HndlFrm;
   HANDLE HndlToo;
 
+  DWORD dwRtnCode = 0;
+  DWORD SecLen, LenSec;
+  PSID pSidOwner = NULL;
+  PSECURITY_DESCRIPTOR SecDesc = NULL;
+  BOOL pFlag = FALSE;
+  char SidString[256];
+  
   //FILETIME ftCreate, ftAccess, ftWrite;
   /****************************************************************/
   /* Make Sure the File is Not There - Don't Overwrite!           */
@@ -3221,6 +3337,25 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
     /* Get the original TimeStamps                                  */
     /****************************************************************/
     stat(FrmFile, &Frmstat);
+
+
+    /****************************************************************/
+    /* Get the SID (File Owner) of the file - Security Descripter   */
+    /****************************************************************/
+    gotOwner = 0;
+
+    // First Call is to get the Length and Malloc the buffer
+    GetFileSecurity(FrmFile, OWNER_SECURITY_INFORMATION, SecDesc, 0, &SecLen);
+    SecDesc = (PSECURITY_DESCRIPTOR)malloc(SecLen);
+
+    // Second Call actually populates the Security Description Structure
+    if (GetFileSecurity(FrmFile, OWNER_SECURITY_INFORMATION, SecDesc, SecLen, &LenSec))
+    {
+      gotOwner = 1;
+
+      GetSecurityDescriptorOwner(SecDesc, &pSidOwner, &pFlag);
+      convert_sid_to_string_sid(pSidOwner, SidString);
+    }
 
 
     /****************************************************************/
@@ -3343,7 +3478,9 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
       if (TimeNotGood == 1)
       {
         printf("Inf: Converging Mismatched TimeStamp(s)\n");
-        fprintf(LogHndl, "Inf: Converging Mismatched TimeStamp(s)\n");
+
+        if (binLog == 1)
+          fprintf(LogHndl, "Inf: Converging Mismatched TimeStamp(s)\n");
 
         HndlToo = CreateFile(tmpTooFile, FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -3352,6 +3489,32 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         CloseHandle(HndlToo);
       }
       
+
+      /****************************************************************/
+      /* Set the SID (Owner) of the new file same as the old file     */
+      /****************************************************************/
+      if ((PrivSet == 1) && (gotOwner == 1))
+      {
+        setOwner = SetFileSecurity(TooFile, OWNER_SECURITY_INFORMATION, SecDesc);
+                
+        if (setOwner)
+        {
+          printf("Inf: File Owner Set (%s)\n", SidString);
+          if (binLog == 1)
+            fprintf(LogHndl, "Inf: File Owner Set (%s)\n", SidString);
+        }
+        else
+        {
+          printf("Inf: Can NOT Set Target File Owner(%s)\n", SidString);
+          if (binLog == 1)
+            fprintf(LogHndl, "Inf: Can NOT Set Target File Owner (%s)\n", SidString);
+        }
+
+        if (SecDesc)
+          free(SecDesc);
+      }
+      
+
 
       /****************************************************************/
       /* MD5 The Files                                                */
@@ -3909,4 +4072,68 @@ if (iXitCmd == 1)
 exit(exitRC) ;
 return exitRC ;
 
+}
+
+
+/****************************************************************/
+/* Elevate Priveleges of Access Token                           */
+/****************************************************************/
+BOOL SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, BOOL bEnablePrivilege)
+{
+  TOKEN_PRIVILEGES ToknPriv;
+  LUID luid;
+
+  if (!LookupPrivilegeValue(NULL, lpszPrivilege, &luid))
+  {
+    printf("Err: LookupPrivilegeValue error: %u\n", GetLastError());
+    return FALSE;
+  }
+
+  ToknPriv.PrivilegeCount = 1;
+  ToknPriv.Privileges[0].Luid = luid;
+  if (bEnablePrivilege)
+    ToknPriv.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+  else
+    ToknPriv.Privileges[0].Attributes = 0;
+
+  // Enable the privilege or disable all privileges.
+  if (!AdjustTokenPrivileges(hToken, FALSE, &ToknPriv, sizeof(TOKEN_PRIVILEGES), (PTOKEN_PRIVILEGES)NULL, (PDWORD)NULL))
+  {
+    printf("Err: AdjustTokenPrivileges error: %u\n", GetLastError());
+    return FALSE;
+  }
+
+  if (GetLastError() == ERROR_NOT_ALL_ASSIGNED)
+
+  {
+    printf("Err: The token does not have the specified privilege. \n");
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+
+/****************************************************************/
+/* Convert a SID to a String for Display                        */
+/****************************************************************/
+char * convert_sid_to_string_sid(const PSID psid, char *sid_str)
+{
+  char tSid[32];
+  DWORD iSid;
+
+  if (!psid)
+    return NULL;
+
+  strcpy(sid_str, "S-1-");
+  
+  sprintf(tSid, "%u", GetSidIdentifierAuthority(psid)->Value[5]);
+  strcat(sid_str, tSid);
+  
+  for (iSid = 0; iSid < *GetSidSubAuthorityCount(psid); ++iSid)
+  {
+    sprintf(tSid, "-%lu", *GetSidSubAuthority(psid, iSid));
+    strcat(sid_str, tSid);
+  }
+  return sid_str;
 }
