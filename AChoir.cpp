@@ -61,6 +61,7 @@
 /*                 entries from a file.  Also Add SID (file     */
 /*                 owner) copy on the CPY: command.             */
 /* AChoir v0.56 - Improve Privileges Message Display            */
+/* AChoir v0.57 - Fix Priv Bug & Add better Error Detection     */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -109,7 +110,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.56\0";
+char Version[10] = "v0.57\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -3398,10 +3399,12 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
     // Second Call actually populates the Security Description Structure
     if (GetFileSecurity(FrmFile, OWNER_SECURITY_INFORMATION, SecDesc, SecLen, &LenSec))
     {
-      gotOwner = 1;
+      if (GetSecurityDescriptorOwner(SecDesc, &pSidOwner, &pFlag))
+      {
+        gotOwner = 1;
 
-      GetSecurityDescriptorOwner(SecDesc, &pSidOwner, &pFlag);
-      convert_sid_to_string_sid(pSidOwner, SidString);
+        convert_sid_to_string_sid(pSidOwner, SidString);
+      }
     }
 
 
@@ -3540,7 +3543,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
       /****************************************************************/
       /* Set the SID (Owner) of the new file same as the old file     */
       /****************************************************************/
-      if ((PrivSet == 1) && (gotOwner == 1))
+      if (gotOwner == 1)
       {
         setOwner = SetFileSecurity(TooFile, OWNER_SECURITY_INFORMATION, SecDesc);
                 
@@ -3560,6 +3563,13 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         if (SecDesc)
           free(SecDesc);
       }
+      else
+      {
+        printf("Inf: Could NOT Determine Source File Owner(Unknown)\n");
+        if (binLog == 1)
+          fprintf(LogHndl, "Inf: Could NOT Determine Source File Owner (Unknown)\n");
+      }
+
       
 
 
