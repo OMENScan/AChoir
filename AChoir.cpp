@@ -60,6 +60,7 @@
 /* AChoir v0.55 - Add LST: - Looping Object (&LST) that reads   */
 /*                 entries from a file.  Also Add SID (file     */
 /*                 owner) copy on the CPY: command.             */
+/* AChoir v0.56 - Improve Privileges Message Display            */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -108,7 +109,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.55\0";
+char Version[10] = "v0.56\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -180,6 +181,10 @@ char *ProgVar = "C:\\Program Files";
 
 HANDLE SecTokn;
 int PrivSet = 0;
+int PrivOwn = 0;
+int PrivSec = 0;
+int PrivBac = 0;
+int PrivRes = 0;
 
 int  WGetIni, WGetIsGood, WGotIsGood;
 size_t  lastChar;
@@ -596,13 +601,13 @@ int main(int argc, char *argv[])
   if (IsUserAdmin() == TRUE)
   {
     iIsAdmin = 1;
-    printf("Inf: Running As Admin\n\n");
-    fprintf(LogHndl, "Inf: Running As Admin\n\n");
+    printf("Inf: Running As Admin\n");
+    fprintf(LogHndl, "Inf: Running As Admin\n");
   }
   else
   {
-    printf("Inf: Running As NON-Admin\n\n");
-    fprintf(LogHndl, "Inf: Running As NON-Admin\n\n");
+    printf("Inf: Running As NON-Admin\n");
+    fprintf(LogHndl, "Inf: Running As NON-Admin\n");
     iIsAdmin = 0;
   }
 
@@ -610,20 +615,62 @@ int main(int argc, char *argv[])
   /****************************************************************/
   /* Get Basic Security Priveleges we will need before starting   */
   /****************************************************************/
-  PrivSet = 0;
+  PrivSet = PrivOwn = PrivSec = PrivBac = PrivRes = 0;
+
   if (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, &SecTokn))
   {
-    PrivSet = 1;
-    SetPrivilege(SecTokn, "SeTakeOwnershipPrivilege", 1);
-    SetPrivilege(SecTokn, "SeSecurityPrivilege", 1);
-    SetPrivilege(SecTokn, "SeBackupPrivilege", 1);
-    SetPrivilege(SecTokn, "SeRestorePrivilege", 1);
+    if (SetPrivilege(SecTokn, "SeTakeOwnershipPrivilege", 1))
+      PrivOwn = 1;
+
+    if (SetPrivilege(SecTokn, "SeSecurityPrivilege", 1))
+      PrivSec = 1;
+
+    if (SetPrivilege(SecTokn, "SeBackupPrivilege", 1))
+      PrivBac = 1;
+
+    if (SetPrivilege(SecTokn, "SeRestorePrivilege", 1))
+      PrivRes = 1;
+
+    PrivSet = PrivOwn + PrivSec + PrivBac + PrivRes;
+  }
+
+  printf("Inf: Privileges(%d):", PrivSet);
+  fprintf(LogHndl, "Inf: Privileges(%d):", PrivSet);
+
+  if (PrivSet == 0)
+  {
+    printf(" None");
+    fprintf(LogHndl, " None");
   }
   else
   {
-    printf("\nErr: Error Setting Elevated Priveleges. Some Options will be bypassed.\n\n");
-    fprintf(LogHndl, "\nErr: Error Setting Elevated Priveleges. Some Options will be bypassed.\n\n");
+    if (PrivOwn == 1)
+    {
+      printf(" TakeOwnership");
+      fprintf(LogHndl, " TakeOwnership");
+    }
+
+    if (PrivSec == 1)
+    {
+      printf(" Security");
+      fprintf(LogHndl, " Security");
+    }
+
+    if (PrivBac == 1)
+    {
+      printf(" Backup");
+      fprintf(LogHndl, " Backup");
+    }
+
+    if (PrivRes == 1)
+    {
+      printf(" Restore");
+      fprintf(LogHndl, " Restore");
+    }
   }
+
+  printf("\n\n");
+  fprintf(LogHndl, "\n\n");
 
   fprintf(LogHndl, "Inf: Directory Has Been Set To: %s\\%s\n", BaseDir, CurrDir);
   fprintf(LogHndl, "Set: Input Script Set:\n     %s\n\n", IniFile);
@@ -4085,7 +4132,7 @@ BOOL SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, BOOL bEnablePrivilege)
 
   if (!LookupPrivilegeValue(NULL, lpszPrivilege, &luid))
   {
-    printf("Err: LookupPrivilegeValue error: %u\n", GetLastError());
+    // printf("Err: LookupPrivilegeValue error: %u\n", GetLastError());
     return FALSE;
   }
 
@@ -4099,14 +4146,13 @@ BOOL SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, BOOL bEnablePrivilege)
   // Enable the privilege or disable all privileges.
   if (!AdjustTokenPrivileges(hToken, FALSE, &ToknPriv, sizeof(TOKEN_PRIVILEGES), (PTOKEN_PRIVILEGES)NULL, (PDWORD)NULL))
   {
-    printf("Err: AdjustTokenPrivileges error: %u\n", GetLastError());
+    // printf("Err: AdjustTokenPrivileges error: %u\n", GetLastError());
     return FALSE;
   }
 
   if (GetLastError() == ERROR_NOT_ALL_ASSIGNED)
-
   {
-    printf("Inf: Could Not Set Special Privilege: %s\n", lpszPrivilege);
+    // printf("Inf: Could Not Set Special Privilege: %s\n", lpszPrivilege);
     return FALSE;
   }
 
