@@ -71,8 +71,7 @@ BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn,
   }
   return FALSE;
 }
-PATTRIBUTE FindAttribute(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR
-  name)
+PATTRIBUTE FindAttribute(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name)
 {
   PATTRIBUTE attr = NULL;
   wprintf(L"FindAttribute() - Finding attributes...\n");
@@ -91,6 +90,40 @@ PATTRIBUTE FindAttribute(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR
   }
   return 0;
 }
+
+
+PATTRIBUTE FindAttributeII(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name)
+{
+  PATTRIBUTE attr = NULL;
+  int FoundAttr = 0;
+
+  wprintf(L"FindAttributeII() - Finding Second Attribute...\n");
+
+  for (attr = PATTRIBUTE(Padd(file, file->AttributesOffset));
+    attr->AttributeType != -1; attr = Padd(attr, attr->Length))
+  {
+    if (attr->AttributeType == type)
+    {
+      if (FoundAttr == 0)
+        FoundAttr++;
+      else
+      {
+        if (name == 0 && attr->NameLength == 0)
+          return attr;
+        if (name != 0 && wcslen(name) == attr->NameLength &&
+          _wcsicmp(name,
+            PWSTR(Padd(attr, attr->NameOffset))) == 0)
+          return attr;
+      }
+    }
+  }
+  return 0;
+}
+
+
+
+
+
 VOID FixupUpdateSequenceArray(PFILE_RECORD_HEADER file)
 {
   ULONG i = 0;
@@ -182,8 +215,7 @@ VOID ReadVCN(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, ULONGLONG vcn, ULONG
   count, PVOID buffer)
 {
   PATTRIBUTE attrlist = NULL;
-  PNONRESIDENT_ATTRIBUTE attr = PNONRESIDENT_ATTRIBUTE(FindAttribute(file,
-    type, 0));
+  PNONRESIDENT_ATTRIBUTE attr = PNONRESIDENT_ATTRIBUTE(FindAttribute(file, type, 0));
   wprintf(L"In ReadVCN()...\n");
   if (attr == 0 || (vcn < attr->LowVcn || vcn > attr->HighVcn))
   {
@@ -199,22 +231,22 @@ VOID ReadFileRecord(ULONG index, PFILE_RECORD_HEADER file)
   wprintf(L"ReadFileRecord() - Reading the file records..\n");
   if (clusters > 0x80)
     clusters = 1;
-  PUCHAR p = new UCHAR[bootb.BytesPerSector* bootb.SectorsPerCluster *
-    clusters];
-  ULONGLONG vcn = ULONGLONG(index) *
-    BytesPerFileRecord / bootb.BytesPerSector / bootb.SectorsPerCluster;
+  PUCHAR p = new UCHAR[bootb.BytesPerSector* bootb.SectorsPerCluster * clusters];
+  ULONGLONG vcn = ULONGLONG(index) * BytesPerFileRecord / bootb.BytesPerSector / bootb.SectorsPerCluster;
+  
   ReadVCN(MFT, AttributeData, vcn, clusters, p);
-  LONG m = (bootb.SectorsPerCluster *
-    bootb.BytesPerSector / BytesPerFileRecord) - 1;
+  LONG m = (bootb.SectorsPerCluster * bootb.BytesPerSector / BytesPerFileRecord) - 1;
   ULONG n = m > 0 ? (index & m) : 0;
+  
   memcpy(file, p + n * BytesPerFileRecord, BytesPerFileRecord);
   delete[] p;
+  
   FixupUpdateSequenceArray(file);
 }
 VOID LoadMFT()
 {
   wprintf(L"In LoadMFT() - Loading MFT...\n");
-  BytesPerFileRecord = bootb.ClustersPerFileRecord < 0x80
+  BytesPerFileRecord = bootb.ClustersPerFileRecord < 0x80 
     ? bootb.ClustersPerFileRecord* bootb.SectorsPerCluster
     * bootb.BytesPerSector : 1 << (0x100 - bootb.ClustersPerFileRecord);
   wprintf(L"\nBytes Per File Record = %u\n\n", BytesPerFileRecord);
@@ -222,10 +254,8 @@ VOID LoadMFT()
   wprintf(L"bootb.BootSectors = %u\n", bootb.BootSectors);
   wprintf(L"bootb.BootSignature = %u\n", bootb.BootSignature);
   wprintf(L"bootb.BytesPerSector = %u\n", bootb.BytesPerSector);
-  wprintf(L"bootb.ClustersPerFileRecord = %u\n",
-    bootb.ClustersPerFileRecord);
-  wprintf(L"bootb.ClustersPerIndexBlock = %u\n",
-    bootb.ClustersPerIndexBlock);
+  wprintf(L"bootb.ClustersPerFileRecord = %u\n", bootb.ClustersPerFileRecord);
+  wprintf(L"bootb.ClustersPerIndexBlock = %u\n", bootb.ClustersPerIndexBlock);
   wprintf(L"bootb.Code = %u\n", bootb.Code);
   wprintf(L"bootb.Format = %u\n", bootb.Format);
   wprintf(L"bootb.Jump = %u\n", bootb.Jump);
@@ -240,27 +270,89 @@ VOID LoadMFT()
   wprintf(L"bootb.SectorsPerCluster = %u\n", bootb.SectorsPerCluster);
   wprintf(L"bootb.SectorsPerTrack = %u\n", bootb.SectorsPerTrack);
   wprintf(L"bootb.TotalSectors = %lu\n", bootb.TotalSectors);
-  wprintf(L"bootb.VolumeSerialNumber = 0X%.8X%.8X\n\n",
-    bootb.VolumeSerialNumber.HighPart, bootb.VolumeSerialNumber.HighPart);
+  wprintf(L"bootb.VolumeSerialNumber = 0X%.8X%.8X\n\n", bootb.VolumeSerialNumber.HighPart, bootb.VolumeSerialNumber.HighPart);
+
   MFT = PFILE_RECORD_HEADER(new UCHAR[BytesPerFileRecord]);
-  ReadSector((bootb.MftStartLcn)*(bootb.SectorsPerCluster),
-    (BytesPerFileRecord) / (bootb.BytesPerSector), MFT);
+
+  ReadSector((bootb.MftStartLcn)*(bootb.SectorsPerCluster), (BytesPerFileRecord) / (bootb.BytesPerSector), MFT);
+
   FixupUpdateSequenceArray(MFT);
 }
 BOOL bitset(PUCHAR bitmap, ULONG i)
 {
   return (bitmap[i >> 3] & (1 << (i & 7))) != 0;
 }
+
+
+VOID FindActive()
+{
+  PATTRIBUTE attr = FindAttribute(MFT, AttributeBitmap, 0);
+  PATTRIBUTE attr2 = attr;
+  PUCHAR bitmap = new UCHAR[AttributeLengthAllocated(attr)];
+
+  ReadAttribute(attr, bitmap);
+  
+  ULONG n = AttributeLength(FindAttribute(MFT, AttributeData, 0)) / BytesPerFileRecord;
+
+  wprintf(L"FindActive() - Finding the active files...\n");
+
+  PFILE_RECORD_HEADER file = PFILE_RECORD_HEADER(new UCHAR[BytesPerFileRecord]);
+  for (ULONG i = 0; i < n; i++)
+  {
+    if (!bitset(bitmap, i))
+      continue;
+
+    ReadFileRecord(i, file);
+
+
+
+    //printf("\n Record %d - Flags: %d\n\n", i, file->Flags);
+    //printf("\nType: %s\n\n", file->Ntfs.Type);
+    //printf("\nType: %s - Flags: %02x\n\n", file->Ntfs.Type, file->Flags);
+
+
+
+    if (file->Ntfs.Type == 'ELIF' && file->Flags == 1)
+    {
+      attr = FindAttribute(file, AttributeFileName, 0);
+      if (attr == 0)
+        continue;
+
+      PFILENAME_ATTRIBUTE name =
+        PFILENAME_ATTRIBUTE(Padd(attr, PRESIDENT_ATTRIBUTE(attr)->ValueOffset));
+      // * means the width/precision was supplied in the argument list
+      // ws ~ wide character string
+      wprintf(L"\n%10u %u %.*s\n-----\n\n", i, int(name->NameLength), int(name->NameLength), name->Name);
+
+      //Lets See if we have a Long File Name
+      attr2 = FindAttributeII(file, AttributeFileName, 0);
+      if (attr2 == 0)
+        continue;
+
+      PFILENAME_ATTRIBUTE name2 =
+        PFILENAME_ATTRIBUTE(Padd(attr2, PRESIDENT_ATTRIBUTE(attr2)->ValueOffset));
+      // * means the width/precision was supplied in the argument list
+      // ws ~ wide character string
+      wprintf(L"\n%10u %u %.*s\n-----\n\n", i, int(name2->NameLength), int(name2->NameLength), name2->Name);
+      //printf("\nSecond $File_Name found!\n");
+
+
+      // To see the very long output short, uncomment the following line
+      // _getwch();
+    }
+  }
+}
+
+
 VOID FindDeleted()
 {
   PATTRIBUTE attr = FindAttribute(MFT, AttributeBitmap, 0);
   PUCHAR bitmap = new UCHAR[AttributeLengthAllocated(attr)];
   ReadAttribute(attr, bitmap);
-  ULONG n = AttributeLength(FindAttribute(MFT, AttributeData,
-    0)) / BytesPerFileRecord;
+  ULONG n = AttributeLength(FindAttribute(MFT, AttributeData, 0)) / BytesPerFileRecord;
   wprintf(L"FindDeleted() - Finding the deleted files...\n");
-  PFILE_RECORD_HEADER file = PFILE_RECORD_HEADER(new
-    UCHAR[BytesPerFileRecord]);
+
+  PFILE_RECORD_HEADER file = PFILE_RECORD_HEADER(new UCHAR[BytesPerFileRecord]);
   for (ULONG i = 0; i < n; i++)
   {
     if (bitset(bitmap, i))
@@ -272,13 +364,12 @@ VOID FindDeleted()
       if (attr == 0)
         continue;
       PFILENAME_ATTRIBUTE name =
-        PFILENAME_ATTRIBUTE(Padd(attr, PRESIDENT_ATTRIBUTE(attr)->ValueOffset));
+      PFILENAME_ATTRIBUTE(Padd(attr, PRESIDENT_ATTRIBUTE(attr)->ValueOffset));
       // * means the width/precision was supplied in the argument list
-        // ws ~ wide character string
-        wprintf(L"\n%10u %u %.*s\n\n", i, int(name->NameLength),
-          int(name->NameLength), name->Name);
+      // ws ~ wide character string
+      wprintf(L"\n%10u %u %.*s\n-----\n\n", i, int(name->NameLength), int(name->NameLength), name->Name);
       // To see the very long output short, uncomment the following line
-        // _getwch();
+      // _getwch();
     }
   }
 }
@@ -286,8 +377,7 @@ VOID DumpData(ULONG index, WCHAR* filename)
 {
   PATTRIBUTE attr = NULL;
   HANDLE hFile = NULL;
-  PFILE_RECORD_HEADER file = PFILE_RECORD_HEADER(new
-    UCHAR[BytesPerFileRecord]);
+  PFILE_RECORD_HEADER file = PFILE_RECORD_HEADER(new UCHAR[BytesPerFileRecord]);
   ULONG n;
   ReadFileRecord(index, file);
   wprintf(L"Dumping the data...\n");
@@ -354,7 +444,8 @@ int wmain(int argc, WCHAR **argv)
   // The primary partition supplied else
   // default C:\ will be used
   if (argc == 2)
-    FindDeleted();
+    FindActive();
+    // FindDeleted();
   // Need to convert the recovered filename to long file name
   // Not implemented here. It is 8.3 file name format
   // The primary partition, index and file name to be recovered
