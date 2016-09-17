@@ -8,21 +8,35 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "ntfs.h"
+#include "sqlite3.h"
+
 // Global variables
 ULONG BytesPerFileRecord;
 HANDLE hVolume;
 BOOT_BLOCK bootb;
 PFILE_RECORD_HEADER MFT;
+
+int  dbrc, dbMaxCol, dbRowCount, dbi;
+char MFTDBFile[1024] = "C:\\AChoir\\Cache\\C-MFT.db\0";
+sqlite3      *dbMFTHndl;
+sqlite3_stmt *dbMFTStmt;
+sqlite3_stmt *dbXMFTStmt;
+
+
 // Template for padding
 template <class T1, class T2> inline T1* Padd(T1* p, T2 n)
 {
   return (T1*)((char *)p + n);
 }
+
+
 ULONG RunLength(PUCHAR run)
 {
   wprintf(L"In RunLength()...\n");
   return (*run & 0xf) + ((*run >> 4) & 0xf) + 1;
 }
+
+
 LONGLONG RunLCN(PUCHAR run)
 {
   LONG i = 0;
@@ -36,6 +50,8 @@ LONGLONG RunLCN(PUCHAR run)
     lcn = (lcn << 8) + run[i];
   return lcn;
 }
+
+
 ULONGLONG RunCount(PUCHAR run)
 {
   UCHAR n = *run & 0xf;
@@ -46,8 +62,9 @@ ULONGLONG RunCount(PUCHAR run)
     count = (count << 8) + run[i];
   return count;
 }
-BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn,
-  PULONGLONG count)
+
+
+BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn, PULONGLONG count)
 {
   PUCHAR run = NULL;
   *lcn = 0;
@@ -71,6 +88,8 @@ BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn,
   }
   return FALSE;
 }
+
+
 PATTRIBUTE FindAttribute(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name)
 {
   PATTRIBUTE attr = NULL;
@@ -121,9 +140,6 @@ PATTRIBUTE FindAttributeII(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR 
 }
 
 
-
-
-
 VOID FixupUpdateSequenceArray(PFILE_RECORD_HEADER file)
 {
   ULONG i = 0;
@@ -136,6 +152,8 @@ VOID FixupUpdateSequenceArray(PFILE_RECORD_HEADER file)
     sector += 256;
   }
 }
+
+
 VOID ReadSector(ULONGLONG sector, ULONG count, PVOID buffer)
 {
   ULARGE_INTEGER offset;
@@ -148,12 +166,16 @@ VOID ReadSector(ULONGLONG sector, ULONG count, PVOID buffer)
   overlap.OffsetHigh = offset.HighPart;
   ReadFile(hVolume, buffer, count * bootb.BytesPerSector, &n, &overlap);
 }
+
+
 VOID ReadLCN(ULONGLONG lcn, ULONG count, PVOID buffer)
 {
   wprintf(L"\nReadLCN() - Reading the LCN, LCN: 0X%.8X\n", lcn);
   ReadSector(lcn * bootb.SectorsPerCluster, count * bootb.SectorsPerCluster,
     buffer);
 }
+
+
 // Non resident attributes
 VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG
   count, PVOID buffer)
@@ -179,6 +201,8 @@ VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG
       bytes += n;
     }
 }
+
+
 ULONG AttributeLength(PATTRIBUTE attr)
 {
   wprintf(L"In AttributeLength()...\n");
@@ -186,6 +210,8 @@ ULONG AttributeLength(PATTRIBUTE attr)
     PRESIDENT_ATTRIBUTE(attr)->ValueLength :
     ULONG(PNONRESIDENT_ATTRIBUTE(attr)->DataSize);
 }
+
+
 ULONG AttributeLengthAllocated(PATTRIBUTE attr)
 {
   wprintf(L"\nIn AttributeLengthAllocated()...\n");
@@ -193,6 +219,8 @@ ULONG AttributeLengthAllocated(PATTRIBUTE attr)
     PRESIDENT_ATTRIBUTE(attr)->ValueLength :
     ULONG(PNONRESIDENT_ATTRIBUTE(attr)->AllocatedSize);
 }
+
+
 VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
 {
   PRESIDENT_ATTRIBUTE rattr = NULL;
@@ -211,8 +239,9 @@ VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
     ReadExternalAttribute(nattr, 0, ULONG(nattr->HighVcn) + 1, buffer);
   }
 }
-VOID ReadVCN(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, ULONGLONG vcn, ULONG
-  count, PVOID buffer)
+
+
+VOID ReadVCN(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, ULONGLONG vcn, ULONG count, PVOID buffer)
 {
   PATTRIBUTE attrlist = NULL;
   PNONRESIDENT_ATTRIBUTE attr = PNONRESIDENT_ATTRIBUTE(FindAttribute(file, type, 0));
@@ -225,6 +254,8 @@ VOID ReadVCN(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, ULONGLONG vcn, ULONG
   }
   ReadExternalAttribute(attr, vcn, count, buffer);
 }
+
+
 VOID ReadFileRecord(ULONG index, PFILE_RECORD_HEADER file)
 {
   ULONG clusters = bootb.ClustersPerFileRecord;
@@ -243,6 +274,8 @@ VOID ReadFileRecord(ULONG index, PFILE_RECORD_HEADER file)
   
   FixupUpdateSequenceArray(file);
 }
+
+
 VOID LoadMFT()
 {
   wprintf(L"In LoadMFT() - Loading MFT...\n");
@@ -278,6 +311,8 @@ VOID LoadMFT()
 
   FixupUpdateSequenceArray(MFT);
 }
+
+
 BOOL bitset(PUCHAR bitmap, ULONG i)
 {
   return (bitmap[i >> 3] & (1 << (i & 7))) != 0;
@@ -312,6 +347,8 @@ VOID FindActive()
 
 
 
+
+
     if (file->Ntfs.Type == 'ELIF' && file->Flags == 1)
     {
       attr = FindAttribute(file, AttributeFileName, 0);
@@ -322,6 +359,7 @@ VOID FindActive()
         PFILENAME_ATTRIBUTE(Padd(attr, PRESIDENT_ATTRIBUTE(attr)->ValueOffset));
       // * means the width/precision was supplied in the argument list
       // ws ~ wide character string
+      wprintf(L"\nF-Directory: %u - %.*s (%u)\n", int(name->DirectoryFileReferenceNumber), int(name->NameLength), name->Name, i);
       wprintf(L"\n%10u %u %.*s\n-----\n\n", i, int(name->NameLength), int(name->NameLength), name->Name);
 
       //Lets See if we have a Long File Name
@@ -333,6 +371,7 @@ VOID FindActive()
         PFILENAME_ATTRIBUTE(Padd(attr2, PRESIDENT_ATTRIBUTE(attr2)->ValueOffset));
       // * means the width/precision was supplied in the argument list
       // ws ~ wide character string
+      wprintf(L"\nF-Directory: %u - %.*s (%u)\n", int(name2->DirectoryFileReferenceNumber), int(name2->NameLength), name2->Name, i);
       wprintf(L"\n%10u %u %.*s\n-----\n\n", i, int(name2->NameLength), int(name2->NameLength), name2->Name);
       //printf("\nSecond $File_Name found!\n");
 
@@ -340,6 +379,42 @@ VOID FindActive()
       // To see the very long output short, uncomment the following line
       // _getwch();
     }
+
+
+
+    if (file->Ntfs.Type == 'ELIF' && file->Flags == 3)
+    {
+      attr = FindAttribute(file, AttributeFileName, 0);
+      if (attr == 0)
+        continue;
+
+      PFILENAME_ATTRIBUTE name =
+        PFILENAME_ATTRIBUTE(Padd(attr, PRESIDENT_ATTRIBUTE(attr)->ValueOffset));
+      // * means the width/precision was supplied in the argument list
+      // ws ~ wide character string
+      wprintf(L"\nD-Directory: %u - %.*s (%u)\n", int(name->DirectoryFileReferenceNumber), int(name->NameLength), name->Name, i);
+      wprintf(L"\n%10u %u %.*s\n-----\n\n", i, int(name->NameLength), int(name->NameLength), name->Name);
+
+      //Lets See if we have a Long File Name
+      attr2 = FindAttributeII(file, AttributeFileName, 0);
+      if (attr2 == 0)
+        continue;
+
+      PFILENAME_ATTRIBUTE name2 =
+        PFILENAME_ATTRIBUTE(Padd(attr2, PRESIDENT_ATTRIBUTE(attr2)->ValueOffset));
+      // * means the width/precision was supplied in the argument list
+      // ws ~ wide character string
+      wprintf(L"\nD-Directory: %u - %.*s (%u)\n", int(name2->DirectoryFileReferenceNumber), int(name2->NameLength), name2->Name, i);
+      wprintf(L"\n%10u %u %.*s\n-----\n\n", i, int(name2->NameLength), int(name2->NameLength), name2->Name);
+      //printf("\nSecond $File_Name found!\n");
+
+
+      // To see the very long output short, uncomment the following line
+      // _getwch();
+    }
+
+
+
   }
 }
 
@@ -373,6 +448,8 @@ VOID FindDeleted()
     }
   }
 }
+
+
 VOID DumpData(ULONG index, WCHAR* filename)
 {
   PATTRIBUTE attr = NULL;
@@ -403,11 +480,14 @@ VOID DumpData(ULONG index, WCHAR* filename)
   CloseHandle(hFile);
   delete[] buf;
 }
+
+
 int wmain(int argc, WCHAR **argv)
 {
   // Default primary partition
   WCHAR drive[] = L"\\\\.\\C:";
   ULONG n;
+
   // No argument supplied
   if (argc < 2)
   {
@@ -434,15 +514,32 @@ int wmain(int argc, WCHAR **argv)
     wprintf(L"CreateFile() failed, error %u\n", GetLastError());
     exit(1);
   }
+
   // Reads data from the specified input/output (I/O) device - volume / physical disk
-    if (ReadFile(hVolume, &bootb, sizeof bootb, &n, 0) == 0)
-    {
-      wprintf(L"ReadFile() failed, error %u\n", GetLastError());
-      exit(1);
-    }
+  if (ReadFile(hVolume, &bootb, sizeof bootb, &n, 0) == 0)
+  {
+    wprintf(L"ReadFile() failed, error %u\n", GetLastError());
+    exit(1);
+  }
+
+
+  dbrc = sqlite3_open(MFTDBFile, &dbMFTHndl);
+  if (dbrc != SQLITE_OK)
+  {
+    printf("Could Not Open MFT Working Database: %s\n", MFTDBFile);
+
+    exit(0);
+    return 0;
+  }
+
+
+
+
+
   LoadMFT();
   // The primary partition supplied else
   // default C:\ will be used
+
   if (argc == 2)
     FindActive();
     // FindDeleted();
