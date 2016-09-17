@@ -17,7 +17,12 @@ BOOT_BLOCK bootb;
 PFILE_RECORD_HEADER MFT;
 
 int  dbrc, dbMaxCol, dbRowCount, dbi;
+int SpinLock;
+char *dbMQuery; char *errmsg = 0; int dbMrc;
+char *dbXQuery; int dbXrc; int dbXi;
 char MFTDBFile[1024] = "C:\\AChoir\\Cache\\C-MFT.db\0";
+char Str_Temp[1024] = "\0";
+
 sqlite3      *dbMFTHndl;
 sqlite3_stmt *dbMFTStmt;
 sqlite3_stmt *dbXMFTStmt;
@@ -32,7 +37,7 @@ template <class T1, class T2> inline T1* Padd(T1* p, T2 n)
 
 ULONG RunLength(PUCHAR run)
 {
-  wprintf(L"In RunLength()...\n");
+  //wprintf(L"In RunLength()...\n");
   return (*run & 0xf) + ((*run >> 4) & 0xf) + 1;
 }
 
@@ -42,7 +47,7 @@ LONGLONG RunLCN(PUCHAR run)
   LONG i = 0;
   UCHAR n1 = 0, n2 = 0;
   LONGLONG lcn = 0;
-  wprintf(L"In RunLCN()...\n");
+  //wprintf(L"In RunLCN()...\n");
   n1 = *run & 0xf;
   n2 = (*run >> 4) & 0xf;
   lcn = n2 == 0 ? 0 : CHAR(run[n1 + n2]);
@@ -57,7 +62,7 @@ ULONGLONG RunCount(PUCHAR run)
   UCHAR n = *run & 0xf;
   ULONGLONG count = 0;
   ULONG i;
-  wprintf(L"In RunCount()...\n");
+  //wprintf(L"In RunCount()...\n");
   for (i = n; i > 0; i--)
     count = (count << 8) + run[i];
   return count;
@@ -69,7 +74,7 @@ BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn, PULONGL
   PUCHAR run = NULL;
   *lcn = 0;
   ULONGLONG base = attr->LowVcn;
-  wprintf(L"In FindRun()...\n");
+  //wprintf(L"In FindRun()...\n");
   if (vcn < attr->LowVcn || vcn > attr->HighVcn)
     return FALSE;
   for (run = PUCHAR(Padd(attr, attr->RunArrayOffset)); *run != 0; run +=
@@ -93,7 +98,7 @@ BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn, PULONGL
 PATTRIBUTE FindAttribute(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name)
 {
   PATTRIBUTE attr = NULL;
-  wprintf(L"FindAttribute() - Finding attributes...\n");
+  //wprintf(L"FindAttribute() - Finding attributes...\n");
   for (attr = PATTRIBUTE(Padd(file, file->AttributesOffset));
     attr->AttributeType != -1; attr = Padd(attr, attr->Length))
   {
@@ -116,7 +121,7 @@ PATTRIBUTE FindAttributeII(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR 
   PATTRIBUTE attr = NULL;
   int FoundAttr = 0;
 
-  wprintf(L"FindAttributeII() - Finding Second Attribute...\n");
+  //wprintf(L"FindAttributeII() - Finding Second Attribute...\n");
 
   for (attr = PATTRIBUTE(Padd(file, file->AttributesOffset));
     attr->AttributeType != -1; attr = Padd(attr, attr->Length))
@@ -145,7 +150,7 @@ VOID FixupUpdateSequenceArray(PFILE_RECORD_HEADER file)
   ULONG i = 0;
   PUSHORT usa = PUSHORT(Padd(file, file->Ntfs.UsaOffset));
   PUSHORT sector = PUSHORT(file);
-  wprintf(L"In FixupUpdateSequenceArray()...\n");
+  //wprintf(L"In FixupUpdateSequenceArray()...\n");
   for (i = 1; i < file->Ntfs.UsaCount; i++)
   {
     sector[255] = usa[i];
@@ -159,8 +164,8 @@ VOID ReadSector(ULONGLONG sector, ULONG count, PVOID buffer)
   ULARGE_INTEGER offset;
   OVERLAPPED overlap = { 0 };
   ULONG n;
-  wprintf(L"ReadSector() - Reading the sector...\n");
-  wprintf(L"Sector: %lu\n", sector);
+  //wprintf(L"ReadSector() - Reading the sector...\n");
+  //wprintf(L"Sector: %lu\n", sector);
   offset.QuadPart = sector * bootb.BytesPerSector;
   overlap.Offset = offset.LowPart;
   overlap.OffsetHigh = offset.HighPart;
@@ -170,42 +175,42 @@ VOID ReadSector(ULONGLONG sector, ULONG count, PVOID buffer)
 
 VOID ReadLCN(ULONGLONG lcn, ULONG count, PVOID buffer)
 {
-  wprintf(L"\nReadLCN() - Reading the LCN, LCN: 0X%.8X\n", lcn);
-  ReadSector(lcn * bootb.SectorsPerCluster, count * bootb.SectorsPerCluster,
-    buffer);
+  //wprintf(L"\nReadLCN() - Reading the LCN, LCN: 0X%.8X\n", lcn);
+  ReadSector(lcn * bootb.SectorsPerCluster, count * bootb.SectorsPerCluster, buffer);
 }
 
 
 // Non resident attributes
-VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG
-  count, PVOID buffer)
+VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG count, PVOID buffer)
 {
   ULONGLONG lcn, runcount;
   ULONG readcount, left;
   PUCHAR bytes = PUCHAR(buffer);
-  wprintf(L"ReadExternalAttribute() - Reading the Non resident attributes...\n");
-    for (left = count; left > 0; left -= readcount)
+
+  //wprintf(L"ReadExternalAttribute() - Reading the Non resident attributes...\n");
+
+  for (left = count; left > 0; left -= readcount)
+  {
+    FindRun(attr, vcn, &lcn, &runcount);
+    readcount = ULONG(min(runcount, left));
+    ULONG n = readcount * bootb.BytesPerSector * bootb.SectorsPerCluster;
+
+    if (lcn == 0)
+      memset(bytes, 0, n);
+    else
     {
-      FindRun(attr, vcn, &lcn, &runcount);
-      readcount = ULONG(min(runcount, left));
-      ULONG n = readcount * bootb.BytesPerSector *
-        bootb.SectorsPerCluster;
-      if (lcn == 0)
-        memset(bytes, 0, n);
-      else
-      {
-        ReadLCN(lcn, readcount, bytes);
-        wprintf(L"LCN: 0X%.8X\n", lcn);
-      }
-      vcn += readcount;
-      bytes += n;
+      ReadLCN(lcn, readcount, bytes);
+      //wprintf(L"LCN: 0X%.8X\n", lcn);
     }
+    vcn += readcount;
+    bytes += n;
+  }
 }
 
 
 ULONG AttributeLength(PATTRIBUTE attr)
 {
-  wprintf(L"In AttributeLength()...\n");
+  //wprintf(L"In AttributeLength()...\n");
   return attr->Nonresident == FALSE ?
     PRESIDENT_ATTRIBUTE(attr)->ValueLength :
     ULONG(PNONRESIDENT_ATTRIBUTE(attr)->DataSize);
@@ -214,7 +219,7 @@ ULONG AttributeLength(PATTRIBUTE attr)
 
 ULONG AttributeLengthAllocated(PATTRIBUTE attr)
 {
-  wprintf(L"\nIn AttributeLengthAllocated()...\n");
+  //wprintf(L"\nIn AttributeLengthAllocated()...\n");
   return attr->Nonresident == FALSE ?
     PRESIDENT_ATTRIBUTE(attr)->ValueLength :
     ULONG(PNONRESIDENT_ATTRIBUTE(attr)->AllocatedSize);
@@ -225,16 +230,16 @@ VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
 {
   PRESIDENT_ATTRIBUTE rattr = NULL;
   PNONRESIDENT_ATTRIBUTE nattr = NULL;
-  wprintf(L"ReadAttribute() - Reading the attributes...\n");
+  //wprintf(L"ReadAttribute() - Reading the attributes...\n");
   if (attr->Nonresident == FALSE)
   {
-    wprintf(L"Resident attribute...\n");
+    //wprintf(L"Resident attribute...\n");
     rattr = PRESIDENT_ATTRIBUTE(attr);
     memcpy(buffer, Padd(rattr, rattr->ValueOffset), rattr->ValueLength);
   }
   else
   {
-    wprintf(L"Non-resident attribute...\n");
+    //wprintf(L"Non-resident attribute...\n");
     nattr = PNONRESIDENT_ATTRIBUTE(attr);
     ReadExternalAttribute(nattr, 0, ULONG(nattr->HighVcn) + 1, buffer);
   }
@@ -245,7 +250,7 @@ VOID ReadVCN(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, ULONGLONG vcn, ULONG
 {
   PATTRIBUTE attrlist = NULL;
   PNONRESIDENT_ATTRIBUTE attr = PNONRESIDENT_ATTRIBUTE(FindAttribute(file, type, 0));
-  wprintf(L"In ReadVCN()...\n");
+  //wprintf(L"In ReadVCN()...\n");
   if (attr == 0 || (vcn < attr->LowVcn || vcn > attr->HighVcn))
   {
     // Support for huge files
@@ -259,7 +264,7 @@ VOID ReadVCN(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, ULONGLONG vcn, ULONG
 VOID ReadFileRecord(ULONG index, PFILE_RECORD_HEADER file)
 {
   ULONG clusters = bootb.ClustersPerFileRecord;
-  wprintf(L"ReadFileRecord() - Reading the file records..\n");
+  //wprintf(L"ReadFileRecord() - Reading the file records..\n");
   if (clusters > 0x80)
     clusters = 1;
   PUCHAR p = new UCHAR[bootb.BytesPerSector* bootb.SectorsPerCluster * clusters];
@@ -324,90 +329,103 @@ VOID FindActive()
   PATTRIBUTE attr = FindAttribute(MFT, AttributeBitmap, 0);
   PATTRIBUTE attr2 = attr;
   PUCHAR bitmap = new UCHAR[AttributeLengthAllocated(attr)];
+  int Str_Len;
+  int Progress, ProgUnit;
 
   ReadAttribute(attr, bitmap);
   
   ULONG n = AttributeLength(FindAttribute(MFT, AttributeData, 0)) / BytesPerFileRecord;
+  ProgUnit = n / 50;
 
-  wprintf(L"FindActive() - Finding the active files...\n");
+  wprintf(L"FindActive() - Finding the active files...\nooooooooooooooooooooooooooooooooooooooooooooooooo\r");
 
   PFILE_RECORD_HEADER file = PFILE_RECORD_HEADER(new UCHAR[BytesPerFileRecord]);
+  Progress = 0;
   for (ULONG i = 0; i < n; i++)
   {
+    Progress++;
+    if (Progress > ProgUnit)
+    {
+      printf(".");
+      Progress = 0;
+    }
+
     if (!bitset(bitmap, i))
       continue;
 
     ReadFileRecord(i, file);
-
-
-
+    
     //printf("\n Record %d - Flags: %d\n\n", i, file->Flags);
     //printf("\nType: %s\n\n", file->Ntfs.Type);
     //printf("\nType: %s - Flags: %02x\n\n", file->Ntfs.Type, file->Flags);
-
-
-
-
-
-    if (file->Ntfs.Type == 'ELIF' && file->Flags == 1)
+    
+    if (file->Ntfs.Type == 'ELIF' && (file->Flags == 1 || file->Flags == 3))
     {
+      // Get, but Ignore Short Name 
       attr = FindAttribute(file, AttributeFileName, 0);
       if (attr == 0)
         continue;
 
-      PFILENAME_ATTRIBUTE name =
-        PFILENAME_ATTRIBUTE(Padd(attr, PRESIDENT_ATTRIBUTE(attr)->ValueOffset));
-      // * means the width/precision was supplied in the argument list
-      // ws ~ wide character string
-      wprintf(L"\nF-Directory: %u - %.*s (%u)\n", int(name->DirectoryFileReferenceNumber), int(name->NameLength), name->Name, i);
-      wprintf(L"\n%10u %u %.*s\n-----\n\n", i, int(name->NameLength), int(name->NameLength), name->Name);
-
-      //Lets See if we have a Long File Name
+      PFILENAME_ATTRIBUTE name = PFILENAME_ATTRIBUTE(Padd(attr, PRESIDENT_ATTRIBUTE(attr)->ValueOffset));
+      
+      // Lets See if we have a Long File Name
       attr2 = FindAttributeII(file, AttributeFileName, 0);
       if (attr2 == 0)
         continue;
 
-      PFILENAME_ATTRIBUTE name2 =
-        PFILENAME_ATTRIBUTE(Padd(attr2, PRESIDENT_ATTRIBUTE(attr2)->ValueOffset));
-      // * means the width/precision was supplied in the argument list
-      // ws ~ wide character string
-      wprintf(L"\nF-Directory: %u - %.*s (%u)\n", int(name2->DirectoryFileReferenceNumber), int(name2->NameLength), name2->Name, i);
-      wprintf(L"\n%10u %u %.*s\n-----\n\n", i, int(name2->NameLength), int(name2->NameLength), name2->Name);
-      //printf("\nSecond $File_Name found!\n");
+      PFILENAME_ATTRIBUTE name2 = PFILENAME_ATTRIBUTE(Padd(attr2, PRESIDENT_ATTRIBUTE(attr2)->ValueOffset));
 
+      Str_Len = int(name2->NameLength);
+      wcstombs(Str_Temp, name2->Name, Str_Len);
+      Str_Temp[Str_Len] = '\0'; // Null Terminate the String... Sigh...
+      
+      if (file->Flags == 1)
+      {
+        // Active File Entry 
+        //wprintf(L"\nMFTFile: %u - %.*s (%u)\n", int(name2->DirectoryFileReferenceNumber), int(name2->NameLength), name2->Name, i);
+        dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName) VALUES ('%ld', '%ld', '%q')\0", i, int(name2->DirectoryFileReferenceNumber), Str_Temp);
+      }
+      else
+      {
+        // Active Directory Entry
+        //wprintf(L"\nMFTDirs: %u - %.*s (%u)\n", int(name2->DirectoryFileReferenceNumber), int(name2->NameLength), name2->Name, i);
+        dbMQuery = sqlite3_mprintf("INSERT INTO MFTDirs (MFTRecID, MFTPrvID, DirsName) VALUES ('%ld', '%ld', '%q')\0", i, int(name2->DirectoryFileReferenceNumber), Str_Temp);
+      }
 
-      // To see the very long output short, uncomment the following line
-      // _getwch();
-    }
+      SpinLock = 0;
+      while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
+      {
+        if (dbMrc == SQLITE_BUSY)
+          Sleep(100); // In windows.h
+        else
+          if (dbMrc == SQLITE_LOCKED)
+            Sleep(100); // In windows.h
+          else
+            if (dbMrc == SQLITE_ERROR)
+            {
+              printf("Error Adding Entry to MFTDirs\n%s\n", errmsg);
+              break;
+            }
+            else
+              Sleep(100); // In windows.h
 
+            /*****************************************************************/
+            /* Check if we are stuck in a loop.                              */
+            /*****************************************************************/
+        SpinLock++;
 
-
-    if (file->Ntfs.Type == 'ELIF' && file->Flags == 3)
-    {
-      attr = FindAttribute(file, AttributeFileName, 0);
-      if (attr == 0)
-        continue;
-
-      PFILENAME_ATTRIBUTE name =
-        PFILENAME_ATTRIBUTE(Padd(attr, PRESIDENT_ATTRIBUTE(attr)->ValueOffset));
-      // * means the width/precision was supplied in the argument list
-      // ws ~ wide character string
-      wprintf(L"\nD-Directory: %u - %.*s (%u)\n", int(name->DirectoryFileReferenceNumber), int(name->NameLength), name->Name, i);
-      wprintf(L"\n%10u %u %.*s\n-----\n\n", i, int(name->NameLength), int(name->NameLength), name->Name);
-
-      //Lets See if we have a Long File Name
-      attr2 = FindAttributeII(file, AttributeFileName, 0);
-      if (attr2 == 0)
-        continue;
-
-      PFILENAME_ATTRIBUTE name2 =
-        PFILENAME_ATTRIBUTE(Padd(attr2, PRESIDENT_ATTRIBUTE(attr2)->ValueOffset));
-      // * means the width/precision was supplied in the argument list
-      // ws ~ wide character string
-      wprintf(L"\nD-Directory: %u - %.*s (%u)\n", int(name2->DirectoryFileReferenceNumber), int(name2->NameLength), name2->Name, i);
-      wprintf(L"\n%10u %u %.*s\n-----\n\n", i, int(name2->NameLength), int(name2->NameLength), name2->Name);
-      //printf("\nSecond $File_Name found!\n");
-
+        if (SpinLock > 5)
+          break;
+      }
+      sqlite3_free(dbMQuery);
+      
+      //Test for 1000 recs
+      //if (i > 1000)
+      //{
+      //  dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
+      //  sqlite3_close(dbMFTHndl);
+      //  exit(0);
+      //}
 
       // To see the very long output short, uncomment the following line
       // _getwch();
@@ -465,8 +483,8 @@ VOID DumpData(ULONG index, WCHAR* filename)
     return;
   PUCHAR buf = new UCHAR[AttributeLengthAllocated(attr)];
   ReadAttribute(attr, buf);
-  hFile = CreateFile((LPCWSTR)filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS,
-    0, 0);
+  //hFile = CreateFile((LPCWSTR)filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+  hFile = CreateFile((LPCSTR)filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
   if (hFile == INVALID_HANDLE_VALUE)
   {
     wprintf(L"CreateFile() failed, error %u\n", GetLastError());
@@ -485,7 +503,8 @@ VOID DumpData(ULONG index, WCHAR* filename)
 int wmain(int argc, WCHAR **argv)
 {
   // Default primary partition
-  WCHAR drive[] = L"\\\\.\\C:";
+  //WCHAR drive[] = L"\\\\.\\C:";
+  CHAR drive[] = "\\\\.\\C:";
   ULONG n;
 
   // No argument supplied
@@ -501,14 +520,7 @@ int wmain(int argc, WCHAR **argv)
   // Read the user input
   drive[4] = *argv[1];
   // Get the handle to the primary partition/volume/physical disk
-  hVolume = CreateFile(
-    drive,
-    GENERIC_READ,
-    FILE_SHARE_READ | FILE_SHARE_WRITE,
-    0,
-    OPEN_EXISTING,
-    0,
-    0);
+  hVolume = CreateFile(drive, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
   if (hVolume == INVALID_HANDLE_VALUE)
   {
     wprintf(L"CreateFile() failed, error %u\n", GetLastError());
@@ -534,21 +546,133 @@ int wmain(int argc, WCHAR **argv)
 
 
 
+  // Create SQLite DB
+  dbrc = sqlite3_open(MFTDBFile, &dbMFTHndl);
+  if (dbrc != SQLITE_OK)
+  {
+    printf("Could Not Create MFT Index Database: %s\n", MFTDBFile);
+
+    exit(4);
+    return 4;
+  }
+
+  // Make SQLite DB access as fast as possible
+  dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA cache_size=4000", NULL, NULL, &errmsg);
+  dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA synchronous=NORMAL", NULL, NULL, &errmsg);
+  dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA journal_mode=MEMORY", NULL, NULL, &errmsg);
+  dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA temp_store=MEMORY", NULL, NULL, &errmsg);
+
+  dbMrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
+
+
+  SpinLock = 0;
+  dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
+  while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
+  {
+    if (dbMrc == SQLITE_BUSY)
+      Sleep(100); // In windows.h
+    else
+    if (dbMrc == SQLITE_LOCKED)
+      Sleep(100); // In windows.h
+    else
+    if (dbMrc == SQLITE_ERROR)
+    {
+      printf("Error Creating FileNames Table\n%s\n", errmsg);
+      break;
+    }
+    else
+      Sleep(100); // In windows.h
+
+    /*****************************************************************/
+    /* Check if we are stuck in a loop.                              */
+    /*****************************************************************/
+    SpinLock++;
+
+    if (SpinLock > 5)
+      break;
+  }
+  sqlite3_free(dbMQuery);
+
+
+  SpinLock = 0;
+  dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, FileName)\0");
+  while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
+  {
+    if (dbMrc == SQLITE_BUSY)
+      Sleep(100); // In windows.h
+    else
+    if (dbMrc == SQLITE_LOCKED)
+      Sleep(100); // In windows.h
+    else
+    if (dbMrc == SQLITE_ERROR)
+    {
+      printf("Error Creating MFTFiles Table\n%s\n", errmsg);
+      break;
+    }
+    else
+      Sleep(100); // In windows.h
+
+    /*****************************************************************/
+    /* Check if we are stuck in a loop.                              */
+    /*****************************************************************/
+    SpinLock++;
+
+    if (SpinLock > 5)
+      break;
+  }
+  sqlite3_free(dbMQuery);
+
+
+  dbMQuery = sqlite3_mprintf("CREATE TABLE MFTDirs (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, DirsName)\0");
+  while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
+  {
+    if (dbMrc == SQLITE_BUSY)
+      Sleep(100); // In windows.h
+    else
+    if (dbMrc == SQLITE_LOCKED)
+      Sleep(100); // In windows.h
+    else
+    if (dbMrc == SQLITE_ERROR)
+    {
+      printf("Error Creating MFTDirs Table\n%s\n", errmsg);
+      break;
+    }
+    else
+      Sleep(100); // In windows.h
+
+    /*****************************************************************/
+    /* Check if we are stuck in a loop.                              */
+    /*****************************************************************/
+    SpinLock++;
+
+    if (SpinLock > 5)
+      break;
+  }
+  sqlite3_free(dbMQuery);
 
 
   LoadMFT();
+
   // The primary partition supplied else
   // default C:\ will be used
 
   if (argc == 2)
     FindActive();
-    // FindDeleted();
+
+  // FindDeleted();
   // Need to convert the recovered filename to long file name
   // Not implemented here. It is 8.3 file name format
   // The primary partition, index and file name to be recovered
   // are supplied
+
   if (argc == 4)
     DumpData(wcstoul(argv[2], 0, 0), argv[3]);
+
+
   CloseHandle(hVolume);
+
+  dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
+  sqlite3_close(dbMFTHndl);
+
   return 0;
 }
