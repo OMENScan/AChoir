@@ -339,7 +339,7 @@ VOID FindActive()
   char Ftmp_Fname[2048] = "\0";
   int Str_Len, Max_Files;
   int Progress, ProgUnit;
-  int File_RecNum, Dir_PrevNum;
+  int File_RecNum, Dir_PrevNum, File_RecID;
   int MoreDirs, UseName;
 
   ReadAttribute(attr, bitmap);
@@ -450,14 +450,7 @@ VOID FindActive()
 
     }
   }
-
-
-
-
-
-
-
-
+  
 
   // Commit Before we build the Searchable Index
   dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
@@ -514,6 +507,7 @@ VOID FindActive()
         if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "MFTRecID", 8) == 0)
         {
           File_RecNum = sqlite3_column_int(dbMFTStmt, dbi);
+          File_RecID = File_RecNum; //Save it for the Built Index
         }
         else
         if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "MFTPrvID", 8) == 0)
@@ -522,22 +516,11 @@ VOID FindActive()
         }
       }
 
-
-
-
-
-
-
-
+      // Expand out the Full File Paths
       MoreDirs = 0;
       while(MoreDirs == 0)
       {
-
-
         MoreDirs = 1; //Assume we will Exit out
-        printf("Select * from MFTDirs WHERE MFTRecID = '%ld'\n", Dir_PrevNum);
-
-
 
         dbXQuery = sqlite3_mprintf("Select * from MFTDirs WHERE MFTRecID = '%ld'\0", Dir_PrevNum);
 
@@ -558,7 +541,6 @@ VOID FindActive()
             else
             if (dbXrc == SQLITE_ROW)
             {
-              MoreDirs = 0; //Lets See if we have another Directory
               dbMaxCol = sqlite3_column_count(dbXMFTStmt);
 
               memset(Ftmp_Fname, 0, 260);
@@ -569,15 +551,18 @@ VOID FindActive()
                   if (sqlite3_column_text(dbXMFTStmt, dbXi) != NULL)
                     strncpy(Ftmp_Fname, (const char *)sqlite3_column_text(dbXMFTStmt, dbXi), 255);
 
+                  // . is The Root (C:\)
+                  if (_strnicmp(Ftmp_Fname, ".", 1) == 0)
+                  {
+                    strncpy(Ftmp_Fname, "C:\\\0\0", 4);
+                    MoreDirs = 1; //No More Dirs
+                  }
+                  else
+                  {
+                    strcat(Ftmp_Fname, "\\\0\0");
+                    MoreDirs = 0; //Lets See if we have another Directory
+                  }
 
-
-                  printf("Got Subdir: %s\n", Ftmp_Fname);
-
-
-
-
-
-                  strcat(Ftmp_Fname, "\\\0\0");
                   strcat(Ftmp_Fname, Full_Fname);
                   strncpy(Full_Fname, Ftmp_Fname, 2048);
                 }
@@ -592,6 +577,10 @@ VOID FindActive()
                   Dir_PrevNum = sqlite3_column_int(dbXMFTStmt, dbXi);
                 }
               }
+
+              if (Dir_PrevNum == File_RecNum)
+                MoreDirs = 1;
+
             }
           }
 
@@ -613,20 +602,49 @@ VOID FindActive()
         sqlite3_free(dbXQuery);
       }
 
+      //Now Insert the Full Path FileName and MFT Record ID
+      dbXQuery = sqlite3_mprintf("INSERT INTO FileNames (MFTRecID, FileName) VALUES ('%ld', '%q')\0", File_RecID, Full_Fname);
 
+      SpinLock = 0;
+      while ((dbXrc = sqlite3_exec(dbMFTHndl, dbXQuery, 0, 0, &errmsg)) != SQLITE_OK)
+      {
+        if (dbXrc == SQLITE_BUSY)
+          Sleep(100); // In windows.h
+        else
+        if (dbXrc == SQLITE_LOCKED)
+          Sleep(100); // In windows.h
+        else
+        if (dbXrc == SQLITE_ERROR)
+        {
+          printf("MFTError: Error Adding Entry to FileNames Table\n%s\n", errmsg);
+          MFT_Status = 2;
+          break;
+        }
+        else
+          Sleep(100); // In windows.h
 
+        /*****************************************************************/
+        /* Check if we are stuck in a loop.                              */
+        /*****************************************************************/
+        SpinLock++;
 
+        if (SpinLock > 5)
+          break;
+      }
 
-      printf("FullFname: %s\n", Full_Fname);
-      getchar();
+      sqlite3_free(dbXQuery);
 
+      Progress++;
+      if (Progress > ProgUnit)
+      {
+        printf(".");
+        Progress = 0;
+      }
 
+   
 
-
-
-
-
-
+      //printf("FullFname: %s\n", Full_Fname);
+      //getchar();
 
 
 
@@ -651,15 +669,45 @@ VOID FindActive()
 
 
 
+  // Commit The FileNames Table
+  dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
 
 
+  // Create a Filename Index for faster search
+  wprintf(L"\nFindActive() - Building FileName Index...\n");
+  dbXQuery = sqlite3_mprintf("CREATE INDEX FileNames_IDX ON FileNames(FileName ASC)\0");
 
+  SpinLock = 0;
+  while ((dbXrc = sqlite3_exec(dbMFTHndl, dbXQuery, 0, 0, &errmsg)) != SQLITE_OK)
+  {
+    if (dbXrc == SQLITE_BUSY)
+      Sleep(100); // In windows.h
+    else
+    if (dbXrc == SQLITE_LOCKED)
+      Sleep(100); // In windows.h
+    else
+    if (dbXrc == SQLITE_ERROR)
+    {
+      printf("MFTError: Error Building FileNames/FileName Index\n%s\n", errmsg);
+      MFT_Status = 2;
+      break;
+    }
+    else
+      Sleep(100); // In windows.h
 
+    /*****************************************************************/
+    /* Check if we are stuck in a loop.                              */
+    /*****************************************************************/
+    SpinLock++;
 
+    if (SpinLock > 5)
+      break;
+  }
 
-
-
-
+  sqlite3_free(dbXQuery);
+  
+  sqlite3_close(dbMFTHndl);
+  
 
 
 
@@ -807,7 +855,8 @@ int wmain(int argc, WCHAR **argv)
 
 
   SpinLock = 0;
-  dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
+  //dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
+  dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
   while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
   {
     if (dbMrc == SQLITE_BUSY)
@@ -836,7 +885,8 @@ int wmain(int argc, WCHAR **argv)
 
 
   SpinLock = 0;
-  dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, FileName)\0");
+  //dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, FileName)\0");
+  dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, FileName)\0");
   while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
   {
     if (dbMrc == SQLITE_BUSY)
@@ -864,7 +914,8 @@ int wmain(int argc, WCHAR **argv)
   sqlite3_free(dbMQuery);
 
 
-  dbMQuery = sqlite3_mprintf("CREATE TABLE MFTDirs (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, DirsName)\0");
+  //dbMQuery = sqlite3_mprintf("CREATE TABLE MFTDirs (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, DirsName)\0");
+  dbMQuery = sqlite3_mprintf("CREATE TABLE MFTDirs (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, DirsName)\0");
   while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
   {
     if (dbMrc == SQLITE_BUSY)
