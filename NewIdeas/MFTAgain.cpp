@@ -22,6 +22,8 @@ char *dbMQuery; char *errmsg = 0; int dbMrc;
 char *dbXQuery; int dbXrc; int dbXi;
 char MFTDBFile[1024] = "C:\\AChoir\\Cache\\C-MFT.db\0";
 char Str_Temp[1024] = "\0";
+int MFT_Status = 0; // 0=Good, 1=NonFatal Error, 2=FatalError
+
 
 sqlite3      *dbMFTHndl;
 sqlite3_stmt *dbMFTStmt;
@@ -329,8 +331,16 @@ VOID FindActive()
   PATTRIBUTE attr = FindAttribute(MFT, AttributeBitmap, 0);
   PATTRIBUTE attr2 = attr;
   PUCHAR bitmap = new UCHAR[AttributeLengthAllocated(attr)];
-  int Str_Len;
+
+  PFILENAME_ATTRIBUTE name;
+  PFILENAME_ATTRIBUTE name2;
+
+  char Full_Fname[2048] = "\0";
+  char Ftmp_Fname[2048] = "\0";
+  int Str_Len, Max_Files;
   int Progress, ProgUnit;
+  int File_RecNum, Dir_PrevNum;
+  int MoreDirs, UseName;
 
   ReadAttribute(attr, bitmap);
   
@@ -340,7 +350,7 @@ VOID FindActive()
   wprintf(L"FindActive() - Finding the active files...\nooooooooooooooooooooooooooooooooooooooooooooooooo\r");
 
   PFILE_RECORD_HEADER file = PFILE_RECORD_HEADER(new UCHAR[BytesPerFileRecord]);
-  Progress = 0;
+  Progress = Max_Files = 0;
   for (ULONG i = 0; i < n; i++)
   {
     Progress++;
@@ -354,11 +364,11 @@ VOID FindActive()
       continue;
 
     ReadFileRecord(i, file);
-    
+
     //printf("\n Record %d - Flags: %d\n\n", i, file->Flags);
     //printf("\nType: %s\n\n", file->Ntfs.Type);
     //printf("\nType: %s - Flags: %02x\n\n", file->Ntfs.Type, file->Flags);
-    
+
     if (file->Ntfs.Type == 'ELIF' && (file->Flags == 1 || file->Flags == 3))
     {
       // Get, but Ignore Short Name 
@@ -366,30 +376,47 @@ VOID FindActive()
       if (attr == 0)
         continue;
 
-      PFILENAME_ATTRIBUTE name = PFILENAME_ATTRIBUTE(Padd(attr, PRESIDENT_ATTRIBUTE(attr)->ValueOffset));
-      
       // Lets See if we have a Long File Name
       attr2 = FindAttributeII(file, AttributeFileName, 0);
       if (attr2 == 0)
-        continue;
+      {
+        UseName = 1;
+        name = PFILENAME_ATTRIBUTE(Padd(attr, PRESIDENT_ATTRIBUTE(attr)->ValueOffset));
 
-      PFILENAME_ATTRIBUTE name2 = PFILENAME_ATTRIBUTE(Padd(attr2, PRESIDENT_ATTRIBUTE(attr2)->ValueOffset));
+        Str_Len = int(name->NameLength);
+        wcstombs(Str_Temp, name->Name, Str_Len);
+        Str_Temp[Str_Len] = '\0'; // Null Terminate the String... Sigh...
+      }
+      else
+      {
+        UseName = 2;
+        name2 = PFILENAME_ATTRIBUTE(Padd(attr2, PRESIDENT_ATTRIBUTE(attr2)->ValueOffset));
 
-      Str_Len = int(name2->NameLength);
-      wcstombs(Str_Temp, name2->Name, Str_Len);
-      Str_Temp[Str_Len] = '\0'; // Null Terminate the String... Sigh...
-      
+        Str_Len = int(name2->NameLength);
+        wcstombs(Str_Temp, name2->Name, Str_Len);
+        Str_Temp[Str_Len] = '\0'; // Null Terminate the String... Sigh...
+      }
+
+
       if (file->Flags == 1)
       {
         // Active File Entry 
         //wprintf(L"\nMFTFile: %u - %.*s (%u)\n", int(name2->DirectoryFileReferenceNumber), int(name2->NameLength), name2->Name, i);
-        dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName) VALUES ('%ld', '%ld', '%q')\0", i, int(name2->DirectoryFileReferenceNumber), Str_Temp);
+        Max_Files++;
+
+        if(UseName == 1)
+         dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName) VALUES ('%ld', '%ld', '%q')\0", i, int(name->DirectoryFileReferenceNumber), Str_Temp);
+        else
+         dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName) VALUES ('%ld', '%ld', '%q')\0", i, int(name2->DirectoryFileReferenceNumber), Str_Temp);
       }
       else
       {
         // Active Directory Entry
         //wprintf(L"\nMFTDirs: %u - %.*s (%u)\n", int(name2->DirectoryFileReferenceNumber), int(name2->NameLength), name2->Name, i);
-        dbMQuery = sqlite3_mprintf("INSERT INTO MFTDirs (MFTRecID, MFTPrvID, DirsName) VALUES ('%ld', '%ld', '%q')\0", i, int(name2->DirectoryFileReferenceNumber), Str_Temp);
+        if(UseName == 1)
+         dbMQuery = sqlite3_mprintf("INSERT INTO MFTDirs (MFTRecID, MFTPrvID, DirsName) VALUES ('%ld', '%ld', '%q')\0", i, int(name->DirectoryFileReferenceNumber), Str_Temp);
+        else
+         dbMQuery = sqlite3_mprintf("INSERT INTO MFTDirs (MFTRecID, MFTPrvID, DirsName) VALUES ('%ld', '%ld', '%q')\0", i, int(name2->DirectoryFileReferenceNumber), Str_Temp);
       }
 
       SpinLock = 0;
@@ -398,42 +425,256 @@ VOID FindActive()
         if (dbMrc == SQLITE_BUSY)
           Sleep(100); // In windows.h
         else
-          if (dbMrc == SQLITE_LOCKED)
-            Sleep(100); // In windows.h
-          else
-            if (dbMrc == SQLITE_ERROR)
-            {
-              printf("Error Adding Entry to MFTDirs\n%s\n", errmsg);
-              break;
-            }
-            else
-              Sleep(100); // In windows.h
+        if (dbMrc == SQLITE_LOCKED)
+          Sleep(100); // In windows.h
+        else
+        if (dbMrc == SQLITE_ERROR)
+        {
+          printf("MFTError: Error Adding Entry to MFTDirs Table\n%s\n", errmsg);
+          MFT_Status = 2;
+          break;
+        }
+        else
+          Sleep(100); // In windows.h
 
-            /*****************************************************************/
-            /* Check if we are stuck in a loop.                              */
-            /*****************************************************************/
+        /*****************************************************************/
+        /* Check if we are stuck in a loop.                              */
+        /*****************************************************************/
         SpinLock++;
 
         if (SpinLock > 5)
           break;
       }
-      sqlite3_free(dbMQuery);
-      
-      //Test for 1000 recs
-      //if (i > 1000)
-      //{
-      //  dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
-      //  sqlite3_close(dbMFTHndl);
-      //  exit(0);
-      //}
 
-      // To see the very long output short, uncomment the following line
-      // _getwch();
+      sqlite3_free(dbMQuery);
+
+    }
+  }
+
+
+
+
+
+
+
+
+
+  // Commit Before we build the Searchable Index
+  dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
+
+  // Begin - To speed up performance
+  dbMrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
+
+  Progress = 0;
+  ProgUnit = Max_Files / 50;
+  wprintf(L"\nFindActive() - Building Searchable Index...\nooooooooooooooooooooooooooooooooooooooooooooooooo\r");
+
+
+  /************************************************************/
+  /* Expand out all the Files+Dirs for WildCard Searching     */
+  /************************************************************/
+  dbrc = sqlite3_prepare(dbMFTHndl, "select * from MFTFiles", -1, &dbMFTStmt, 0);
+  if (dbrc != SQLITE_OK)
+  {
+    printf("MFTErr: Could Not Read MFT Database: %s\n", MFTDBFile);
+    MFT_Status = 2;
+    return;
+  }
+
+  SpinLock = 0;
+  while ((dbrc = sqlite3_step(dbMFTStmt)) != SQLITE_DONE)
+  {
+    if (dbrc == SQLITE_BUSY)
+      Sleep(100);
+    else
+    if (dbrc == SQLITE_LOCKED)
+     Sleep(100);
+    else
+    if (dbrc == SQLITE_ERROR)
+    {
+      printf("MFTErr: MFT Database Error: %s\n", sqlite3_errmsg(dbMFTHndl));
+      MFT_Status = 2;
+      return ;
+    }
+    else
+    if (dbrc == SQLITE_ROW)
+    {
+      memset(Ftmp_Fname, 0, 2048);
+      memset(Full_Fname, 0, 2048);
+      dbMaxCol = sqlite3_column_count(dbMFTStmt);
+
+      for (dbi = 0; dbi < dbMaxCol; dbi++)
+      {
+        if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileName", 8) == 0)
+        {
+          if (sqlite3_column_text(dbMFTStmt, dbi) != NULL)
+            strncpy(Full_Fname, (const char *) sqlite3_column_text(dbMFTStmt, dbi), 255);
+        }
+        else
+        if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "MFTRecID", 8) == 0)
+        {
+          File_RecNum = sqlite3_column_int(dbMFTStmt, dbi);
+        }
+        else
+        if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "MFTPrvID", 8) == 0)
+        {
+          Dir_PrevNum = sqlite3_column_int(dbMFTStmt, dbi);
+        }
+      }
+
+
+
+
+
+
+
+
+      MoreDirs = 0;
+      while(MoreDirs == 0)
+      {
+
+
+        MoreDirs = 1; //Assume we will Exit out
+        printf("Select * from MFTDirs WHERE MFTRecID = '%ld'\n", Dir_PrevNum);
+
+
+
+        dbXQuery = sqlite3_mprintf("Select * from MFTDirs WHERE MFTRecID = '%ld'\0", Dir_PrevNum);
+
+        dbXrc = sqlite3_prepare(dbMFTHndl, dbXQuery, -1, &dbXMFTStmt, 0);
+        if (dbXrc == SQLITE_OK)
+        {
+          SpinLock = 0;
+          while ((dbXrc = sqlite3_step(dbXMFTStmt)) != SQLITE_DONE)
+          {
+            if (dbXrc == SQLITE_BUSY)
+              Sleep(100);
+            else
+            if (dbXrc == SQLITE_LOCKED)
+              Sleep(100);
+            else
+            if (dbXrc == SQLITE_ERROR)
+              Sleep(100);
+            else
+            if (dbXrc == SQLITE_ROW)
+            {
+              MoreDirs = 0; //Lets See if we have another Directory
+              dbMaxCol = sqlite3_column_count(dbXMFTStmt);
+
+              memset(Ftmp_Fname, 0, 260);
+              for (dbXi = 0; dbXi < dbMaxCol; dbXi++)
+              {
+                if (_strnicmp(sqlite3_column_name(dbXMFTStmt, dbXi), "DirsName", 8) == 0)
+                {
+                  if (sqlite3_column_text(dbXMFTStmt, dbXi) != NULL)
+                    strncpy(Ftmp_Fname, (const char *)sqlite3_column_text(dbXMFTStmt, dbXi), 255);
+
+
+
+                  printf("Got Subdir: %s\n", Ftmp_Fname);
+
+
+
+
+
+                  strcat(Ftmp_Fname, "\\\0\0");
+                  strcat(Ftmp_Fname, Full_Fname);
+                  strncpy(Full_Fname, Ftmp_Fname, 2048);
+                }
+                else
+                if (_strnicmp(sqlite3_column_name(dbXMFTStmt, dbXi), "MFTRecID", 8) == 0)
+                {
+                  File_RecNum = sqlite3_column_int(dbXMFTStmt, dbXi);
+                }
+                else
+                if (_strnicmp(sqlite3_column_name(dbXMFTStmt, dbXi), "MFTPrvID", 8) == 0)
+                {
+                  Dir_PrevNum = sqlite3_column_int(dbXMFTStmt, dbXi);
+                }
+              }
+            }
+          }
+
+          /*****************************************************************/
+          /* Check if we are stuck in a loop.                              */
+          /*****************************************************************/
+          if (dbXrc != SQLITE_ROW)
+          {
+            SpinLock++;
+
+            if (SpinLock > 5)
+            {
+              break;
+            }
+          }
+        }
+
+        sqlite3_finalize(dbXMFTStmt);
+        sqlite3_free(dbXQuery);
+      }
+
+
+
+
+
+      printf("FullFname: %s\n", Full_Fname);
+      getchar();
+
+
+
+
+
+
+
+
+
+
+
     }
 
 
-
+    /*****************************************************************/
+    /* Check if we are stuck in a loop.                              */
+    /*****************************************************************/
+    if (dbrc != SQLITE_ROW)
+    {
+      SpinLock++;
+      if (SpinLock > 5)
+      {
+        break;
+      }
+    }
   }
+  sqlite3_finalize(dbMFTStmt);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      
+  //Test for 1000 recs
+  //if (i > 1000)
+  //{
+  //  dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
+  //  sqlite3_close(dbMFTHndl);
+  //  exit(0);
+  //}
+  // To see the very long output short, uncomment the following line
+  // _getwch();
+
 }
 
 
@@ -534,7 +775,7 @@ int wmain(int argc, WCHAR **argv)
     exit(1);
   }
 
-
+  MFT_Status = 0;
   dbrc = sqlite3_open(MFTDBFile, &dbMFTHndl);
   if (dbrc != SQLITE_OK)
   {
