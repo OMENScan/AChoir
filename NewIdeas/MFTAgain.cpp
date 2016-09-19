@@ -405,9 +405,9 @@ VOID FindActive()
         Max_Files++;
 
         if(UseName == 1)
-         dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName) VALUES ('%ld', '%ld', '%q')\0", i, int(name->DirectoryFileReferenceNumber), Str_Temp);
+         dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate) VALUES ('%ld', '%ld', '%q', '%ld', '%ld', '%ld')\0", i, int(name->DirectoryFileReferenceNumber), Str_Temp, int(name->CreationTime), int(name->LastAccessTime), int(name->LastWriteTime));
         else
-         dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName) VALUES ('%ld', '%ld', '%q')\0", i, int(name2->DirectoryFileReferenceNumber), Str_Temp);
+         dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate) VALUES ('%ld', '%ld', '%q', '%ld', '%ld', '%ld')\0", i, int(name2->DirectoryFileReferenceNumber), Str_Temp, int(name2->CreationTime), int(name2->LastAccessTime), int(name2->LastWriteTime));
       }
       else
       {
@@ -442,7 +442,7 @@ VOID FindActive()
         /*****************************************************************/
         SpinLock++;
 
-        if (SpinLock > 5)
+        if (SpinLock > 25)
           break;
       }
 
@@ -492,6 +492,8 @@ VOID FindActive()
     else
     if (dbrc == SQLITE_ROW)
     {
+      SpinLock = 0;
+
       memset(Ftmp_Fname, 0, 2048);
       memset(Full_Fname, 0, 2048);
       dbMaxCol = sqlite3_column_count(dbMFTStmt);
@@ -541,6 +543,8 @@ VOID FindActive()
             else
             if (dbXrc == SQLITE_ROW)
             {
+              SpinLock = 0;
+
               dbMaxCol = sqlite3_column_count(dbXMFTStmt);
 
               memset(Ftmp_Fname, 0, 260);
@@ -591,7 +595,7 @@ VOID FindActive()
           {
             SpinLock++;
 
-            if (SpinLock > 5)
+            if (SpinLock > 25)
             {
               break;
             }
@@ -628,7 +632,7 @@ VOID FindActive()
         /*****************************************************************/
         SpinLock++;
 
-        if (SpinLock > 5)
+        if (SpinLock > 25)
           break;
       }
 
@@ -657,7 +661,7 @@ VOID FindActive()
     if (dbrc != SQLITE_ROW)
     {
       SpinLock++;
-      if (SpinLock > 5)
+      if (SpinLock > 25)
       {
         break;
       }
@@ -700,19 +704,16 @@ VOID FindActive()
     /*****************************************************************/
     SpinLock++;
 
-    if (SpinLock > 5)
+    if (SpinLock > 25)
       break;
   }
 
   sqlite3_free(dbXQuery);
   
-  sqlite3_close(dbMFTHndl);
   
 
 
-
-
-      
+    
   //Test for 1000 recs
   //if (i > 1000)
   //{
@@ -796,6 +797,10 @@ int wmain(int argc, WCHAR **argv)
   CHAR drive[] = "\\\\.\\C:";
   ULONG n;
 
+  char Full_Fname[2048] = "\0";
+  int  Full_MFTID;
+
+
   // No argument supplied
   if (argc < 2)
   {
@@ -856,7 +861,8 @@ int wmain(int argc, WCHAR **argv)
 
   SpinLock = 0;
   //dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
-  dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
+  //dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
+  dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName)\0");
   while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
   {
     if (dbMrc == SQLITE_BUSY)
@@ -878,7 +884,7 @@ int wmain(int argc, WCHAR **argv)
     /*****************************************************************/
     SpinLock++;
 
-    if (SpinLock > 5)
+    if (SpinLock > 25)
       break;
   }
   sqlite3_free(dbMQuery);
@@ -886,7 +892,9 @@ int wmain(int argc, WCHAR **argv)
 
   SpinLock = 0;
   //dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, FileName)\0");
-  dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, FileName)\0");
+  //dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, FileName)\0");
+  dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
+
   while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
   {
     if (dbMrc == SQLITE_BUSY)
@@ -908,7 +916,7 @@ int wmain(int argc, WCHAR **argv)
     /*****************************************************************/
     SpinLock++;
 
-    if (SpinLock > 5)
+    if (SpinLock > 25)
       break;
   }
   sqlite3_free(dbMQuery);
@@ -937,7 +945,7 @@ int wmain(int argc, WCHAR **argv)
     /*****************************************************************/
     SpinLock++;
 
-    if (SpinLock > 5)
+    if (SpinLock > 25)
       break;
   }
   sqlite3_free(dbMQuery);
@@ -951,6 +959,85 @@ int wmain(int argc, WCHAR **argv)
   if (argc == 2)
     FindActive();
 
+
+
+
+
+  // Lets do some Test Queries Against the SQLite MFT DB 
+  dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
+
+
+
+  /************************************************************/
+  /* Show everything in Prefetch                              */
+  /************************************************************/
+  dbMQuery = sqlite3_mprintf("Select * from FileNames WHERE FileName LIKE '%q'\0", "C:\\Windows\\Prefetch\\%\0");
+
+  dbMrc = sqlite3_prepare(dbMFTHndl, dbMQuery, -1, &dbMFTStmt, 0);
+  if (dbMrc == SQLITE_OK)
+  {
+    SpinLock = 0;
+    while ((dbMrc = sqlite3_step(dbMFTStmt)) != SQLITE_DONE)
+    {
+      if (dbMrc == SQLITE_BUSY)
+        Sleep(100);
+      else
+      if (dbMrc == SQLITE_LOCKED)
+        Sleep(100);
+      else
+      if (dbMrc == SQLITE_ERROR)
+        Sleep(100);
+      else
+      if (dbMrc == SQLITE_ROW)
+      {
+        SpinLock = 0;
+        dbMaxCol = sqlite3_column_count(dbMFTStmt);
+
+        memset(Full_Fname, 0, 2048);
+        for (dbi = 0; dbi < dbMaxCol; dbi++)
+        {
+          if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileName", 8) == 0)
+          {
+            if (sqlite3_column_text(dbMFTStmt, dbi) != NULL)
+              strncpy(Full_Fname, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 2000);
+          }
+          else
+          if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "MFTRecID", 8) == 0)
+          {
+            Full_MFTID = sqlite3_column_int(dbMFTStmt, dbi);
+          }
+        }
+
+        printf("FileName: %s\nMFT Record: %d\n", Full_Fname, Full_MFTID);
+       
+      }
+    
+      /*****************************************************************/
+      /* Check if we are stuck in a loop.                              */
+      /*****************************************************************/
+      if (dbMrc != SQLITE_ROW)
+      {
+        SpinLock++;
+
+        if (SpinLock > 25)
+        {
+          break;
+        }
+      }
+    }
+  }
+  sqlite3_finalize(dbMFTStmt);
+  sqlite3_free(dbMQuery);
+
+ 
+  
+  
+  
+  
+
+
+
+
   // FindDeleted();
   // Need to convert the recovered filename to long file name
   // Not implemented here. It is 8.3 file name format
@@ -963,8 +1050,8 @@ int wmain(int argc, WCHAR **argv)
 
   CloseHandle(hVolume);
 
-  dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
   sqlite3_close(dbMFTHndl);
+
 
   return 0;
 }
