@@ -10,6 +10,9 @@
 #include "ntfs.h"
 #include "sqlite3.h"
 
+#include <io.h>
+
+
 // Global variables
 ULONG BytesPerFileRecord;
 HANDLE hVolume;
@@ -267,8 +270,10 @@ VOID ReadFileRecord(ULONG index, PFILE_RECORD_HEADER file)
 {
   ULONG clusters = bootb.ClustersPerFileRecord;
   //wprintf(L"ReadFileRecord() - Reading the file records..\n");
+
   if (clusters > 0x80)
     clusters = 1;
+  
   PUCHAR p = new UCHAR[bootb.BytesPerSector* bootb.SectorsPerCluster * clusters];
   ULONGLONG vcn = ULONGLONG(index) * BytesPerFileRecord / bootb.BytesPerSector / bootb.SectorsPerCluster;
   
@@ -764,15 +769,22 @@ VOID DumpData(ULONG index, WCHAR* filename)
   HANDLE hFile = NULL;
   PFILE_RECORD_HEADER file = PFILE_RECORD_HEADER(new UCHAR[BytesPerFileRecord]);
   ULONG n;
+
   ReadFileRecord(index, file);
+
   wprintf(L"Dumping the data...\n");
+
   if (file->Ntfs.Type != 'ELIF')
     return;
+
   attr = FindAttribute(file, AttributeData, 0);
   if (attr == 0)
     return;
+
   PUCHAR buf = new UCHAR[AttributeLengthAllocated(attr)];
+
   ReadAttribute(attr, buf);
+
   //hFile = CreateFile((LPCWSTR)filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
   hFile = CreateFile((LPCSTR)filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
   if (hFile == INVALID_HANDLE_VALUE)
@@ -780,12 +792,15 @@ VOID DumpData(ULONG index, WCHAR* filename)
     wprintf(L"CreateFile() failed, error %u\n", GetLastError());
     return;
   }
+
   if (WriteFile(hFile, buf, AttributeLength(attr), &n, 0) == 0)
   {
     wprintf(L"WriteFile() failed, error %u\n", GetLastError());
     return;
   }
+
   CloseHandle(hFile);
+
   delete[] buf;
 }
 
@@ -794,11 +809,14 @@ int wmain(int argc, WCHAR **argv)
 {
   // Default primary partition
   //WCHAR drive[] = L"\\\\.\\C:";
+
   CHAR drive[] = "\\\\.\\C:";
   ULONG n;
 
   char Full_Fname[2048] = "\0";
   int  Full_MFTID;
+  int  SQL_MFT = 0;
+
 
 
   // No argument supplied
@@ -810,9 +828,12 @@ int wmain(int argc, WCHAR **argv)
     // Just exit
     exit(1);
   }
+
+
   // More code to stop the user from entering the non-primary partition
   // Read the user input
   drive[4] = *argv[1];
+
   // Get the handle to the primary partition/volume/physical disk
   hVolume = CreateFile(drive, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
   if (hVolume == INVALID_HANDLE_VALUE)
@@ -821,6 +842,7 @@ int wmain(int argc, WCHAR **argv)
     exit(1);
   }
 
+
   // Reads data from the specified input/output (I/O) device - volume / physical disk
   if (ReadFile(hVolume, &bootb, sizeof bootb, &n, 0) == 0)
   {
@@ -828,208 +850,211 @@ int wmain(int argc, WCHAR **argv)
     exit(1);
   }
 
-  MFT_Status = 0;
-  dbrc = sqlite3_open(MFTDBFile, &dbMFTHndl);
-  if (dbrc != SQLITE_OK)
-  {
-    printf("Could Not Open MFT Working Database: %s\n", MFTDBFile);
 
-    exit(0);
-    return 0;
-  }
-
-
-
-  // Create SQLite DB
-  dbrc = sqlite3_open(MFTDBFile, &dbMFTHndl);
-  if (dbrc != SQLITE_OK)
-  {
-    printf("Could Not Create MFT Index Database: %s\n", MFTDBFile);
-
-    exit(4);
-    return 4;
-  }
-
-  // Make SQLite DB access as fast as possible
-  dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA cache_size=4000", NULL, NULL, &errmsg);
-  dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA synchronous=NORMAL", NULL, NULL, &errmsg);
-  dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA journal_mode=MEMORY", NULL, NULL, &errmsg);
-  dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA temp_store=MEMORY", NULL, NULL, &errmsg);
-
-  dbMrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
-
-
-  SpinLock = 0;
-  //dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
-  //dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
-  dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName)\0");
-  while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
-  {
-    if (dbMrc == SQLITE_BUSY)
-      Sleep(100); // In windows.h
-    else
-    if (dbMrc == SQLITE_LOCKED)
-      Sleep(100); // In windows.h
-    else
-    if (dbMrc == SQLITE_ERROR)
-    {
-      printf("Error Creating FileNames Table\n%s\n", errmsg);
-      break;
-    }
-    else
-      Sleep(100); // In windows.h
-
-    /*****************************************************************/
-    /* Check if we are stuck in a loop.                              */
-    /*****************************************************************/
-    SpinLock++;
-
-    if (SpinLock > 25)
-      break;
-  }
-  sqlite3_free(dbMQuery);
-
-
-  SpinLock = 0;
-  //dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, FileName)\0");
-  //dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, FileName)\0");
-  dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
-
-  while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
-  {
-    if (dbMrc == SQLITE_BUSY)
-      Sleep(100); // In windows.h
-    else
-    if (dbMrc == SQLITE_LOCKED)
-      Sleep(100); // In windows.h
-    else
-    if (dbMrc == SQLITE_ERROR)
-    {
-      printf("Error Creating MFTFiles Table\n%s\n", errmsg);
-      break;
-    }
-    else
-      Sleep(100); // In windows.h
-
-    /*****************************************************************/
-    /* Check if we are stuck in a loop.                              */
-    /*****************************************************************/
-    SpinLock++;
-
-    if (SpinLock > 25)
-      break;
-  }
-  sqlite3_free(dbMQuery);
-
-
-  //dbMQuery = sqlite3_mprintf("CREATE TABLE MFTDirs (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, DirsName)\0");
-  dbMQuery = sqlite3_mprintf("CREATE TABLE MFTDirs (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, DirsName)\0");
-  while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
-  {
-    if (dbMrc == SQLITE_BUSY)
-      Sleep(100); // In windows.h
-    else
-    if (dbMrc == SQLITE_LOCKED)
-      Sleep(100); // In windows.h
-    else
-    if (dbMrc == SQLITE_ERROR)
-    {
-      printf("Error Creating MFTDirs Table\n%s\n", errmsg);
-      break;
-    }
-    else
-      Sleep(100); // In windows.h
-
-    /*****************************************************************/
-    /* Check if we are stuck in a loop.                              */
-    /*****************************************************************/
-    SpinLock++;
-
-    if (SpinLock > 25)
-      break;
-  }
-  sqlite3_free(dbMQuery);
-
-
-  LoadMFT();
-
-  // The primary partition supplied else
-  // default C:\ will be used
 
   if (argc == 2)
-    FindActive();
-
-
-
-
-
-  // Lets do some Test Queries Against the SQLite MFT DB 
-  dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
-
-
-
-  /************************************************************/
-  /* Show everything in Prefetch                              */
-  /************************************************************/
-  dbMQuery = sqlite3_mprintf("Select * from FileNames WHERE FileName LIKE '%q'\0", "C:\\Windows\\Prefetch\\%\0");
-
-  dbMrc = sqlite3_prepare(dbMFTHndl, dbMQuery, -1, &dbMFTStmt, 0);
-  if (dbMrc == SQLITE_OK)
   {
-    SpinLock = 0;
-    while ((dbMrc = sqlite3_step(dbMFTStmt)) != SQLITE_DONE)
-    {
-      if (dbMrc == SQLITE_BUSY)
-        Sleep(100);
-      else
-      if (dbMrc == SQLITE_LOCKED)
-        Sleep(100);
-      else
-      if (dbMrc == SQLITE_ERROR)
-        Sleep(100);
-      else
-      if (dbMrc == SQLITE_ROW)
-      {
-        SpinLock = 0;
-        dbMaxCol = sqlite3_column_count(dbMFTStmt);
+    MFT_Status = 0;
 
-        memset(Full_Fname, 0, 2048);
-        for (dbi = 0; dbi < dbMaxCol; dbi++)
-        {
-          if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileName", 8) == 0)
-          {
-            if (sqlite3_column_text(dbMFTStmt, dbi) != NULL)
-              strncpy(Full_Fname, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 2000);
-          }
-          else
-          if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "MFTRecID", 8) == 0)
-          {
-            Full_MFTID = sqlite3_column_int(dbMFTStmt, dbi);
-          }
-        }
-
-        printf("FileName: %s\nMFT Record: %d\n", Full_Fname, Full_MFTID);
-       
-      }
+    //If the SQLite MFT is already there - Bypass the Index Creation
+    if ((_access(MFTDBFile, 0)) != -1)
+      SQL_MFT = 0;
+    else
+      SQL_MFT = 1;
     
-      /*****************************************************************/
-      /* Check if we are stuck in a loop.                              */
-      /*****************************************************************/
-      if (dbMrc != SQLITE_ROW)
+
+    dbrc = sqlite3_open(MFTDBFile, &dbMFTHndl);
+    if (dbrc != SQLITE_OK)
+    {
+      printf("Could Not Open MFT Working Database: %s\n", MFTDBFile);
+      exit(4);
+      return 4;
+    }
+
+
+
+    // Make SQLite DB access as fast as possible
+    dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA cache_size=4000", NULL, NULL, &errmsg);
+    dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA synchronous=NORMAL", NULL, NULL, &errmsg);
+    dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA journal_mode=MEMORY", NULL, NULL, &errmsg);
+    dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA temp_store=MEMORY", NULL, NULL, &errmsg);
+
+    dbMrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
+
+
+    if (SQL_MFT == 1)
+    {
+      SpinLock = 0;
+      //dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
+      //dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
+      dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName)\0");
+      while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
       {
+        if (dbMrc == SQLITE_BUSY)
+          Sleep(100); // In windows.h
+        else
+        if (dbMrc == SQLITE_LOCKED)
+          Sleep(100); // In windows.h
+        else
+        if (dbMrc == SQLITE_ERROR)
+        {
+          printf("Error Creating FileNames Table\n%s\n", errmsg);
+          break;
+        }
+        else
+          Sleep(100); // In windows.h
+
+        /*****************************************************************/
+        /* Check if we are stuck in a loop.                              */
+        /*****************************************************************/
         SpinLock++;
 
         if (SpinLock > 25)
-        {
           break;
+      }
+      sqlite3_free(dbMQuery);
+
+
+      SpinLock = 0;
+      //dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, FileName)\0");
+      //dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, FileName)\0");
+      dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
+
+      while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
+      {
+        if (dbMrc == SQLITE_BUSY)
+          Sleep(100); // In windows.h
+        else
+        if (dbMrc == SQLITE_LOCKED)
+          Sleep(100); // In windows.h
+        else
+        if (dbMrc == SQLITE_ERROR)
+        {
+          printf("Error Creating MFTFiles Table\n%s\n", errmsg);
+          break;
+        }
+        else
+          Sleep(100); // In windows.h
+
+        /*****************************************************************/
+        /* Check if we are stuck in a loop.                              */
+        /*****************************************************************/
+        SpinLock++;
+
+        if (SpinLock > 25)
+          break;
+      }
+      sqlite3_free(dbMQuery);
+
+
+      //dbMQuery = sqlite3_mprintf("CREATE TABLE MFTDirs (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, DirsName)\0");
+      dbMQuery = sqlite3_mprintf("CREATE TABLE MFTDirs (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, DirsName)\0");
+      while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
+      {
+        if (dbMrc == SQLITE_BUSY)
+          Sleep(100); // In windows.h
+        else
+        if (dbMrc == SQLITE_LOCKED)
+          Sleep(100); // In windows.h
+        else
+        if (dbMrc == SQLITE_ERROR)
+        {
+          printf("Error Creating MFTDirs Table\n%s\n", errmsg);
+          break;
+        }
+        else
+          Sleep(100); // In windows.h
+
+        /*****************************************************************/
+        /* Check if we are stuck in a loop.                              */
+        /*****************************************************************/
+        SpinLock++;
+
+        if (SpinLock > 25)
+          break;
+      }
+      sqlite3_free(dbMQuery);
+
+      //Load MFT Info
+      LoadMFT();
+
+      // The primary partition supplied else
+      // default C:\ will be used
+
+      FindActive();
+
+
+      // Lets do some Test Queries Against the SQLite MFT DB 
+      dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
+    }
+    else
+      LoadMFT(); // SQLite Index exists, Just open the MFT
+
+      
+
+    /************************************************************/
+    /* Show everything in Prefetch                              */
+    /************************************************************/
+    dbMQuery = sqlite3_mprintf("Select * from FileNames WHERE FileName LIKE '%q'\0", "C:\\Windows\\Prefetch\\%\0");
+
+    dbMrc = sqlite3_prepare(dbMFTHndl, dbMQuery, -1, &dbMFTStmt, 0);
+    if (dbMrc == SQLITE_OK)
+    {
+      SpinLock = 0;
+      while ((dbMrc = sqlite3_step(dbMFTStmt)) != SQLITE_DONE)
+      {
+        if (dbMrc == SQLITE_BUSY)
+          Sleep(100);
+        else
+        if (dbMrc == SQLITE_LOCKED)
+          Sleep(100);
+        else
+        if (dbMrc == SQLITE_ERROR)
+          Sleep(100);
+        else
+        if (dbMrc == SQLITE_ROW)
+        {
+          SpinLock = 0;
+          dbMaxCol = sqlite3_column_count(dbMFTStmt);
+
+          memset(Full_Fname, 0, 2048);
+          for (dbi = 0; dbi < dbMaxCol; dbi++)
+          {
+            if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileName", 8) == 0)
+            {
+              if (sqlite3_column_text(dbMFTStmt, dbi) != NULL)
+                strncpy(Full_Fname, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 2000);
+            }
+            else
+            if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "MFTRecID", 8) == 0)
+            {
+              Full_MFTID = sqlite3_column_int(dbMFTStmt, dbi);
+            }
+          }
+
+          printf("FileName: %s\nMFT Record: %d\n", Full_Fname, Full_MFTID);
+
+        }
+
+        /*****************************************************************/
+        /* Check if we are stuck in a loop.                              */
+        /*****************************************************************/
+        if (dbMrc != SQLITE_ROW)
+        {
+          SpinLock++;
+
+          if (SpinLock > 25)
+          {
+            break;
+          }
         }
       }
     }
-  }
-  sqlite3_finalize(dbMFTStmt);
-  sqlite3_free(dbMQuery);
+    sqlite3_finalize(dbMFTStmt);
+    sqlite3_free(dbMQuery);
 
- 
+    sqlite3_close(dbMFTHndl);
+  }
   
   
   
@@ -1045,12 +1070,16 @@ int wmain(int argc, WCHAR **argv)
   // are supplied
 
   if (argc == 4)
-    DumpData(wcstoul(argv[2], 0, 0), argv[3]);
+  {
+    //Load MFT Info
+    LoadMFT();
 
+    //Physical Disk File Copy
+    DumpData(wcstoul(argv[2], 0, 0), argv[3]);
+  }
 
   CloseHandle(hVolume);
 
-  sqlite3_close(dbMFTHndl);
 
 
   return 0;
