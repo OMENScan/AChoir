@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include "ntfs.h"
 #include "sqlite3.h"
+#include <time.h>
 
 #include <io.h>
 
@@ -347,6 +348,11 @@ VOID FindActive()
   int File_RecNum, Dir_PrevNum, File_RecID;
   int MoreDirs, UseName;
 
+  ULONGLONG File_CreDate, File_AccDate, File_ModDate;
+  char Text_CreDate[30] = "\0";
+  char Text_AccDate[30] = "\0";
+  char Text_ModDate[30] = "\0";
+
   ReadAttribute(attr, bitmap);
   
   ULONG n = AttributeLength(FindAttribute(MFT, AttributeData, 0)) / BytesPerFileRecord;
@@ -410,9 +416,9 @@ VOID FindActive()
         Max_Files++;
 
         if(UseName == 1)
-         dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate) VALUES ('%ld', '%ld', '%q', '%ld', '%ld', '%ld')\0", i, int(name->DirectoryFileReferenceNumber), Str_Temp, int(name->CreationTime), int(name->LastAccessTime), int(name->LastWriteTime));
+         dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate) VALUES ('%ld', '%ld', '%q', '%llu', '%llu', '%llu')\0", i, int(name->DirectoryFileReferenceNumber), Str_Temp, ULONGLONG(name->CreationTime), ULONGLONG(name->LastAccessTime), ULONGLONG(name->LastWriteTime));
         else
-         dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate) VALUES ('%ld', '%ld', '%q', '%ld', '%ld', '%ld')\0", i, int(name2->DirectoryFileReferenceNumber), Str_Temp, int(name2->CreationTime), int(name2->LastAccessTime), int(name2->LastWriteTime));
+         dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate) VALUES ('%ld', '%ld', '%q', '%llu', '%llu', '%llu')\0", i, int(name2->DirectoryFileReferenceNumber), Str_Temp, ULONGLONG(name2->CreationTime), ULONGLONG(name2->LastAccessTime), ULONGLONG(name2->LastWriteTime));
       }
       else
       {
@@ -521,6 +527,24 @@ VOID FindActive()
         {
           Dir_PrevNum = sqlite3_column_int(dbMFTStmt, dbi);
         }
+        else
+        if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileCreDate", 11) == 0)
+        {
+          memset(Text_CreDate, 0, 30);
+          strncpy(Text_CreDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
+        }
+        else
+        if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileAccDate", 11) == 0)
+        {
+          memset(Text_AccDate, 0, 30);
+          strncpy(Text_AccDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
+        }
+        else
+        if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileModDate", 11) == 0)
+        {
+          memset(Text_ModDate, 0, 30);
+          strncpy(Text_ModDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
+        }
       }
 
       // Expand out the Full File Paths
@@ -612,7 +636,7 @@ VOID FindActive()
       }
 
       //Now Insert the Full Path FileName and MFT Record ID
-      dbXQuery = sqlite3_mprintf("INSERT INTO FileNames (MFTRecID, FileName) VALUES ('%ld', '%q')\0", File_RecID, Full_Fname);
+      dbXQuery = sqlite3_mprintf("INSERT INTO FileNames (MFTRecID, FileName, FileCreDate, FileAccDate, FileModDate) VALUES ('%ld', '%q', '%q', '%q', '%q')\0", File_RecID, Full_Fname, Text_CreDate, Text_AccDate, Text_ModDate);
 
       SpinLock = 0;
       while ((dbXrc = sqlite3_exec(dbMFTHndl, dbXQuery, 0, 0, &errmsg)) != SQLITE_OK)
@@ -763,16 +787,21 @@ VOID FindDeleted()
 }
 
 
+//VOID DumpData(ULONG index, CHAR* filename)
 VOID DumpData(ULONG index, WCHAR* filename)
 {
   PATTRIBUTE attr = NULL;
   HANDLE hFile = NULL;
   PFILE_RECORD_HEADER file = PFILE_RECORD_HEADER(new UCHAR[BytesPerFileRecord]);
   ULONG n;
+  
+  memset(Str_Temp, 0, 1024);
+  wcstombs(Str_Temp, filename, 1000);
 
   ReadFileRecord(index, file);
 
-  wprintf(L"Dumping the data...\n");
+  //wprintf(L"Dumping the data...\n");
+  printf("Dumping Raw Data to FileName: %s\n", Str_Temp);
 
   if (file->Ntfs.Type != 'ELIF')
     return;
@@ -786,7 +815,7 @@ VOID DumpData(ULONG index, WCHAR* filename)
   ReadAttribute(attr, buf);
 
   //hFile = CreateFile((LPCWSTR)filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
-  hFile = CreateFile((LPCSTR)filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+  hFile = CreateFile((LPCSTR)Str_Temp, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
   if (hFile == INVALID_HANDLE_VALUE)
   {
     wprintf(L"CreateFile() failed, error %u\n", GetLastError());
@@ -805,6 +834,51 @@ VOID DumpData(ULONG index, WCHAR* filename)
 }
 
 
+VOID DumpDataII(ULONG index, CHAR* filename)
+{
+  PATTRIBUTE attr = NULL;
+  HANDLE hFile = NULL;
+  PFILE_RECORD_HEADER file = PFILE_RECORD_HEADER(new UCHAR[BytesPerFileRecord]);
+  ULONG n;
+  CHAR Tooo_Fname[2048] = "\0";
+
+  sprintf(Tooo_Fname, "C:\\AChoir\\Cache\\%s\0", filename);
+  ReadFileRecord(index, file);
+
+  //wprintf(L"Dumping the data...\n");
+  printf("Dumping Raw Data to FileName: %s\n", Tooo_Fname);
+
+  if (file->Ntfs.Type != 'ELIF')
+    return;
+
+  attr = FindAttribute(file, AttributeData, 0);
+  if (attr == 0)
+    return;
+
+  PUCHAR buf = new UCHAR[AttributeLengthAllocated(attr)];
+
+  ReadAttribute(attr, buf);
+
+  hFile = CreateFile((LPCSTR)Tooo_Fname, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+  if (hFile == INVALID_HANDLE_VALUE)
+  {
+    wprintf(L"CreateFile() failed, error %u\n", GetLastError());
+    return;
+  }
+
+  if (WriteFile(hFile, buf, AttributeLength(attr), &n, 0) == 0)
+  {
+    wprintf(L"WriteFile() failed, error %u\n", GetLastError());
+    return;
+  }
+
+  CloseHandle(hFile);
+
+  delete[] buf;
+}
+
+
+//int wmain(int argc, CHAR **argv)
 int wmain(int argc, WCHAR **argv)
 {
   // Default primary partition
@@ -816,8 +890,14 @@ int wmain(int argc, WCHAR **argv)
   char Full_Fname[2048] = "\0";
   int  Full_MFTID;
   int  SQL_MFT = 0;
+  int  i, j;
 
-
+  ULONGLONG File_CreDate, File_AccDate, File_ModDate;
+  FILETIME File_Time, File_Local;
+  SYSTEMTIME File_SysTime;
+  char Text_CreDate[30] = "\0";
+  char Text_AccDate[30] = "\0";
+  char Text_ModDate[30] = "\0";
 
   // No argument supplied
   if (argc < 2)
@@ -887,7 +967,8 @@ int wmain(int argc, WCHAR **argv)
       SpinLock = 0;
       //dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
       //dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
-      dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName)\0");
+      //dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName)\0");
+      dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName, FileCreDate, FileAccDate, FileModDate)\0");
       while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
       {
         if (dbMrc == SQLITE_BUSY)
@@ -918,7 +999,7 @@ int wmain(int argc, WCHAR **argv)
       SpinLock = 0;
       //dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, FileName)\0");
       //dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, FileName)\0");
-      dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
+      dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, FileName, FileCreDate, FileAccDate, FileModDate)\0");
 
       while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
       {
@@ -1030,9 +1111,57 @@ int wmain(int argc, WCHAR **argv)
             {
               Full_MFTID = sqlite3_column_int(dbMFTStmt, dbi);
             }
+            else
+            if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileCreDate", 11) == 0)
+            {
+              memset(Text_CreDate, 0, 30);
+              strncpy(Text_CreDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
+            }
+            else
+            if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileAccDate", 11) == 0)
+            {
+              memset(Text_AccDate, 0, 30);
+              strncpy(Text_AccDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
+            }
+            else
+            if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileModDate", 11) == 0)
+            {
+              memset(Text_ModDate, 0, 30);
+              strncpy(Text_ModDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
+            }
           }
 
-          printf("FileName: %s\nMFT Record: %d\n", Full_Fname, Full_MFTID);
+          for (i = strlen(Full_Fname); i > 0; i--)
+          {
+            if (Full_Fname[i] == '\\')
+              break;
+          }
+          
+          File_CreDate = atoll(Text_CreDate);
+
+          printf("Raw Copying FileName: %s\nMFT Record: %d\n", Full_Fname+i+1, Full_MFTID);
+          printf("Text Date: %s\n", Text_CreDate);
+          printf("Long Long Date: %llu\n", File_CreDate);
+
+          // Copy the Creation Date into the FILETIME structure.
+          File_Time.dwLowDateTime = (DWORD)(File_CreDate & 0xFFFFFFFF);
+          File_Time.dwHighDateTime = (DWORD)(File_CreDate >> 32);
+
+          FileTimeToLocalFileTime(&File_Time, &File_Local);
+
+          FileTimeToSystemTime(&File_Local, &File_SysTime);
+          
+          printf("Created: %.2d-%.2d-%4d %.2d:%.2d:%.2d\n",
+                 File_SysTime.wMonth, File_SysTime.wDay, File_SysTime.wYear,
+                 File_SysTime.wHour, File_SysTime.wMinute, File_SysTime.wSecond);
+
+
+
+          //printf("Created: %s\n", TmpDate);
+          //printf("Modified: %s\n", TmpDate);
+          //printf("Accessed: %s\n", TmpDate);
+
+          DumpDataII(Full_MFTID, Full_Fname+i+1);
 
         }
 
@@ -1075,6 +1204,7 @@ int wmain(int argc, WCHAR **argv)
     LoadMFT();
 
     //Physical Disk File Copy
+    //DumpData(strtoul(argv[2], 0, 0), argv[3]);
     DumpData(wcstoul(argv[2], 0, 0), argv[3]);
   }
 
