@@ -27,6 +27,8 @@ char *dbXQuery; int dbXrc; int dbXi;
 char MFTDBFile[1024] = "C:\\AChoir\\Cache\\C-MFT.db\0";
 char Str_Temp[1024] = "\0";
 int MFT_Status = 0; // 0=Good, 1=NonFatal Error, 2=FatalError
+CHAR driveLetter[] = "C\0\0\0\0";
+int readRetcd = 1; // Global red Return Code - When something goes real bad.
 
 sqlite3      *dbMFTHndl;
 sqlite3_stmt *dbMFTStmt;
@@ -168,12 +170,17 @@ VOID ReadSector(ULONGLONG sector, ULONG count, PVOID buffer)
   ULARGE_INTEGER offset;
   OVERLAPPED overlap = { 0 };
   ULONG n;
+
   //wprintf(L"ReadSector() - Reading the sector...\n");
   //wprintf(L"Sector: %lu\n", sector);
   offset.QuadPart = sector * bootb.BytesPerSector;
   overlap.Offset = offset.LowPart;
   overlap.OffsetHigh = offset.HighPart;
-  ReadFile(hVolume, buffer, count * bootb.BytesPerSector, &n, &overlap);
+
+  readRetcd = ReadFile(hVolume, buffer, count * bootb.BytesPerSector, &n, &overlap);
+
+  if (readRetcd == 0)
+    printf("Error Reading Sector!  Cannot Process This Volume\n");
 }
 
 
@@ -319,6 +326,9 @@ VOID LoadMFT()
   MFT = PFILE_RECORD_HEADER(new UCHAR[BytesPerFileRecord]);
 
   ReadSector((bootb.MftStartLcn)*(bootb.SectorsPerCluster), (BytesPerFileRecord) / (bootb.BytesPerSector), MFT);
+  
+  if (readRetcd == 0)
+    return; // Don't do anything else - We cant Acccess this Volume!
 
   FixupUpdateSequenceArray(MFT);
 }
@@ -427,16 +437,30 @@ VOID FindActive()
         if (UseName == 1)
         {
           if(attr3 == 0)
-            dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp) VALUES ('%ld', '%ld', '%q', '%llu', '%llu', '%llu', 'FN')\0", i, int(name->DirectoryFileReferenceNumber), Str_Temp, ULONGLONG(name->CreationTime), ULONGLONG(name->LastAccessTime), ULONGLONG(name->LastWriteTime));
+            dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp, FNCreDate, FNAccDate, FNModDate, SICreDate, SIAccDate, SIModDate) VALUES ('%ld', '%ld', '%q', '%llu', '%llu', '%llu', 'FN', '%llu', '%llu', '%llu', '0', '0', '0')\0", 
+              i, int(name->DirectoryFileReferenceNumber), Str_Temp, 
+              ULONGLONG(name->CreationTime), ULONGLONG(name->LastAccessTime), ULONGLONG(name->LastWriteTime), 
+              ULONGLONG(name->CreationTime), ULONGLONG(name->LastAccessTime), ULONGLONG(name->LastWriteTime));
           else
-            dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp) VALUES ('%ld', '%ld', '%q', '%llu', '%llu', '%llu', 'SI')\0", i, int(name->DirectoryFileReferenceNumber), Str_Temp, ULONGLONG(name3->CreationTime), ULONGLONG(name3->LastAccessTime), ULONGLONG(name3->LastWriteTime));
+            dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp, FNCreDate, FNAccDate, FNModDate, SICreDate, SIAccDate, SIModDate) VALUES ('%ld', '%ld', '%q', '%llu', '%llu', '%llu', 'SI', '%llu', '%llu', '%llu', '%llu', '%llu', '%llu')\0", 
+              i, int(name->DirectoryFileReferenceNumber), Str_Temp, 
+              ULONGLONG(name3->CreationTime), ULONGLONG(name3->LastAccessTime), ULONGLONG(name3->LastWriteTime),
+              ULONGLONG(name->CreationTime), ULONGLONG(name->LastAccessTime), ULONGLONG(name->LastWriteTime),
+              ULONGLONG(name3->CreationTime), ULONGLONG(name3->LastAccessTime), ULONGLONG(name3->LastWriteTime));
         }
         else
         {
           if (attr3 == 0)
-            dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp) VALUES ('%ld', '%ld', '%q', '%llu', '%llu', '%llu', 'FN')\0", i, int(name2->DirectoryFileReferenceNumber), Str_Temp, ULONGLONG(name2->CreationTime), ULONGLONG(name2->LastAccessTime), ULONGLONG(name2->LastWriteTime));
+            dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp, FNCreDate, FNAccDate, FNModDate, SICreDate, SIAccDate, SIModDate) VALUES ('%ld', '%ld', '%q', '%llu', '%llu', '%llu', 'FN', '%llu', '%llu', '%llu', '0', '0', '0')\0",
+              i, int(name2->DirectoryFileReferenceNumber), Str_Temp,
+              ULONGLONG(name2->CreationTime), ULONGLONG(name2->LastAccessTime), ULONGLONG(name2->LastWriteTime),
+              ULONGLONG(name2->CreationTime), ULONGLONG(name2->LastAccessTime), ULONGLONG(name2->LastWriteTime));
           else
-            dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp) VALUES ('%ld', '%ld', '%q', '%llu', '%llu', '%llu', 'SI')\0", i, int(name2->DirectoryFileReferenceNumber), Str_Temp, ULONGLONG(name3->CreationTime), ULONGLONG(name3->LastAccessTime), ULONGLONG(name3->LastWriteTime));
+            dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp, FNCreDate, FNAccDate, FNModDate, SICreDate, SIAccDate, SIModDate) VALUES ('%ld', '%ld', '%q', '%llu', '%llu', '%llu', 'SI', '%llu', '%llu', '%llu', '%llu', '%llu', '%llu')\0",
+              i, int(name2->DirectoryFileReferenceNumber), Str_Temp,
+              ULONGLONG(name3->CreationTime), ULONGLONG(name3->LastAccessTime), ULONGLONG(name3->LastWriteTime),
+              ULONGLONG(name2->CreationTime), ULONGLONG(name2->LastAccessTime), ULONGLONG(name2->LastWriteTime),
+              ULONGLONG(name3->CreationTime), ULONGLONG(name3->LastAccessTime), ULONGLONG(name3->LastWriteTime));
         }
       }
       else
@@ -609,10 +633,11 @@ VOID FindActive()
                   if (sqlite3_column_text(dbXMFTStmt, dbXi) != NULL)
                     strncpy(Ftmp_Fname, (const char *)sqlite3_column_text(dbXMFTStmt, dbXi), 255);
 
-                  // . is The Root (C:\)
+                  // . is The Root (x:\)
                   if (_strnicmp(Ftmp_Fname, ".", 1) == 0)
                   {
-                    strncpy(Ftmp_Fname, "C:\\\0\0", 4);
+                    //strncpy(Ftmp_Fname, "C:\\\0\0", 4);
+                    sprintf(Ftmp_Fname,"%s:\\\0\0", driveLetter);
                     MoreDirs = 1; //No More Dirs
                   }
                   else
@@ -996,6 +1021,7 @@ int wmain(int argc, WCHAR **argv)
   CHAR drive[] = "\\\\.\\C:";
   ULONG n;
 
+  char Srch_String[255] = "\0";
   char Full_Fname[2048] = "\0";
   int  Full_MFTID;
   int  SQL_MFT = 0;
@@ -1022,7 +1048,6 @@ int wmain(int argc, WCHAR **argv)
   int PrivRes = 0;
 
 
-
   // No argument supplied
   if (argc < 2)
   {
@@ -1037,6 +1062,8 @@ int wmain(int argc, WCHAR **argv)
   // More code to stop the user from entering the non-primary partition
   // Read the user input
   drive[4] = *argv[1];
+  driveLetter[0] = *argv[1];
+  sprintf(MFTDBFile, "C:\\AChoir\\Cache\\%s-MFT.db\0", driveLetter);
 
 
   /****************************************************************/
@@ -1097,6 +1124,14 @@ int wmain(int argc, WCHAR **argv)
     wprintf(L"ReadFile() failed, error %u\n", GetLastError());
     exit(1);
   }
+
+
+  //Load MFT Info
+  LoadMFT();
+
+  //Super Wierd Edge Case where the Drive is Encrypted with TrueCrypt and Mounted
+  if (readRetcd == 0)
+    exit(0);
 
 
 
@@ -1168,7 +1203,8 @@ int wmain(int argc, WCHAR **argv)
       SpinLock = 0;
       //dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, FileName)\0");
       //dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, FileName)\0");
-      dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp)\0");
+      //dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp)\0");
+      dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp, FNCreDate, FNAccDate, FNModDate, SICreDate, SIAccDate, SIModDate)\0");
 
       while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
       {
@@ -1225,27 +1261,22 @@ int wmain(int argc, WCHAR **argv)
       }
       sqlite3_free(dbMQuery);
 
-      //Load MFT Info
-      LoadMFT();
-
       // The primary partition supplied else
       // default C:\ will be used
-
       FindActive();
 
 
       // Lets do some Test Queries Against the SQLite MFT DB 
       dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
     }
-    else
-      LoadMFT(); // SQLite Index exists, Just open the MFT
 
       
 
     /************************************************************/
     /* Show everything in Prefetch                              */
     /************************************************************/
-    dbMQuery = sqlite3_mprintf("Select * FROM FileNames AS T1, MFTFiles AS T2 WHERE T1.FullFileName LIKE '%q' AND T1.MFTRecID=T2.MFTRecID\0", "C:\\Windows\\Prefetch\\%\0");
+    sprintf(Srch_String, "%s:\\Windows\\Prefetch\\%%\0", driveLetter);
+    dbMQuery = sqlite3_mprintf("Select * FROM FileNames AS T1, MFTFiles AS T2 WHERE T1.FullFileName LIKE '%q' AND T1.MFTRecID=T2.MFTRecID\0", Srch_String);
 
     dbMrc = sqlite3_prepare(dbMFTHndl, dbMQuery, -1, &dbMFTStmt, 0);
     if (dbMrc == SQLITE_OK)
@@ -1376,12 +1407,6 @@ int wmain(int argc, WCHAR **argv)
 
     sqlite3_close(dbMFTHndl);
   }
-  
-  
-  
-  
-
-
 
 
   // FindDeleted();
@@ -1392,17 +1417,12 @@ int wmain(int argc, WCHAR **argv)
 
   if (argc == 4)
   {
-    //Load MFT Info
-    LoadMFT();
-
     //Physical Disk File Copy
     //DumpData(strtoul(argv[2], 0, 0), argv[3]);
     DumpData(wcstoul(argv[2], 0, 0), argv[3]);
   }
 
   CloseHandle(hVolume);
-
-
 
   return 0;
 }
