@@ -337,9 +337,9 @@ VOID FindActive()
   PATTRIBUTE attr3 = attr;
   PUCHAR bitmap = new UCHAR[AttributeLengthAllocated(attr)];
 
-  PFILENAME_ATTRIBUTE name;
-  PFILENAME_ATTRIBUTE name2;
-  PSTANDARD_INFORMATION name3;
+  PFILENAME_ATTRIBUTE name = NULL;
+  PFILENAME_ATTRIBUTE name2 = NULL;
+  PSTANDARD_INFORMATION name3 = NULL;
 
   char Full_Fname[2048] = "\0";
   char Ftmp_Fname[2048] = "\0";
@@ -546,30 +546,30 @@ VOID FindActive()
         {
           Dir_PrevNum = sqlite3_column_int(dbMFTStmt, dbi);
         }
-        else
-        if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileCreDate", 11) == 0)
-        {
-          memset(Text_CreDate, 0, 30);
-          strncpy(Text_CreDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
-        }
-        else
-        if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileAccDate", 11) == 0)
-        {
-          memset(Text_AccDate, 0, 30);
-          strncpy(Text_AccDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
-        }
-        else
-        if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileModDate", 11) == 0)
-        {
-          memset(Text_ModDate, 0, 30);
-          strncpy(Text_ModDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
-        }
-        else
-        if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileDateTyp", 11) == 0)
-        {
-          memset(Text_DateTyp, 0, 5);
-          strncpy(Text_DateTyp, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 2);
-        }
+        //else
+        //if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileCreDate", 11) == 0)
+        //{
+        //  memset(Text_CreDate, 0, 30);
+        //  strncpy(Text_CreDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
+        //}
+        //else
+        //if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileAccDate", 11) == 0)
+        //{
+        //  memset(Text_AccDate, 0, 30);
+        //  strncpy(Text_AccDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
+        //}
+        //else
+        //if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileModDate", 11) == 0)
+        //{
+        //  memset(Text_ModDate, 0, 30);
+        //  strncpy(Text_ModDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
+        //}
+        //else
+        //if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileDateTyp", 11) == 0)
+        //{
+        //  memset(Text_DateTyp, 0, 5);
+        //  strncpy(Text_DateTyp, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 2);
+        //}
       }
 
       // Expand out the Full File Paths
@@ -661,7 +661,8 @@ VOID FindActive()
       }
 
       //Now Insert the Full Path FileName and MFT Record ID
-      dbXQuery = sqlite3_mprintf("INSERT INTO FileNames (MFTRecID, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp) VALUES ('%ld', '%q', '%q', '%q', '%q', '%q')\0", File_RecID, Full_Fname, Text_CreDate, Text_AccDate, Text_ModDate, Text_DateTyp);
+      //dbXQuery = sqlite3_mprintf("INSERT INTO FileNames (MFTRecID, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp) VALUES ('%ld', '%q', '%q', '%q', '%q', '%q')\0", File_RecID, Full_Fname, Text_CreDate, Text_AccDate, Text_ModDate, Text_DateTyp);
+      dbXQuery = sqlite3_mprintf("INSERT INTO FileNames (MFTRecID, FullFileName) VALUES ('%ld', '%q')\0", File_RecID, Full_Fname);
 
       SpinLock = 0;
       while ((dbXrc = sqlite3_exec(dbMFTHndl, dbXQuery, 0, 0, &errmsg)) != SQLITE_OK)
@@ -733,7 +734,7 @@ VOID FindActive()
 
   // Create a Filename Index for faster search
   wprintf(L"\nFindActive() - Building FileName Index...\n");
-  dbXQuery = sqlite3_mprintf("CREATE INDEX FileNames_IDX ON FileNames(FileName ASC)\0");
+  dbXQuery = sqlite3_mprintf("CREATE INDEX FileNames_IDX ON FileNames(FullFileName ASC)\0");
 
   SpinLock = 0;
   while ((dbXrc = sqlite3_exec(dbMFTHndl, dbXQuery, 0, 0, &errmsg)) != SQLITE_OK)
@@ -998,12 +999,12 @@ int wmain(int argc, WCHAR **argv)
   char Full_Fname[2048] = "\0";
   int  Full_MFTID;
   int  SQL_MFT = 0;
-  int  i, j;
+  int  i;
 
+  //SYSTEMTIME File_SysTime;
+  //FILETIME File_Time, File_Local;
   ULONGLONG File_CreDate, File_AccDate, File_ModDate;
-  FILETIME File_Time, File_Local;
   FILETIME File_Create, File_Access, File_Modify;
-  SYSTEMTIME File_SysTime;
   char Text_CreDate[30] = "\0";
   char Text_AccDate[30] = "\0";
   char Text_ModDate[30] = "\0";
@@ -1135,7 +1136,8 @@ int wmain(int argc, WCHAR **argv)
       //dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
       //dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
       //dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName)\0");
-      dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp)\0");
+      //dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp)\0");
+      dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FullFileName)\0");
       while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
       {
         if (dbMrc == SQLITE_BUSY)
@@ -1243,7 +1245,7 @@ int wmain(int argc, WCHAR **argv)
     /************************************************************/
     /* Show everything in Prefetch                              */
     /************************************************************/
-    dbMQuery = sqlite3_mprintf("Select * from FileNames WHERE FileName LIKE '%q'\0", "C:\\Windows\\Prefetch\\%\0");
+    dbMQuery = sqlite3_mprintf("Select * FROM FileNames AS T1, MFTFiles AS T2 WHERE T1.FullFileName LIKE '%q' AND T1.MFTRecID=T2.MFTRecID\0", "C:\\Windows\\Prefetch\\%\0");
 
     dbMrc = sqlite3_prepare(dbMFTHndl, dbMQuery, -1, &dbMFTStmt, 0);
     if (dbMrc == SQLITE_OK)
@@ -1268,7 +1270,7 @@ int wmain(int argc, WCHAR **argv)
           memset(Full_Fname, 0, 2048);
           for (dbi = 0; dbi < dbMaxCol; dbi++)
           {
-            if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileName", 8) == 0)
+            if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FullFileName", 8) == 0)
             {
               if (sqlite3_column_text(dbMFTStmt, dbi) != NULL)
                 strncpy(Full_Fname, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 2000);
@@ -1309,6 +1311,7 @@ int wmain(int argc, WCHAR **argv)
           File_ModDate = atoll(Text_ModDate);
 
           printf("Raw Copying FileName: %s\nMFT Record: %d\n", Full_Fname+i+1, Full_MFTID);
+          printf("   %s\n", Full_Fname);
 
           // Copy the Creation Date into a FILETIME structure.
           File_Create.dwLowDateTime = (DWORD)(File_CreDate & 0xFFFFFFFF);
