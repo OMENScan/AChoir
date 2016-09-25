@@ -28,10 +28,12 @@ char MFTDBFile[1024] = "C:\\AChoir\\Cache\\C-MFT.db\0";
 char Str_Temp[1024] = "\0";
 int MFT_Status = 0; // 0=Good, 1=NonFatal Error, 2=FatalError
 
-
 sqlite3      *dbMFTHndl;
 sqlite3_stmt *dbMFTStmt;
 sqlite3_stmt *dbXMFTStmt;
+
+int gotOwner = 0;
+PSECURITY_DESCRIPTOR SecDesc = NULL;
 
 
 // Template for padding
@@ -112,9 +114,7 @@ PATTRIBUTE FindAttribute(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR na
     {
       if (name == 0 && attr->NameLength == 0)
         return attr;
-      if (name != 0 && wcslen(name) == attr->NameLength &&
-        _wcsicmp(name,
-          PWSTR(Padd(attr, attr->NameOffset))) == 0)
+      if (name != 0 && wcslen(name) == attr->NameLength && _wcsicmp(name, PWSTR(Padd(attr, attr->NameOffset))) == 0)
         return attr;
     }
   }
@@ -140,9 +140,7 @@ PATTRIBUTE FindAttributeII(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR 
       {
         if (name == 0 && attr->NameLength == 0)
           return attr;
-        if (name != 0 && wcslen(name) == attr->NameLength &&
-          _wcsicmp(name,
-            PWSTR(Padd(attr, attr->NameOffset))) == 0)
+        if (name != 0 && wcslen(name) == attr->NameLength && _wcsicmp(name, PWSTR(Padd(attr, attr->NameOffset))) == 0)
           return attr;
       }
     }
@@ -336,10 +334,12 @@ VOID FindActive()
 {
   PATTRIBUTE attr = FindAttribute(MFT, AttributeBitmap, 0);
   PATTRIBUTE attr2 = attr;
+  PATTRIBUTE attr3 = attr;
   PUCHAR bitmap = new UCHAR[AttributeLengthAllocated(attr)];
 
   PFILENAME_ATTRIBUTE name;
   PFILENAME_ATTRIBUTE name2;
+  PSTANDARD_INFORMATION name3;
 
   char Full_Fname[2048] = "\0";
   char Ftmp_Fname[2048] = "\0";
@@ -352,6 +352,7 @@ VOID FindActive()
   char Text_CreDate[30] = "\0";
   char Text_AccDate[30] = "\0";
   char Text_ModDate[30] = "\0";
+  char Text_DateTyp[5] = "\0";
 
   ReadAttribute(attr, bitmap);
   
@@ -409,16 +410,34 @@ VOID FindActive()
       }
 
 
+      // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
+      attr3 = FindAttribute(file, AttributeStandardInformation, 0);
+      if (attr3 != 0)
+      {
+        name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
+      }
+
+      
       if (file->Flags == 1)
       {
         // Active File Entry 
         //wprintf(L"\nMFTFile: %u - %.*s (%u)\n", int(name2->DirectoryFileReferenceNumber), int(name2->NameLength), name2->Name, i);
         Max_Files++;
 
-        if(UseName == 1)
-         dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate) VALUES ('%ld', '%ld', '%q', '%llu', '%llu', '%llu')\0", i, int(name->DirectoryFileReferenceNumber), Str_Temp, ULONGLONG(name->CreationTime), ULONGLONG(name->LastAccessTime), ULONGLONG(name->LastWriteTime));
+        if (UseName == 1)
+        {
+          if(attr3 == 0)
+            dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp) VALUES ('%ld', '%ld', '%q', '%llu', '%llu', '%llu', 'FN')\0", i, int(name->DirectoryFileReferenceNumber), Str_Temp, ULONGLONG(name->CreationTime), ULONGLONG(name->LastAccessTime), ULONGLONG(name->LastWriteTime));
+          else
+            dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp) VALUES ('%ld', '%ld', '%q', '%llu', '%llu', '%llu', 'SI')\0", i, int(name->DirectoryFileReferenceNumber), Str_Temp, ULONGLONG(name3->CreationTime), ULONGLONG(name3->LastAccessTime), ULONGLONG(name3->LastWriteTime));
+        }
         else
-         dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate) VALUES ('%ld', '%ld', '%q', '%llu', '%llu', '%llu')\0", i, int(name2->DirectoryFileReferenceNumber), Str_Temp, ULONGLONG(name2->CreationTime), ULONGLONG(name2->LastAccessTime), ULONGLONG(name2->LastWriteTime));
+        {
+          if (attr3 == 0)
+            dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp) VALUES ('%ld', '%ld', '%q', '%llu', '%llu', '%llu', 'FN')\0", i, int(name2->DirectoryFileReferenceNumber), Str_Temp, ULONGLONG(name2->CreationTime), ULONGLONG(name2->LastAccessTime), ULONGLONG(name2->LastWriteTime));
+          else
+            dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp) VALUES ('%ld', '%ld', '%q', '%llu', '%llu', '%llu', 'SI')\0", i, int(name2->DirectoryFileReferenceNumber), Str_Temp, ULONGLONG(name3->CreationTime), ULONGLONG(name3->LastAccessTime), ULONGLONG(name3->LastWriteTime));
+        }
       }
       else
       {
@@ -545,6 +564,12 @@ VOID FindActive()
           memset(Text_ModDate, 0, 30);
           strncpy(Text_ModDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
         }
+        else
+        if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileDateTyp", 11) == 0)
+        {
+          memset(Text_DateTyp, 0, 5);
+          strncpy(Text_DateTyp, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 2);
+        }
       }
 
       // Expand out the Full File Paths
@@ -636,7 +661,7 @@ VOID FindActive()
       }
 
       //Now Insert the Full Path FileName and MFT Record ID
-      dbXQuery = sqlite3_mprintf("INSERT INTO FileNames (MFTRecID, FileName, FileCreDate, FileAccDate, FileModDate) VALUES ('%ld', '%q', '%q', '%q', '%q')\0", File_RecID, Full_Fname, Text_CreDate, Text_AccDate, Text_ModDate);
+      dbXQuery = sqlite3_mprintf("INSERT INTO FileNames (MFTRecID, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp) VALUES ('%ld', '%q', '%q', '%q', '%q', '%q')\0", File_RecID, Full_Fname, Text_CreDate, Text_AccDate, Text_ModDate, Text_DateTyp);
 
       SpinLock = 0;
       while ((dbXrc = sqlite3_exec(dbMFTHndl, dbXQuery, 0, 0, &errmsg)) != SQLITE_OK)
@@ -834,13 +859,14 @@ VOID DumpData(ULONG index, WCHAR* filename)
 }
 
 
-VOID DumpDataII(ULONG index, CHAR* filename)
+VOID DumpDataII(ULONG index, CHAR* filename, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime)
 {
   PATTRIBUTE attr = NULL;
   HANDLE hFile = NULL;
   PFILE_RECORD_HEADER file = PFILE_RECORD_HEADER(new UCHAR[BytesPerFileRecord]);
   ULONG n;
   CHAR Tooo_Fname[2048] = "\0";
+  int setOwner = 0;
 
   sprintf(Tooo_Fname, "C:\\AChoir\\Cache\\%s\0", filename);
   ReadFileRecord(index, file);
@@ -872,9 +898,91 @@ VOID DumpDataII(ULONG index, CHAR* filename)
     return;
   }
 
+
+  //Set the File Times
+  SetFileTime(hFile, &ToCreTime, &ToAccTime, &ToModTime);
+  
   CloseHandle(hFile);
 
+  /****************************************************************/
+  /* Set the SID (Owner) of the new file same as the old file     */
+  /****************************************************************/
+  if (gotOwner == 1)
+  {
+    setOwner = SetFileSecurity(Tooo_Fname, OWNER_SECURITY_INFORMATION, SecDesc);
+
+    if (setOwner)
+     printf("File Owner was Set\n");
+    else
+     printf("Could NOT Set Target File Owner\n");
+  }
+  else
+    printf("Could NOT Determine Source File Owner(Unknown)\n");
+  
   delete[] buf;
+}
+
+
+/****************************************************************/
+/* Convert a SID to a String for Display                        */
+/****************************************************************/
+char * convert_sid_to_string_sid(const PSID psid, char *sid_str)
+{
+  char tSid[32];
+  DWORD iSid;
+
+  if (!psid)
+    return NULL;
+
+  strcpy(sid_str, "S-1-");
+
+  sprintf(tSid, "%u", GetSidIdentifierAuthority(psid)->Value[5]);
+  strcat(sid_str, tSid);
+
+  for (iSid = 0; iSid < *GetSidSubAuthorityCount(psid); ++iSid)
+  {
+    sprintf(tSid, "-%lu", *GetSidSubAuthority(psid, iSid));
+    strcat(sid_str, tSid);
+  }
+  return sid_str;
+}
+
+
+/****************************************************************/
+/* Elevate Priveleges of Access Token                           */
+/****************************************************************/
+BOOL SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, BOOL bEnablePrivilege)
+{
+  TOKEN_PRIVILEGES ToknPriv;
+  LUID luid;
+
+  if (!LookupPrivilegeValue(NULL, lpszPrivilege, &luid))
+  {
+    // printf("Err: LookupPrivilegeValue error: %u\n", GetLastError());
+    return FALSE;
+  }
+
+  ToknPriv.PrivilegeCount = 1;
+  ToknPriv.Privileges[0].Luid = luid;
+  if (bEnablePrivilege)
+    ToknPriv.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+  else
+    ToknPriv.Privileges[0].Attributes = 0;
+
+  // Enable the privilege or disable all privileges.
+  if (!AdjustTokenPrivileges(hToken, FALSE, &ToknPriv, sizeof(TOKEN_PRIVILEGES), (PTOKEN_PRIVILEGES)NULL, (PDWORD)NULL))
+  {
+    // printf("Err: AdjustTokenPrivileges error: %u\n", GetLastError());
+    return FALSE;
+  }
+
+  if (GetLastError() == ERROR_NOT_ALL_ASSIGNED)
+  {
+    // printf("Inf: Could Not Set Special Privilege: %s\n", lpszPrivilege);
+    return FALSE;
+  }
+
+  return TRUE;
 }
 
 
@@ -894,10 +1002,25 @@ int wmain(int argc, WCHAR **argv)
 
   ULONGLONG File_CreDate, File_AccDate, File_ModDate;
   FILETIME File_Time, File_Local;
+  FILETIME File_Create, File_Access, File_Modify;
   SYSTEMTIME File_SysTime;
   char Text_CreDate[30] = "\0";
   char Text_AccDate[30] = "\0";
   char Text_ModDate[30] = "\0";
+
+  DWORD SecLen, LenSec;
+  PSID pSidOwner = NULL;
+  BOOL pFlag = FALSE;
+  char SidString[256];
+
+  HANDLE SecTokn;
+  int PrivSet = 0;
+  int PrivOwn = 0;
+  int PrivSec = 0;
+  int PrivBac = 0;
+  int PrivRes = 0;
+
+
 
   // No argument supplied
   if (argc < 2)
@@ -913,6 +1036,50 @@ int wmain(int argc, WCHAR **argv)
   // More code to stop the user from entering the non-primary partition
   // Read the user input
   drive[4] = *argv[1];
+
+
+  /****************************************************************/
+  /* Get Basic Security Priveleges we will need before starting   */
+  /****************************************************************/
+  PrivSet = PrivOwn = PrivSec = PrivBac = PrivRes = 0;
+
+  if (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, &SecTokn))
+  {
+    if (SetPrivilege(SecTokn, "SeTakeOwnershipPrivilege", 1))
+      PrivOwn = 1;
+
+    if (SetPrivilege(SecTokn, "SeSecurityPrivilege", 1))
+      PrivSec = 1;
+
+    if (SetPrivilege(SecTokn, "SeBackupPrivilege", 1))
+      PrivBac = 1;
+
+    if (SetPrivilege(SecTokn, "SeRestorePrivilege", 1))
+      PrivRes = 1;
+
+    PrivSet = PrivOwn + PrivSec + PrivBac + PrivRes;
+  }
+
+  printf("Privileges(%d):", PrivSet);
+
+  if (PrivSet == 0)
+   printf(" None");
+  else
+  {
+    if (PrivOwn == 1)
+     printf(" TakeOwnership");
+
+    if (PrivSec == 1)
+     printf(" Security");
+
+    if (PrivBac == 1)
+     printf(" Backup");
+
+    if (PrivRes == 1)
+     printf(" Restore");
+  }
+  printf("\n");
+
 
   // Get the handle to the primary partition/volume/physical disk
   hVolume = CreateFile(drive, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
@@ -968,7 +1135,7 @@ int wmain(int argc, WCHAR **argv)
       //dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
       //dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName, FileCreDate INTEGER, FileAccDate INTEGER, FileModDate INTEGER)\0");
       //dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName)\0");
-      dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName, FileCreDate, FileAccDate, FileModDate)\0");
+      dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp)\0");
       while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
       {
         if (dbMrc == SQLITE_BUSY)
@@ -999,7 +1166,7 @@ int wmain(int argc, WCHAR **argv)
       SpinLock = 0;
       //dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, FileName)\0");
       //dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, FileName)\0");
-      dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, FileName, FileCreDate, FileAccDate, FileModDate)\0");
+      dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, FileName, FileCreDate, FileAccDate, FileModDate, FileDateTyp)\0");
 
       while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
       {
@@ -1138,30 +1305,52 @@ int wmain(int argc, WCHAR **argv)
           }
           
           File_CreDate = atoll(Text_CreDate);
+          File_AccDate = atoll(Text_AccDate);
+          File_ModDate = atoll(Text_ModDate);
 
           printf("Raw Copying FileName: %s\nMFT Record: %d\n", Full_Fname+i+1, Full_MFTID);
-          printf("Text Date: %s\n", Text_CreDate);
-          printf("Long Long Date: %llu\n", File_CreDate);
 
-          // Copy the Creation Date into the FILETIME structure.
-          File_Time.dwLowDateTime = (DWORD)(File_CreDate & 0xFFFFFFFF);
-          File_Time.dwHighDateTime = (DWORD)(File_CreDate >> 32);
+          // Copy the Creation Date into a FILETIME structure.
+          File_Create.dwLowDateTime = (DWORD)(File_CreDate & 0xFFFFFFFF);
+          File_Create.dwHighDateTime = (DWORD)(File_CreDate >> 32);
 
-          FileTimeToLocalFileTime(&File_Time, &File_Local);
+          // Copy the Modified Date into a FILETIME structure.
+          File_Modify.dwLowDateTime = (DWORD)(File_ModDate & 0xFFFFFFFF);
+          File_Modify.dwHighDateTime = (DWORD)(File_ModDate >> 32);
 
-          FileTimeToSystemTime(&File_Local, &File_SysTime);
+          // Copy the Accessed Date into a FILETIME structure.
+          File_Access.dwLowDateTime = (DWORD)(File_AccDate & 0xFFFFFFFF);
+          File_Access.dwHighDateTime = (DWORD)(File_AccDate >> 32);
           
-          printf("Created: %.2d-%.2d-%4d %.2d:%.2d:%.2d\n",
-                 File_SysTime.wMonth, File_SysTime.wDay, File_SysTime.wYear,
-                 File_SysTime.wHour, File_SysTime.wMinute, File_SysTime.wSecond);
 
+          /****************************************************************/
+          /* Get the SID (File Owner) of the file - Security Descripter   */
+          /****************************************************************/
+          gotOwner = 0;
 
+          // First Call is to get the Length and Malloc the buffer
+          GetFileSecurity(Full_Fname, OWNER_SECURITY_INFORMATION, SecDesc, 0, &SecLen);
+          SecDesc = (PSECURITY_DESCRIPTOR)malloc(SecLen);
 
-          //printf("Created: %s\n", TmpDate);
-          //printf("Modified: %s\n", TmpDate);
-          //printf("Accessed: %s\n", TmpDate);
+          // Second Call actually populates the Security Description Structure
+          if (GetFileSecurity(Full_Fname, OWNER_SECURITY_INFORMATION, SecDesc, SecLen, &LenSec))
+          {
+            if (GetSecurityDescriptorOwner(SecDesc, &pSidOwner, &pFlag))
+            {
+              gotOwner = 1;
+              convert_sid_to_string_sid(pSidOwner, SidString);
+            }
+          }
+          
+          printf("Created: %s\n", Text_CreDate);
+          printf("Modified: %s\n", Text_ModDate);
+          printf("Accessed: %s\n", Text_AccDate);
+          printf("SID: %s\n", SidString);
 
-          DumpDataII(Full_MFTID, Full_Fname+i+1);
+          DumpDataII(Full_MFTID, Full_Fname+i+1, File_Create, File_Modify, File_Access);
+
+          if (SecDesc)
+            free(SecDesc);
 
         }
 
