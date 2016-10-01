@@ -62,9 +62,8 @@
 /*                 owner) copy on the CPY: command.             */
 /* AChoir v0.56 - Improve Privileges Message Display            */
 /* AChoir v0.57 - Fix Priv Bug & Add better Error Detection     */
-/* AChoir v0.75 - Add NTFS Raw Copy (NCP: & RCP:)               */
+/* AChoir v0.75 - Add NTFS Raw Copy (NCP:)                      */
 /*                NCP:<Wilcard File Search> <Destination Dir>   */
-/*                RCP:<MFTRecID> <Destination Dir>              */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -1054,9 +1053,6 @@ int main(int argc, char *argv[])
               oPtr = strlen(Inrec);
               iPtr += 3;
             }
-
-
-
             else
             if ((o32VarRec[iPtr] == '*') && (strnicmp(o32VarRec, "NCP:", 4) == 0))
             {
@@ -1071,13 +1067,6 @@ int main(int argc, char *argv[])
               sprintf(Inrec + oPtr, "_\0");
               oPtr = strlen(Inrec);
             }
-
-
-
-
-
-
-
             else
             if (strnicmp(o32VarRec + iPtr, "&VR", 3) == 0)
             {
@@ -3836,8 +3825,8 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   hVolume = CreateFile(drive, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
   if (hVolume == INVALID_HANDLE_VALUE)
   {
-    printf("Err: Could not open the Volume for Raw Access %u\n", GetLastError());
-    fprintf(LogHndl, "Err: Could not open the Volume for Raw Access %u\n", GetLastError());
+    printf("Err: Could not open the Volume for Raw Access. Error: %u\n", GetLastError());
+    fprintf(LogHndl, "Err: Could not open the Volume for Raw Access. Error: %u\n", GetLastError());
     return 1;
   }
 
@@ -3845,8 +3834,8 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   // Reads data from the specified input/output (I/O) device - volume / physical disk
   if (ReadFile(hVolume, &bootb, sizeof bootb, &n, 0) == 0)
   {
-    printf("Err: Could not read Volume for Raw Access %u\n", GetLastError());
-    fprintf(LogHndl, "Err: Could not read the Volume for Raw Access %u\n", GetLastError());
+    printf("Err: Could not read Volume for Raw Access. Error: %u\n", GetLastError());
+    fprintf(LogHndl, "Err: Could not read the Volume for Raw Access. Error: %u\n", GetLastError());
     return 1;
   }
 
@@ -4143,7 +4132,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         fprintf(LogHndl, "Inf: Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
         fprintf(LogHndl, "    %s\n", Full_Fname);
         fprintf(LogHndl, "     (In)SID: %s\n", SidString);
-        fprintf(LogHndl, "     (In)Time: %ld - %ld - %ld\n", File_CreDate, File_AccDate, File_ModDate);
+        fprintf(LogHndl, "     (In)Time: %llu - %llu - %llu\n", File_CreDate, File_AccDate, File_ModDate);
 
         DumpDataII(Full_MFTID, Full_Fname + i + 1, TooFile, File_Create, File_Modify, File_Access, 1);
 
