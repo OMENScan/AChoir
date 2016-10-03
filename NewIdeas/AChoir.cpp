@@ -64,6 +64,7 @@
 /* AChoir v0.57 - Fix Priv Bug & Add better Error Detection     */
 /* AChoir v0.75 - Add NTFS Raw Copy (NCP:)                      */
 /*                NCP:<Wilcard File Search> <Destination Dir>   */
+/*              - Additional Recursion Error Checking           */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -626,7 +627,8 @@ int main(int argc, char *argv[])
   /****************************************************************/
   sprintf(IniFile, "%s\\%s\0", BaseDir, inFnam);
   sprintf(WGetFile, "%s\\AChoir.Dat\0", BaseDir);
-  sprintf(ForFile, "%s\\ForFiles\0", BaseDir);
+  //sprintf(ForFile, "%s\\ForFiles\0", BaseDir);
+  sprintf(ForFile, "%s\\%s\\Cache\\ForFiles\0", BaseDir, ACQName);
   sprintf(LstFile, "%s\\LstFiles\0", BaseDir);
   sprintf(ChkFile, "%s\\AChoir.exe\0", BaseDir);
   sprintf(BACQDir, "%s\\%s\0", BaseDir, ACQName);
@@ -2128,7 +2130,8 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\n");
             strtok(Inrec, "\r");
 
-            sprintf(MD5File, "%s\\ForFiles\0", BaseDir);
+            //sprintf(MD5File, "%s\\ForFiles\0", BaseDir);
+            sprintf(MD5File, "%s\\%s\\Cache\\ForFiles\0", BaseDir, ACQName);
             MD5Hndl = fopen(MD5File, "w");
 
             if (MD5Hndl != NULL)
@@ -3308,6 +3311,14 @@ int ListDir(char *DirName, char *LisType)
       {
         fprintf(LogHndl, "Err: Max Path Exceeded: %s%s\n", RootDir, inName);
         printf("Err: Max Path Exceeded: %s%s\n", RootDir, inName);
+
+        return 0;
+      }
+
+      if (stristr(RootDir, "Application Data\\Application Data\\Application Data\0") > 0)
+      {
+        fprintf(LogHndl, "Err: Directory Recursion Error: %s%s\n", RootDir, inName);
+        printf("Err: Directory Recursion Error: %s%s\n", RootDir, inName);
 
         return 0;
       }
