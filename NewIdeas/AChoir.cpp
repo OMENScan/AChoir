@@ -4145,7 +4145,35 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         fprintf(LogHndl, "     (In)SID: %s\n", SidString);
         fprintf(LogHndl, "     (In)Time: %llu - %llu - %llu\n", File_CreDate, File_AccDate, File_ModDate);
 
+
         DumpDataII(Full_MFTID, Full_Fname + i + 1, TooFile, File_Create, File_Modify, File_Access, 1);
+
+
+        // If we got SI and FN, Check for possible TimeStomping
+        printf("     Time Type: %s", Text_FileTyp);
+        fprintf(LogHndl, "     Time Type: %s", Text_FileTyp);
+
+        if (strnicmp(Text_FileTyp, "SI", 2) == 0)
+        {
+          if (strnicmp(Text_FNCreDate, Text_SICreDate, 25) != 0 ||
+              strnicmp(Text_FNAccDate, Text_SIAccDate, 25) != 0 ||
+              strnicmp(Text_FNAccDate, Text_SIAccDate, 25) != 0)
+          {
+            printf("     Status: FN/SI Not Matched\n");
+            fprintf(LogHndl, "     Status: FN/SI Not Matched\n");
+          }
+          else
+          {
+            printf("     Status: FN/SI Matched\n");
+            fprintf(LogHndl, "     Status: FN/SI Matched\n");
+          }
+        }
+        else
+        {
+          printf("     Status: FN Only\n");
+          fprintf(LogHndl, "     Status: FN Only\n");
+        }
+        
 
         if (SecDesc)
           free(SecDesc);
@@ -5000,7 +5028,9 @@ VOID FindActive()
 
   char Full_Fname[2048] = "\0";
   char Ftmp_Fname[2048] = "\0";
-  int Str_Len, Max_Files;
+  char Str_Temp1[15] = "\0";
+  char Str_Temp2[15] = "\0";
+  int Str_Len, Str_Len1, Str_Len2, Max_Files;
   int Progress, ProgUnit;
   int File_RecNum, Dir_PrevNum, File_RecID;
   int MoreDirs, UseName;
@@ -5010,6 +5040,10 @@ VOID FindActive()
   char Text_AccDate[30] = "\0";
   char Text_ModDate[30] = "\0";
   char Text_DateTyp[5] = "\0";
+  char *iLastChar1;
+  char *iLastChar2;
+  char Str_Numbers[15] = "0123456789\0";
+
 
   ReadAttribute(attr, bitmap);
 
@@ -5036,32 +5070,93 @@ VOID FindActive()
 
     if (file->Ntfs.Type == 'ELIF' && (file->Flags == 1 || file->Flags == 3))
     {
-      // Get, but Ignore Short Name 
+      // Get, First 0x30 (FN) Attribute
       attr = FindAttribute(file, AttributeFileName, 0);
       if (attr == 0)
         continue;
 
-      // Lets See if we have a Long File Name
+      // Lets See if we have another 0x30 (FN) Attribute
       attr2 = FindAttributeII(file, AttributeFileName, 0);
       if (attr2 == 0)
       {
+        // Nope - Just use the first one.  That was easy! 
         UseName = 1;
         name = PFILENAME_ATTRIBUTE(Padd(attr, PRESIDENT_ATTRIBUTE(attr)->ValueOffset));
+      }
+      else
+      {
+        //Two File Name Attributes Found.  Figure out which one to use.
+        name = PFILENAME_ATTRIBUTE(Padd(attr, PRESIDENT_ATTRIBUTE(attr)->ValueOffset));
+        name2 = PFILENAME_ATTRIBUTE(Padd(attr2, PRESIDENT_ATTRIBUTE(attr2)->ValueOffset));
 
+        Str_Len1 = int(name->NameLength);
+        Str_Len2 = int(name2->NameLength);
+
+
+        if (Str_Len1 > 12)
+          UseName = 1;   // Attribute 1 is a Long File Name
+        else
+        if (Str_Len2 > 12)
+          UseName = 2;   // Attribute 2 is a Long File Name
+        else
+        {
+          // Both are less than 12 - This can happen every so often
+          // For instance it a file NAME is less than 8 but the file TYPE is greater than 3
+          memset(Str_Temp1, 0, 15);
+          memset(Str_Temp2, 0, 15);
+
+          wcstombs(Str_Temp1, name->Name, Str_Len1);
+          wcstombs(Str_Temp2, name2->Name, Str_Len2);
+
+          // We should already be NULL Terminated from the memset above - But this is a little extra safety.
+          Str_Temp1[Str_Len1] = '\0';
+          Str_Temp2[Str_Len2] = '\0';
+
+          // Lets see if Attribute 1 has a Tilde in the 2nd last character
+          strtok(Str_Temp1, ".");   // Get rid of any "." - We just want File Name
+          strtok(Str_Temp2, ".");   // Get rid of any "." - We just want File Name
+
+          Str_Len1 = strlen(Str_Temp1);
+          Str_Len2 = strlen(Str_Temp2);
+
+          // Now get the Last Char (Short Named should have a number from 1-9)
+          iLastChar1 = strchr(Str_Numbers, Str_Temp1[Str_Len1 - 1]); 
+          iLastChar2 = strchr(Str_Numbers, Str_Temp2[Str_Len2 - 1]);
+
+
+          // Could be Greater than 8 if there was no Dot - Usually Directory Names
+          if (Str_Len1 > 8)
+            UseName = 1;
+          else
+          if (Str_Len2 > 8)
+            UseName = 2;
+          else
+          if (Str_Len1 > 2)
+          {
+            if (Str_Temp1[Str_Len1 - 2] == '~' && iLastChar1 != NULL)
+              UseName = 2;
+            else
+              UseName = 1;
+          }
+          else
+            UseName = 1;
+        }
+      }
+
+      // Now Use the right FN Attribute
+      if (UseName == 1)
+      {
         Str_Len = int(name->NameLength);
         wcstombs(Str_Temp, name->Name, Str_Len);
         Str_Temp[Str_Len] = '\0'; // Null Terminate the String... Sigh...
       }
       else
       {
-        UseName = 2;
-        name2 = PFILENAME_ATTRIBUTE(Padd(attr2, PRESIDENT_ATTRIBUTE(attr2)->ValueOffset));
-
         Str_Len = int(name2->NameLength);
         wcstombs(Str_Temp, name2->Name, Str_Len);
         Str_Temp[Str_Len] = '\0'; // Null Terminate the String... Sigh...
       }
-
+      
 
       // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
       attr3 = FindAttribute(file, AttributeStandardInformation, 0);
