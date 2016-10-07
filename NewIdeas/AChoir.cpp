@@ -5042,7 +5042,7 @@ VOID FindActive()
   char Text_DateTyp[5] = "\0";
   char *iLastChar1;
   char *iLastChar2;
-  char Str_Numbers[15] = "0123456789\0";
+  char Str_Numbers[40] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\0\0\0";
 
 
   ReadAttribute(attr, bitmap);
