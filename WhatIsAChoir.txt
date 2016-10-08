@@ -2,29 +2,29 @@ AChoir - Beta v0.75
 
 AChoir
 ======
-This is a fork of the original AChoir - Converted to MSVC and Win HTTP.  The original 
-AChoir (Mingw and libcurl) will be left intact for those that prefer MingW/libcurl as 
-AChoir-Legacy.  However, all future development will be done to this fork.  
+AChoir continues to mature.  My goals are to make it a flexible scripting language designed
+to gathering windows forensic artifacts locally or remotely, and to limit its footprint by 
+using techniques that limit what AChoir itself leaves behind as artifacts.
 
 
 What is AChoir:
 ===============
 Every Incident Responder eventually comes to the conclusion that they need to script their 
 favorite Live Acquisition utilities.  For some reason (or many reasons) many of those Live 
-Acquisition scripts are often shrouded in mystery and shared only among trusted parties.
+Acquisition scripts are often shared only among trusted parties.
 
 I have seen these scripts written in numerous scripting languages - but oddly enough, all of 
 these scripts tend to use many of the same freely available utilities - To do mostly the 
 same things.
 
 It often takes a Responder several years, along with lots of trial and error to settle on a 
-set of utilities (and options) that both work and that provide relevant information on useful 
+set of utilities (and options) that both work, and that provide relevant information on useful 
 forensic artifacts.
 
 And even though Responders often use the same utilities and are scripting them in largely 
 the same way, each Responder has to go through the same pain of building their own script in 
 their (not so) favorite scripting language - figuring out how to quickly and consistently 
-gather the artifacts of most value. 
+gather the artifacts of most value and limit the scripting footprint. 
 
 I believe that this process of re-inventing the wheel over and over again is just silly. 
 
@@ -43,7 +43,7 @@ AChoir has several goals:
 5. Build a Framework for Live Acquisition Scripts/Toolkits
 6. Minimize the impact of the scripting function on artifacts
 7. Move towards a repository model for Acquisition utilities
-8. Make remote acquisition as easy as local acquisition (this will be a future goal).
+8. Make remote acquisition as easy as local acquisition
 
 
 Achoir itself is architected with two primary functional concepts:
@@ -65,21 +65,21 @@ This has the additional benefit of documenting where everything came from.
 The second functional concept of running the Acquisition Script to gather artifacts is 
 obvious.  But what AChoir tries to do is make that experience consistent and repeatable.  
 Achoir creates unique directories for every Acquisition run, and has built in functions 
-like hashing.  In this way we are creating both a consistent framework and a scripting 
-language that is targeted specifically at Live Acquisition.
+like hashing and Raw NTFS File Copy.  In this way we are creating both a consistent 
+framework and a scripting language that is targeted specifically at Live Acquisition.
 
 
 
 So Isn't This Just another Scripting Language?  I can do that already.
 ======================================================================
-I would say, you could do everything Achoir does with any scripting language - If that 
+I would say, you could almost everything Achoir does with any scripting language - If that 
 is what you want to do.  In fact, that is how AChoir started life.  But Achoir's goals 
 are to make Live Acquisition scripting consistent and to eventually create a respository 
 for Live Acquisition utilities to make the whole process easier for Responders.
 
 We are also very sensitive to the "Observer Effect" problem when Acquiring artifacts, 
-and Achoir will be coded in a way to minimize disturbing the artifacts.  This takes some 
-work when writing your own Live Acquisition scripting programs.
+and Achoir will continue to be coded in a way to minimize disturbing the artifacts.  This 
+takes some work when writing your own Live Acquisition scripting programs.
 
 
 
@@ -111,25 +111,22 @@ LogFile for each run.
 
 
 Here is another Example:
+
 ACQ:\Reg
-FOR:C:\Users\NTUSER.DAT
-SYS:XCopy &For "&Acq\NTUSER.DAT(&Num)" /H
+NCP:"C:\Users\*\NTUSER.DAT" "&Acq"
 
 
-In this example our goal is to Copy all User NTUSER.DAT Registry files under the C:\USERS Directory. 
-To do this we would use the "FOR:" Action and the &For Object.
+In this example our goal is to Copy all User NTUSER.DAT Registry files under the C:\USERS Directory.
+We want to do this using AChoir's built-in NTFS Raw Copy Action.  Using AChoir's NTFS Raw Copy
+allows us to copy open and locked files, and bypasses the NTFS file system to avoid modifying any
+Time Stamps.  We do this to make the footprint as small as possible to make the File Copy more
+"forensically sound" by preventing unwanted modifications to the file system (Accessed) TimeStamps.
 
 First we set the Acquisition Sub-Directory (ACQ:) object (&Acq) to "\Reg"  This is a path directly 
 under the unique generated Acquisition Directory.
 
-Next, the &For object is set to any/all NTUSER.DAT files found in any subdirectory under 
-C:\Users (Note: wildcards are also valid).  The &For object also has an &Num object automatically 
-associated to it, to distinguish each file.
-
-The next (SYS:) statement can then copy all of those files to the &Acq directory and give each 
-file a unique name using the &Num object.  The concept that makes this happen with a single 
-command is the &For object.
-
+Next, the NCP: action copies any/all NTUSER.DAT files found in any NTFS subdirectory under 
+C:\Users (Note: wildcards are also valid) into the &Acq directory.
 
 
 Here is a list of all the Actions and Objects:
@@ -290,6 +287,16 @@ x-MFT.db
 ---------
 Achoir will generate an SQLite database when using NCP: Raw Copy.  This database is
 a subset of the $MFT for that volume - used to make searching for wildcards faster.
+
+
+Acknowledgement:
+IMPORTANT NOTE: I could not have implemented the NTFS Raw Copy Function without the Excellent NTFS tutorial at:
+
+http://www.installsetupconfig.com/win32programming/windowsvolumeapis1index.html<br>
+
+Much of the code in the Achoir NTFS Raw Copy function is directly from this tutorial.  And I want to publicly thank 
+them for making this example code available.
+
 
 
 Last Thoughts:

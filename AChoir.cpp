@@ -72,6 +72,17 @@
 /*  rc=3 - Internal Error                                       */
 /*                                                              */
 /****************************************************************/
+
+/****************************************************************/
+/* IMPORTANT NOTE : I could not have implemented the NTFS       */
+/* Raw Copy function without the Excellent NTFS tutorial at:    */
+/* http ://www.installsetupconfig.com/win32programming/windowsvolumeapis1index.html */
+/*                                                              */
+/* Much of the code in the Achoir NTFS Raw Copy function is     */
+/* directly from this tutorial.And I want to publicly thank     */
+/*   them for making this example code available.               */
+/****************************************************************/
+
 #include "stdafx.h"
 
 #include <stdlib.h>
