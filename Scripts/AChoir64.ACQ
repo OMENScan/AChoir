@@ -20,32 +20,28 @@ SAY:
 ACQ:\MemDump
 EXE:\MEM\WinPmem.exe &Acq\WinPmemDump.Raw
 SAY:
-SAY: 2. Parsing Prefetch Directory...
+SAY: 2. Extracting Prefetch Directory...
 SAY:
 ACQ:\SYS
-For:&Win\prefetch\*.*
-CPY:"&For" "&Acq\&Fnm"
-CMD:Dir &Win\prefetch /a /q /r > &Acq\Prefetch.dat
-EXE:\SYS\WinPrefetchView.exe /scomma &Acq\WinPrefetchview.dat
+NCP:"&Win\prefetch\*" "&Acq"
 SAY:
-SAY: 3a. Copy Raw $MFT and $LogFile...
+SAY: 3a. Copy Raw $MFT...
 SAY:
 ACQ:\RawData
-EXE:\DSK\RawCopy64.exe /FileNamePath:c:0 /OutputPath:&Acq
-EXE:\DSK\RawCopy64.exe /FileNamePath:c:2 /OutputPath:&Acq
+NCP:"C:\$MFT" "&Acq"
 SAY:
-SAY: 3b. Now Parsing $MFT...
+SAY: 3b. Copy Raw $LogFile...
 SAY:
-EXE:\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT 
+NCP:"C:\$LogFile" "&Acq"
 SAY:
 SAY: 3c. Now Extracting USNJrnl...
 SAY:
-EXE:\DSK\ExtractUSNJrnl64.exe /DevicePath:c: /OutputPath:&Acq
+EXE:\DSK\ExtractUSNJrnl.exe /DevicePath:c: /OutputPath:&Acq
 SAY:
 SAY: 3d. Now Parsing USNJrnl...
 SAY:
-CMD:fsutil usn enumdata 1 0 1 C: > &Acq\USN64Jrnl.dat
-CMD:fsutil usn readjournal C: csv >> &Acq\USN64Jrnl.dat
+CMD:fsutil usn enumdata 1 0 1 C: > &Acq\USNJrnl.dat
+CMD:fsutil usn readjournal C: csv >> &Acq\USNJrnl.dat
 SAY:
 SAY: 4a. Gathering System Information...
 SAY:
@@ -86,14 +82,12 @@ CMD:\SYS\PSLogList.exe /accepteula -s System > &Acq\EvtSys.dat
 SAY:
 SAY: 6b. Copying EventViewer Logs...
 SAY:
-For:&Win\System32\winevt\Logs\*.*
-CPY:"&For" "&Acq\&Fnm"
+NCP:"&Win\System32\winevt\Logs\*" "&Acq"
 SAY:
 SAY: 7. Parsing Hosts And Services Directory...
 SAY:
 ACQ:\SYS
-For:&Win\System32\Drivers\Etc\*.*
-CPY:"&For" "&Acq\&Fnm"
+NCP:"&Win\System32\Drivers\Etc\*" "&Acq"
 SAY:
 SAY: 8. Parsing Environment Variables...
 SAY:
@@ -167,9 +161,7 @@ CMD:Reg Save HKCU &Acq\NTUSER.DAT
 SAY:
 SAY: 22b. Gathering All User Registries...
 SAY:
-FOR:C:\Users\NTUSER.DAT
-EXE:\SYS\RegfileExport.exe "&For" &Acq\NTUSER(&Num).EXP
-CPY:"&For" "&Acq\&Fnm(&Num)"
+NCP:"C:\Users\*\NTUSER.DAT" "&Acq"
 SAY:
 SAY: 23. Now Extracting Browser History...
 SAY:

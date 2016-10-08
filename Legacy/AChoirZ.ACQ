@@ -8,10 +8,11 @@
 SAY:
 SAY: AChoir - 64 Bit Detected...  Switching to 64 Bit Script...
 SAY:
-INI:AChoir64.ACQ
+INI:AChoir64Z.ACQ
 END:
 SAY:
 SAY: AChoir will scan the Hard drive and pull forensics for investigation.
+SAY:  When Completed, AChoir will Archive the Artifacts using ZPAQ.
 SAY:
 SAY: * * *   Please MAKE SURE you are running this as an Administrator  * * * 
 SAY: * * * Administrator right are required for many of these utilities * * * 
@@ -26,19 +27,23 @@ SAY:
 ACQ:\MemDump
 EXE:\MEM\WinPmem.exe &Acq\WinPmemDump.Raw
 SAY:
-SAY: 2. Extracting Prefetch Directory...
+SAY: 2. Parsing Prefetch Directory...
 SAY:
 ACQ:\SYS
-NCP:"&Win\prefetch\*" "&Acq"
+For:&Win\prefetch\*.*
+CPY:"&For" "&Acq\&Fnm"
+CMD:Dir &Win\prefetch /a /q /r > &Acq\Prefetch.dat
+EXE:\SYS\WinPrefetchView.exe /scomma &Acq\WinPrefetchview.dat
 SAY:
-SAY: 3a. Copy Raw $MFT...
+SAY: 3a. Copy Raw $MFT and $LogFile...
 SAY:
 ACQ:\RawData
-NCP:"C:\$MFT" "&Acq"
+EXE:\DSK\RawCopy.exe /FileNamePath:c:0 /OutputPath:&Acq
+EXE:\DSK\RawCopy.exe /FileNamePath:c:2 /OutputPath:&Acq
 SAY:
-SAY: 3b. Copy Raw $LogFile...
+SAY: 3b. Now Parsing $MFT...
 SAY:
-NCP:"C:\$LogFile" "&Acq"
+EXE:\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT 
 SAY:
 SAY: 3c. Now Extracting USNJrnl...
 SAY:
@@ -89,23 +94,27 @@ SAY:
 SAY: 6b. Copying (System32) Bit EventViewer Logs...
 SAY:
 ACQ:\Evt\Sys32
-NCP:"&Win\System32\winevt\Logs\*" "&Acq"
+For:&Win\System32\winevt\Logs\*.*
+CPY:"&For" "&Acq\&Fnm"
 SAY:
 SAY: 6c. Copying (Sysnative) Bit EventViewer Logs...
 SAY:
 ACQ:\Evt\Nativ
-NCP:"&Win\sysnative\winevt\Logs\*" "&Acq"
+For:&Win\sysnative\winevt\Logs\*.*
+CPY:"&For" "&Acq\&Fnm"
 SAY:
 SAY: 7. Parsing (System32) Hosts And Services Directory...
 SAY:
 ACQ:\SYS
 ACQ:\SYS\Sys32
-NCP:"&Win\System32\Drivers\Etc\*" "&Acq"
+For:&Win\System32\Drivers\Etc\*.*
+CPY:"&For" "&Acq\&Fnm"
 SAY:
 SAY: 7a. Parsing (Sysnative) Hosts And Services Directory...
 SAY:
 ACQ:\SYS\Nativ
-NCP:"&Win\sysnative\Drivers\Etc\*" "&Acq"
+For:&Win\sysnative\Drivers\Etc\*.*
+CPY:"&For" "&Acq\&Fnm"
 SAY:
 SAY: 8. Parsing Environment Variables...
 SAY:
@@ -146,7 +155,6 @@ END:
 SAY:
 SAY: 15. Gathering Open Files/Process Information...
 SAY:
-ACQ:\SYS
 CMD:\SYS\Handle.exe /accepteula > &Acq\OpenFiles.dat
 SAY:
 SAY: 16. Gathering Scheduled Task Information...
@@ -186,7 +194,9 @@ CMD:Reg Save HKCU &Acq\NTUSER.DAT
 SAY:
 SAY: 22b. Gathering All User Registries...
 SAY:
-NCP:"C:\Users\*\NTUSER.DAT" "&Acq"
+FOR:C:\Users\NTUSER.DAT
+EXE:\SYS\RegfileExport.exe "&For" &Acq\NTUSER(&Num).EXP
+CPY:"&For" "&Acq\&Fnm(&Num)"
 SAY:
 SAY: 23. Now Extracting Browser History...
 SAY:
@@ -198,5 +208,14 @@ SAY: Acquisition Complete...
 SAY:
 SAY: Now Hashing Artifacts...
 HSH:ACQ
+ACQ:\
+SAY:
+SAY: Now Archiving Artifacts into:
+SAY:  &Acq.zpaq
+SAY:
+INP: Please Enter an Archive Password > 
+SAY:
+XIT:\ZPAQ.EXE add &Acq.zpaq &Acq\* -key &Inp
 SAY:
 PZZ: All Done!  Press Any Key to Finish.
+SAY:

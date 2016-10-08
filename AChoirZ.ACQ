@@ -27,23 +27,20 @@ SAY:
 ACQ:\MemDump
 EXE:\MEM\WinPmem.exe &Acq\WinPmemDump.Raw
 SAY:
-SAY: 2. Parsing Prefetch Directory...
+SAY: 2. Extracting Prefetch Directory...
 SAY:
 ACQ:\SYS
-For:&Win\prefetch\*.*
-CPY:"&For" "&Acq\&Fnm"
-CMD:Dir &Win\prefetch /a /q /r > &Acq\Prefetch.dat
-EXE:\SYS\WinPrefetchView.exe /scomma &Acq\WinPrefetchview.dat
+NCP:"&Win\prefetch\*" "&Acq"
 SAY:
-SAY: 3a. Copy Raw $MFT and $LogFile...
+SAY: 3a. Copy Raw $MFT...
 SAY:
 ACQ:\RawData
-EXE:\DSK\RawCopy.exe /FileNamePath:c:0 /OutputPath:&Acq
-EXE:\DSK\RawCopy.exe /FileNamePath:c:2 /OutputPath:&Acq
+NCP:"C:\$MFT" "&Acq"
 SAY:
-SAY: 3b. Now Parsing $MFT...
+SAY: 3b. Copy Raw $LogFile...
 SAY:
-EXE:\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT 
+NCP:"C:\$LogFile" "&Acq"
+SAY:
 SAY:
 SAY: 3c. Now Extracting USNJrnl...
 SAY:
@@ -94,27 +91,23 @@ SAY:
 SAY: 6b. Copying (System32) Bit EventViewer Logs...
 SAY:
 ACQ:\Evt\Sys32
-For:&Win\System32\winevt\Logs\*.*
-CPY:"&For" "&Acq\&Fnm"
+NCP:"&Win\System32\winevt\Logs\*" "&Acq"
 SAY:
 SAY: 6c. Copying (Sysnative) Bit EventViewer Logs...
 SAY:
 ACQ:\Evt\Nativ
-For:&Win\sysnative\winevt\Logs\*.*
-CPY:"&For" "&Acq\&Fnm"
+NCP:"&Win\sysnative\winevt\Logs\*" "&Acq"
 SAY:
 SAY: 7. Parsing (System32) Hosts And Services Directory...
 SAY:
 ACQ:\SYS
 ACQ:\SYS\Sys32
-For:&Win\System32\Drivers\Etc\*.*
-CPY:"&For" "&Acq\&Fnm"
+NCP:"&Win\System32\Drivers\Etc\*" "&Acq"
 SAY:
 SAY: 7a. Parsing (Sysnative) Hosts And Services Directory...
 SAY:
 ACQ:\SYS\Nativ
-For:&Win\sysnative\Drivers\Etc\*.*
-CPY:"&For" "&Acq\&Fnm"
+NCP:"&Win\sysnative\Drivers\Etc\*" "&Acq"
 SAY:
 SAY: 8. Parsing Environment Variables...
 SAY:
@@ -194,9 +187,7 @@ CMD:Reg Save HKCU &Acq\NTUSER.DAT
 SAY:
 SAY: 22b. Gathering All User Registries...
 SAY:
-FOR:C:\Users\NTUSER.DAT
-EXE:\SYS\RegfileExport.exe "&For" &Acq\NTUSER(&Num).EXP
-CPY:"&For" "&Acq\&Fnm(&Num)"
+NCP:"C:\Users\*\NTUSER.DAT" "&Acq"
 SAY:
 SAY: 23. Now Extracting Browser History...
 SAY:

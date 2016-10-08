@@ -4,12 +4,6 @@
 * - Created by D0n Quix0te/OMENScan (May 2015)    *
 * - Inspired by many other tools                  *
 ***************************************************
-64B:
-SAY:
-SAY: AChoir - 64 Bit Detected...  Switching to 64 Bit Script...
-SAY:
-INI:AChoir64.ACQ
-END:
 SAY:
 SAY: AChoir will scan the Hard drive and pull forensics for investigation.
 SAY:
@@ -26,28 +20,32 @@ SAY:
 ACQ:\MemDump
 EXE:\MEM\WinPmem.exe &Acq\WinPmemDump.Raw
 SAY:
-SAY: 2. Extracting Prefetch Directory...
+SAY: 2. Parsing Prefetch Directory...
 SAY:
 ACQ:\SYS
-NCP:"&Win\prefetch\*" "&Acq"
+For:&Win\prefetch\*.*
+CPY:"&For" "&Acq\&Fnm"
+CMD:Dir &Win\prefetch /a /q /r > &Acq\Prefetch.dat
+EXE:\SYS\WinPrefetchView.exe /scomma &Acq\WinPrefetchview.dat
 SAY:
-SAY: 3a. Copy Raw $MFT...
+SAY: 3a. Copy Raw $MFT and $LogFile...
 SAY:
 ACQ:\RawData
-NCP:"C:\$MFT" "&Acq"
+EXE:\DSK\RawCopy64.exe /FileNamePath:c:0 /OutputPath:&Acq
+EXE:\DSK\RawCopy64.exe /FileNamePath:c:2 /OutputPath:&Acq
 SAY:
-SAY: 3b. Copy Raw $LogFile...
+SAY: 3b. Now Parsing $MFT...
 SAY:
-NCP:"C:\$LogFile" "&Acq"
+EXE:\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT 
 SAY:
 SAY: 3c. Now Extracting USNJrnl...
 SAY:
-EXE:\DSK\ExtractUSNJrnl.exe /DevicePath:c: /OutputPath:&Acq
+EXE:\DSK\ExtractUSNJrnl64.exe /DevicePath:c: /OutputPath:&Acq
 SAY:
 SAY: 3d. Now Parsing USNJrnl...
 SAY:
-CMD:fsutil usn enumdata 1 0 1 C: > &Acq\USNJrnl.dat
-CMD:fsutil usn readjournal C: csv >> &Acq\USNJrnl.dat
+CMD:fsutil usn enumdata 1 0 1 C: > &Acq\USN64Jrnl.dat
+CMD:fsutil usn readjournal C: csv >> &Acq\USN64Jrnl.dat
 SAY:
 SAY: 4a. Gathering System Information...
 SAY:
@@ -86,30 +84,19 @@ CMD:\SYS\PSLogList.exe /accepteula -s Security > &Acq\EvtSec.dat
 CMD:\SYS\PSLogList.exe /accepteula -s Application > &Acq\EvtApp.dat
 CMD:\SYS\PSLogList.exe /accepteula -s System > &Acq\EvtSys.dat
 SAY:
-SAY: 6b. Copying (System32) Bit EventViewer Logs...
+SAY: 6b. Copying EventViewer Logs...
 SAY:
-ACQ:\Evt\Sys32
-NCP:"&Win\System32\winevt\Logs\*" "&Acq"
+For:&Win\System32\winevt\Logs\*.*
+CPY:"&For" "&Acq\&Fnm"
 SAY:
-SAY: 6c. Copying (Sysnative) Bit EventViewer Logs...
-SAY:
-ACQ:\Evt\Nativ
-NCP:"&Win\sysnative\winevt\Logs\*" "&Acq"
-SAY:
-SAY: 7. Parsing (System32) Hosts And Services Directory...
+SAY: 7. Parsing Hosts And Services Directory...
 SAY:
 ACQ:\SYS
-ACQ:\SYS\Sys32
-NCP:"&Win\System32\Drivers\Etc\*" "&Acq"
-SAY:
-SAY: 7a. Parsing (Sysnative) Hosts And Services Directory...
-SAY:
-ACQ:\SYS\Nativ
-NCP:"&Win\sysnative\Drivers\Etc\*" "&Acq"
+For:&Win\System32\Drivers\Etc\*.*
+CPY:"&For" "&Acq\&Fnm"
 SAY:
 SAY: 8. Parsing Environment Variables...
 SAY:
-ACQ:\SYS
 CMD:Set > &Acq\EnVar.dat
 SAY:
 SAY: 9. Parsing The Patch List...
@@ -137,16 +124,10 @@ CMD:Arp -a > &Acq\ArpInfo.dat
 SAY:
 SAY: 14. Gathering NetBIOS Information...
 SAY:
-CKY:&Win\System32\NBTStat.exe
 CMD:&Win\System32\NBTStat.exe -scn > &Acq\NetBios.dat
-END:
-CKY:&Win\sysnative\NBTStat.exe
-CMD:&Win\sysnative\NBTStat.exe -scn >> &Acq\NetBios.dat
-END:
 SAY:
 SAY: 15. Gathering Open Files/Process Information...
 SAY:
-ACQ:\SYS
 CMD:\SYS\Handle.exe /accepteula > &Acq\OpenFiles.dat
 SAY:
 SAY: 16. Gathering Scheduled Task Information...
@@ -186,7 +167,9 @@ CMD:Reg Save HKCU &Acq\NTUSER.DAT
 SAY:
 SAY: 22b. Gathering All User Registries...
 SAY:
-NCP:"C:\Users\*\NTUSER.DAT" "&Acq"
+FOR:C:\Users\NTUSER.DAT
+EXE:\SYS\RegfileExport.exe "&For" &Acq\NTUSER(&Num).EXP
+CPY:"&For" "&Acq\&Fnm(&Num)"
 SAY:
 SAY: 23. Now Extracting Browser History...
 SAY:

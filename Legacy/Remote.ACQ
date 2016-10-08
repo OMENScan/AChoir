@@ -1,0 +1,22 @@
+***************************************************
+* Live Acquisition Script (1.0)                   *
+* - Pulls Forensics artifacts for analysis        *
+* - Created by D0n Quixote/OMENScan (May 2015)    *
+* - Inspired by many other tools                  *
+***************************************************
+SAY:
+SAY: AChoir will scan the Hard drive and pull forensics for investigation.
+SAY:
+SAY: * * *   Please MAKE SURE you are running this as an Administrator  * * * 
+SAY: * * * Administrator right are required for many of these utilities * * * 
+SAY:
+PZZ: Press Any Key to Continue, or q to QUIT
+SAY:
+SAY: 1. Map To remote Drive
+SAY:
+SAY: Mapping Remote Drive...
+MAP:
+SAY:
+SAY: 2. Now Switching To Remote Script...
+SAY:
+INI:&Map\Remoted.Acq

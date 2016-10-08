@@ -1,4 +1,4 @@
-AChoir - Beta v0.55
+AChoir - Beta v0.75
 
 AChoir
 ======
@@ -175,6 +175,8 @@ LST:<FileName>
          be run iteratively replacing the &For variable with each
          entry in the <FileName>. 
 CPY:     Copy Files (CPY:<FromFile> <ToFile>) - Supports Quotes
+NCP:     NTFS Raw File Copy - Supports Wildcards (* and ?)
+         NCP:<File(s) to Copy>  <Destination Directory>
 ARN:     Search Registry Run Key and copy the EXEs 
          (possible malware persistence)
 ARN:<Offline Registry> 
@@ -284,6 +286,10 @@ Achoir will generate an Index.htm file for every acquisition.  This file can
 be opened with your favorite web browser to browse and open the acquired
 artifacts.  This is an incredibly simple but useful feature.  
 
+x-MFT.db
+---------
+Achoir will generate an SQLite database when using NCP: Raw Copy.  This database is
+a subset of the $MFT for that volume - used to make searching for wildcards faster.
 
 
 Last Thoughts:

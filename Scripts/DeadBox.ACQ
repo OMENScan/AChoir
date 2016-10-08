@@ -19,15 +19,15 @@ SAY:
 REQ:&Drv\Windows\System32\ntoskrnl.exe
 SAY:
 PZZ: Press Any Key to Continue, or q to QUIT
-SAY: 1a. Copy Raw $MFT and $LogFile...
+SAY:
+SAY: 1a. Copy Raw $MFT...
 SAY:
 ACQ:\RawData
-EXE:\DSK\RawCopy.exe /FileNamePath:&Drv0 /OutputPath:&Acq
-EXE:\DSK\RawCopy.exe /FileNamePath:&Drv2 /OutputPath:&Acq
+NCP:"&Drv\$MFT" "&Acq"
 SAY:
-SAY: 1b. Now Parsing $MFT...
+SAY: 3b. Copy Raw $LogFile...
 SAY:
-EXE:\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT 
+NCP:"&Drv\$LogFile" "&Acq"
 SAY:
 SAY: 1c. Now Parsing USNJrnl...
 SAY:

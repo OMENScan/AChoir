@@ -33,15 +33,15 @@ SAY:
 REQ:&Drv\Windows\System32\ntoskrnl.exe
 SAY:
 PZZ: Press Any Key to Continue, or q to QUIT
-SAY:
-SAY: 1a. Copy Raw $MFT...
+SAY: 1a. Copy Raw $MFT and $LogFile...
 SAY:
 ACQ:\RawData
-NCP:"&Drv\$MFT" "&Acq"
+EXE:\DSK\RawCopy.exe /FileNamePath:&Drv0 /OutputPath:&Acq
+EXE:\DSK\RawCopy.exe /FileNamePath:&Drv2 /OutputPath:&Acq
 SAY:
-SAY: 1b. Copy Raw $LogFile...
+SAY: 1b. Now Parsing $MFT...
 SAY:
-NCP:"&Drv\$LogFile" "&Acq"
+EXE:\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT 
 SAY:
 SAY: 1c. Now Parsing USNJrnl...
 SAY:
@@ -52,22 +52,24 @@ SAY: 1d. Now Extracting USNJrnl...
 SAY:
 EXE:\DSK\ExtractUSNJrnl.exe /DevicePath:&Drv /OutputPath:&Acq
 SAY:
-SAY: 2a. Parsing and Extracting System Registry Hives/Files...
+SAY: 2a. Parsing and Copying System Registry Hives/Files...
 SAY:
 ACQ:\Reg
 RegFileExport "&Drv\Windows\system32\config\SAM" "Reg-SAM.txt"
 RegFileExport "&Drv\Windows\system32\config\SECURITY" "Reg-SECURITY.txt"
 RegFileExport "&Drv\Windows\system32\config\SOFTWARE" "Reg-SOFTWARE.txt"
 RegFileExport "&Drv\Windows\system32\config\SYSTEM" "Reg-SYSTEM.txt"
-NCP:"&Drv\Windows\system32\config\*" "&Acq"
+For:&Drv\Windows\system32\config\*.*
+CPY:"&For" "&Acq\&Fnm"
 SAY:
-SAY: 2b. Parsing and Copying USER Registry Hives/Files...
+SAY: 2a. Parsing and Copying USER Registry Hives/Files...
 SAY:
 FOR:&Drv\Users\NTUSER.DAT
 EXE:\SYS\RegfileExport.exe &For "&Acq\NTUSER(&Num).EXP"
-NCP:"&Drv\Users\*\NTUSER.DAT" "&Acq"
+*YS:Echo F | XCopy &For "&Acq\NTUSER.DAT(&Num)" /H
+CPY:"&For" "&Acq\&Fnm(&Num)"
 SAY:
-SAY: 2c. RegRipping Common Hives...
+SAY: 2b. RegRipping Common Hives...
 SAY:
 SAY: ***Scanning Software hive***
 SYS:\RRV\RegRipper2.8-master\rip.exe -r &Drv\Windows\System32\Config\software -f software > &Acq\Software.regrip
@@ -84,11 +86,15 @@ SAY:
 SAY: 3. Parsing Prefetch Directory...
 SAY:
 ACQ:\SYS
-NCP:"&Drv\Windows\prefetch\*" "&Acq"
+For:&Drv\Windows\prefetch\*.*
+CPY:"&For" "&Acq\&Fnm"
+SYS:Dir &Drv\Windows\prefetch /a /q /r > &Acq\Prefetch.dat
+EXE:\SYS\WinPrefetchView.exe /folder &Drv\Windows\Prefetch /scomma &Acq\WinPrefetchview.dat
 SAY:
 SAY: 4. Parsing Hosts And Services Directory...
 SAY:
-NCP:"&Drv\Windows\System32\Drivers\Etc\*" "&Acq"
+For:&Drv\Windows\System32\Drivers\Etc\*.*
+CPY:"&For" "&Acq\&Fnm"
 SAY:
 SAY: 5. Gathering AutoRun Information...
 SAY:
@@ -103,7 +109,8 @@ SYS:\SYS\PSLogList.exe /accepteula -s -l &Drv\Windows\System32\Winevt\logs\Syste
 SAY:
 SAY: 6b. Copying EventViewer Logs Hives...
 SAY:
-NCP:"&Drv\Windows\System32\winevt\Logs\*" "&Acq"
+For:&Drv\Windows\System32\winevt\Logs\*.*
+CPY:"&For" "&Acq\&Fnm"
 SAY:
 SAY: 7. Now Extracting Browser History...
 SAY:
