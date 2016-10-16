@@ -4803,8 +4803,21 @@ BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn, PULONGL
   *lcn = 0;
   ULONGLONG base = attr->LowVcn;
 
+
+  printf("FindRun: Start - VCN: %llu - LowVCN: %llu - HighVCN: %llu\n", vcn, attr->LowVcn, attr->HighVcn);
+
+
   if (vcn < attr->LowVcn || vcn > attr->HighVcn)
     return FALSE;
+
+
+
+
+  printf("FindRun: Step1\n");
+
+
+
+
 
   for (run = PUCHAR(Padd(attr, attr->RunArrayOffset)); *run != 0; run += RunLength(run))
   {
@@ -4812,12 +4825,27 @@ BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn, PULONGL
     *count = RunCount(run);
     if (base <= vcn && vcn < base + *count)
     {
+
+      printf("FindRun: Step2\n");
+
+
       *lcn = RunLCN(run) == 0 ? 0 : *lcn + vcn - base;
       *count -= ULONG(vcn - base);
       return TRUE;
     }
     else
       base += *count;
+
+
+
+    
+    
+    printf ("FindRun Step3 - Base: %llu\n", base);
+
+
+
+
+
   }
   return FALSE;
 }
@@ -4918,10 +4946,15 @@ VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG cou
     ULONG n = readcount * bootb.BytesPerSector * bootb.SectorsPerCluster;
 
     if (lcn == 0)
+    {
       memset(bytes, 0, n);
+      wprintf(L"LCN: NONE\n");
+    }
     else
+    {
       ReadLCN(lcn, readcount, bytes);
-
+      wprintf(L"LCN: 0X%.8X\n", lcn);
+    }
     vcn += readcount;
     bytes += n;
   }
@@ -4949,16 +4982,40 @@ VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
   PRESIDENT_ATTRIBUTE rattr = NULL;
   PNONRESIDENT_ATTRIBUTE nattr = NULL;
 
+
+  printf("Start Read Attribute\n");
+
+
+
   if (attr->Nonresident == FALSE)
   {
+
+
+
+    printf("Read Internal Attribute\n");
+
+
+
     rattr = PRESIDENT_ATTRIBUTE(attr);
     memcpy(buffer, Padd(rattr, rattr->ValueOffset), rattr->ValueLength);
   }
   else
   {
     nattr = PNONRESIDENT_ATTRIBUTE(attr);
+
+
+    printf("Read External Attribute - VCN: 0  Count:%lu\n", ULONG(nattr->HighVcn)+1);
+
+
+
     ReadExternalAttribute(nattr, 0, ULONG(nattr->HighVcn) + 1, buffer);
   }
+
+
+  printf("End Read Attribute\n");
+
+
+
 }
 
 
@@ -5541,12 +5598,13 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   
   
   // Testing Vars
+  PNONRESIDENT_ATTRIBUTE nonresattr = NULL;
   PATTRIBUTE_LIST attrdatax = NULL;
   USHORT MaxOffset;
   USHORT LastOffset;
   int iter ;
-
-
+  long pointData;
+  ULONG attrLen ;
 
 
 
@@ -5579,10 +5637,30 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
     printf("Inf: Destination File Already Exists. \n     Renamed To: %s\n", Tooo_Fname);
   }
+
+
+
   
 
+  printf("Read\n");
+
+
+
+
+
   ReadFileRecord(index, file);
-  
+
+
+
+
+
+  printf("Readed\n");
+
+
+
+
+
+
 
   if (file->Ntfs.Type != 'ELIF')
   {
@@ -5593,12 +5671,34 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   }
 
 
+
+
+
+
+  printf("ELIFed\n");
+
+
+
+
+
+
+
   // Look for Attribute Data (0x80)
   attr = FindAttribute(file, AttributeData, 0);
   if (attr == 0)
   {
     // AChoir Does not yet support for huge/fragmented files
     //  where the FileName Attribute is outside of this MFT record
+    attrlist = FindAttributeII(file, AttributeAttributeList, 0);
+    if (attrlist != 0)
+     printf("\nCrud!  There is more than one Attribute List.\n");
+
+
+
+
+
+
+
     attrlist = FindAttribute(file, AttributeAttributeList, 0);
     if (attrlist != 0)
     {
@@ -5625,22 +5725,44 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         printf("%02hhX ", buf[iter]);
       }
 
+
+      if(attrlist->Nonresident == FALSE)
+        printf("\nAttr List is Resident, Sequence: %d\n", attrlist->AttributeNumber);
+      else
+        printf("\nAttr List is NON-Resident, Sequence: %d\n", attrlist->AttributeNumber);
+
+
+
+
       attrdata = PATTRIBUTE_LIST(Padd(attrlist, PRESIDENT_ATTRIBUTE(attrlist)->ValueOffset));
-      printf("\nAttribute List Type: %04x - Length: %u\n", attrdata->AttributeType, attrdata->Length);
+      printf("\nAttribute List Type: %04x - Length: %u - MFTID: %ld\n", attrdata->AttributeType, attrdata->Length, attrdata->FileReferenceNumber);
       LastOffset = attrdata->Length;
+
 
       while (MaxOffset > LastOffset)
       {
         attrdatax = attrdata ;
         attrdata = PATTRIBUTE_LIST(Padd(attrdatax, attrdatax->Length));
         LastOffset += attrdatax->Length;
-        printf("\nAttribute List Type-: %04x - Length: %u\n", attrdata->AttributeType, attrdata->Length);
+        printf("\nAttribute List Type: %04x - Length: %u - MFTID: %ld\n", attrdata->AttributeType, attrdata->Length, attrdata->FileReferenceNumber);
+
+
+        // Go dump Data from Attribute Data Record (0x80)
+        if (attrdata->AttributeType == AttributeData)
+        {
+          pointData = attrdata->FileReferenceNumber;
+          printf("Now Dumping the Segment: %ld\n", pointData);
+
+          DumpDataII(pointData, filename, outdir, ToCreTime, ToModTime, ToAccTime, binLog);
+        }
+
       }
 
 
       // End Test
 
 
+      delete[] buf;
 
 
 
@@ -5658,107 +5780,166 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     
     return 1;
   }
-
-  PUCHAR buf = new UCHAR[AttributeLengthAllocated(attr)];
-
-  ReadAttribute(attr, buf);
-
-  iFileSize = AttributeLength(attr);
-  printf("     (In)Size: %ld\n", iFileSize);
-
-  if (binLog == 1)
-    fprintf(LogHndl, "     (In)Size: %ld\n", iFileSize);
-  
-  printf("Inf: (out)Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
-  
-  if (binLog == 1)
-    fprintf(LogHndl, "Inf: (out)Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
-  
-  hFile = CreateFile((LPCSTR)Tooo_Fname, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
-  if (hFile == INVALID_HANDLE_VALUE)
+  else
   {
+
+
+    // Check for further Fragments
+    attrlist = FindAttribute(file, AttributeAttributeList, 0);
+    if (attrlist != 0)
+    printf("Yes, there is fragmentation - After Getting the data!\n");
+
+
+
+
+ 
+
+
+    //Try to Force the size
+    attrLen = AttributeLengthAllocated(attr);
+    if(attrLen < 1)
+     attrLen = 120848384;
+
+
+
+
+
+    PUCHAR buf = new UCHAR[attrLen];
+
+
+
+
+
+
+    printf("PreRead Attrib, Length: %ld\n", attrLen);
+
+
+
+
+
+
+
+
+    ReadAttribute(attr, buf);
+
+
+
+
+
+
+
+
+
+
+
+    printf("PostReadAttrib\n");
+
+
+
+
+
+
+
+    iFileSize = attrLen;
+    printf("     (In)Size: %ld\n", iFileSize);
+
     if (binLog == 1)
-      fprintf(LogHndl, "Err: Error Creating File: %u\n", GetLastError());
-
-    printf("Err: Error Creating File: %u\n", GetLastError());
-    return 1;
-  }
-
-  if (WriteFile(hFile, buf, AttributeLength(attr), &n, 0) == 0)
-  {
-    if (binLog == 1)
-      fprintf(LogHndl, "Err: Error Writing File: %u\n", GetLastError());
-
-    printf("Err: Error Writing File: %u\n", GetLastError());
-    return 1;
-  }
+      fprintf(LogHndl, "     (In)Size: %ld\n", iFileSize);
   
-  //Set the File Times
-  SetFileTime(hFile, &ToCreTime, &ToAccTime, &ToModTime);
-
-  //Read it back out to Verify
-  GetFileTime(hFile, &ftCreate, &ftAccess, &ftWrite);
-
-  CloseHandle(hFile);
-
-  /****************************************************************/
-  /* Set the SID (Owner) of the new file same as the old file     */
-  /****************************************************************/
-  if (gotOwner == 1)
-  {
-    setOwner = SetFileSecurity(Tooo_Fname, OWNER_SECURITY_INFORMATION, SecDesc);
-
-    if (setOwner)
+    printf("Inf: (out)Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
+  
+    if (binLog == 1)
+      fprintf(LogHndl, "Inf: (out)Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
+  
+    hFile = CreateFile((LPCSTR)Tooo_Fname, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+    if (hFile == INVALID_HANDLE_VALUE)
     {
       if (binLog == 1)
-        fprintf(LogHndl, "     (out)File Owner was Set Succesfully.\n");
-      printf("     (out)File Owner was Set Succesfully.\n");
+        fprintf(LogHndl, "Err: Error Creating File: %u\n", GetLastError());
+
+      printf("Err: Error Creating File: %u\n", GetLastError());
+      return 1;
+    }
+
+    if (WriteFile(hFile, buf, attrLen, &n, 0) == 0)
+    {
+      if (binLog == 1)
+        fprintf(LogHndl, "Err: Error Writing File: %u\n", GetLastError());
+
+      printf("Err: Error Writing File: %u\n", GetLastError());
+      return 1;
+    }
+  
+    //Set the File Times
+    SetFileTime(hFile, &ToCreTime, &ToAccTime, &ToModTime);
+
+    //Read it back out to Verify
+    GetFileTime(hFile, &ftCreate, &ftAccess, &ftWrite);
+
+    CloseHandle(hFile);
+
+    /****************************************************************/
+    /* Set the SID (Owner) of the new file same as the old file     */
+    /****************************************************************/
+    if (gotOwner == 1)
+    {
+      setOwner = SetFileSecurity(Tooo_Fname, OWNER_SECURITY_INFORMATION, SecDesc);
+
+      if (setOwner)
+      {
+        if (binLog == 1)
+          fprintf(LogHndl, "     (out)File Owner was Set Succesfully.\n");
+        printf("     (out)File Owner was Set Succesfully.\n");
+      }
+      else
+      {
+        if (binLog == 1)
+          fprintf(LogHndl, "Err: Could NOT Set Target File Owner.\n");
+        printf("Err: Could NOT Set Target File Owner.\n");
+      }
     }
     else
     {
       if (binLog == 1)
-        fprintf(LogHndl, "Err: Could NOT Set Target File Owner.\n");
-      printf("Err: Could NOT Set Target File Owner.\n");
+        fprintf(LogHndl, "Err: Could NOT Determine Source File Owner(Unknown)\n");
+      printf("Err: Could NOT Determine Source File Owner(Unknown)\n");
     }
-  }
-  else
-  {
+
+    delete[] buf;
+
+
+    /****************************************************************/
+    /* MD5 The Files                                                */
+    /****************************************************************/
+    stat(Tooo_Fname, &Toostat);
+    FileMD5(Tooo_Fname);
     if (binLog == 1)
-      fprintf(LogHndl, "Err: Could NOT Determine Source File Owner(Unknown)\n");
-    printf("Err: Could NOT Determine Source File Owner(Unknown)\n");
+    {
+      fprintf(LogHndl, "     (out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
+      fprintf(LogHndl, "     (out)Size: %ld\n", Toostat.st_size);
+      fprintf(LogHndl, "     (out)File MD5: %s\n", MD5Out);
+    }
+    printf("     (out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
+    printf("     (out)Size: %ld\n", Toostat.st_size);
+    printf("     (out)File MD5: %s\n", MD5Out);
+
+    if ((CompareFileTime(&ToCreTime, &ftCreate) != 0) || (CompareFileTime(&ToAccTime, &ftAccess) != 0) || (CompareFileTime(&ToModTime, &ftWrite) != 0))
+    {
+      printf("\nWrn: File TimeStamp MisMatch\n");
+      if (binLog == 1)
+        fprintf(LogHndl, "\nWrn: File TimeStamp MisMatch\n");
+    }
+
+    if (iFileSize != Toostat.st_size)
+    {
+      printf("\nWrn: File Size MisMatch\n");
+      if (binLog == 1)
+        fprintf(LogHndl, "\nWrn: File Size MisMatch\n");
+
+    }
+
+    return 0;
   }
-  delete[] buf;
 
-
-  /****************************************************************/
-  /* MD5 The Files                                                */
-  /****************************************************************/
-  stat(Tooo_Fname, &Toostat);
-  FileMD5(Tooo_Fname);
-  if (binLog == 1)
-  {
-    fprintf(LogHndl, "     (out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
-    fprintf(LogHndl, "     (out)Size: %ld\n", Toostat.st_size);
-    fprintf(LogHndl, "     (out)File MD5: %s\n", MD5Out);
-  }
-  printf("     (out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
-  printf("     (out)Size: %ld\n", Toostat.st_size);
-  printf("     (out)File MD5: %s\n", MD5Out);
-
-  if ((CompareFileTime(&ToCreTime, &ftCreate) != 0) || (CompareFileTime(&ToAccTime, &ftAccess) != 0) || (CompareFileTime(&ToModTime, &ftWrite) != 0))
-  {
-    printf("\nWrn: File TimeStamp MisMatch\n");
-    if (binLog == 1)
-      fprintf(LogHndl, "\nWrn: File TimeStamp MisMatch\n");
-  }
-
-  if (iFileSize != Toostat.st_size)
-  {
-    printf("\nWrn: File Size MisMatch\n");
-    if (binLog == 1)
-      fprintf(LogHndl, "\nWrn: File Size MisMatch\n");
-
-  }
-  return 0;
 }
 
