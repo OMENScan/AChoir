@@ -65,6 +65,8 @@
 /* AChoir v0.75 - Add NTFS Raw Copy (NCP:)                      */
 /*                NCP:<Wilcard File Search> <Destination Dir>   */
 /*              - Additional Recursion Error Checking           */
+/* AChoir v0.80 - NTFS Raw Reading now support Attribute List   */
+/*                (Multiple Cluster Runs/Fragmented Files)      */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -128,7 +130,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.75\0";
+char Version[10] = "v0.80\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -188,7 +190,7 @@ VOID LoadMFT();
 VOID UnloadMFT();
 VOID FindActive();
 int rawCopy(char *FrmFile, char *TooFile, int binLog);
-int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime, int binLog);
+int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime, int binLog, int Append);
 
 
 
@@ -388,6 +390,11 @@ int  getKey;
 
 int  iXitCmd = 0;
 char XitCmd[4096];
+
+//Track Current File Information across Routines
+ULONG maxFileSize, leftFileSize;
+int LCNType = 0;  // 0 for Attributes, 1 for Files (used for tracking leftFileSize)
+
 
 // Template for padding
 template <class T1, class T2> inline T1* Padd(T1* p, T2 n)
@@ -4160,7 +4167,8 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 
 
 		// Return 0 if the File Copy Worked - 1 if it didnt
-        DDRetcd = DumpDataII(Full_MFTID, Full_Fname + i + 1, TooFile, File_Create, File_Modify, File_Access, 1);
+        maxFileSize = leftFileSize = 0;
+        DDRetcd = DumpDataII(Full_MFTID, Full_Fname + i + 1, TooFile, File_Create, File_Modify, File_Access, 1, 0);
 
         
 		if (DDRetcd == 0)
@@ -4938,7 +4946,9 @@ VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG cou
   ULONGLONG lcn, runcount;
   ULONG readcount, left;
   PUCHAR bytes = PUCHAR(buffer);
+  ULONG totbytes;
 
+  totbytes = 0;
   for (left = count; left > 0; left -= readcount)
   {
     FindRun(attr, vcn, &lcn, &runcount);
@@ -4957,7 +4967,28 @@ VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG cou
     }
     vcn += readcount;
     bytes += n;
+
+    totbytes += n;
   }
+
+
+
+
+
+  // LOH - Figure out the Total Bytes Read
+  if(LCNType == 1)
+  {
+    leftFileSize -= totbytes;
+    printf("Total LCN Bytes Read: %ld\n", totbytes);
+    printf("Total LCN Bytes Left: %ld\n", leftFileSize);
+  }
+
+
+
+
+
+
+
 }
 
 
@@ -5004,11 +5035,15 @@ VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
     nattr = PNONRESIDENT_ATTRIBUTE(attr);
 
 
-    printf("Read External Attribute - VCN: 0  Count:%lu\n", ULONG(nattr->HighVcn)+1);
+    printf("Read External Attribute - VCN: %lu  Count:%lu\n", ULONG(nattr->LowVcn), ULONG(nattr->HighVcn) - ULONG(nattr->LowVcn) +1);
 
 
+    // This is the Bad Boy that caused me all the TROUBLES - 
+    //   With Multiple 0x80 records this FAILS!!!  Change it to 
+    //   READ THE ACTUAL LOWVCN - Not jsut set it zero!
+    //ReadExternalAttribute(nattr, 0, ULONG(nattr->HighVcn) + 1, buffer);
+    ReadExternalAttribute(nattr, ULONG(nattr->LowVcn), ULONG(nattr->HighVcn) - ULONG(nattr->LowVcn) + 1, buffer);
 
-    ReadExternalAttribute(nattr, 0, ULONG(nattr->HighVcn) + 1, buffer);
   }
 
 
@@ -5131,7 +5166,7 @@ VOID FindActive()
   char *iLastChar2;
   char Str_Numbers[40] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\0\0\0";
 
-
+  LCNType = 0; // Read Attribute Not File
   ReadAttribute(attr, bitmap);
 
   ULONG n = AttributeLength(FindAttribute(MFT, AttributeData, 0)) / BytesPerFileRecord;
@@ -5153,6 +5188,7 @@ VOID FindActive()
     if (!bitset(bitmap, i))
       continue;
 
+    LCNType = 0 ;
     ReadFileRecord(i, file);
 
     if (file->Ntfs.Type == 'ELIF' && (file->Flags == 1 || file->Flags == 3))
@@ -5576,7 +5612,7 @@ VOID FindActive()
 }
 
 
-int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime, int binLog)
+int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime, int binLog, int Append)
 {
   PATTRIBUTE attrlist = NULL;
   PATTRIBUTE_LIST attrdata = NULL;
@@ -5604,40 +5640,52 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   USHORT LastOffset;
   int iter ;
   long pointData;
-  ULONG attrLen ;
+  ULONG attrLen;
+  int gotData;
 
 
-
-
-
-
-  /****************************************************************/
-  /* Make Sure the File is Not There - Don't Overwrite!           */
-  /****************************************************************/
   memset(Tooo_Fname, 0, 2048);
   snprintf(Tooo_Fname, 2040, "%s\\%s\0", outdir, filename);
-  
-  iFileCount = 0;
 
-  if (access(Tooo_Fname, 0) == 0)
+
+
+
+  if(Append == 1)
   {
-    do
-    {
-      iFileCount++;
-
-      memset(Tooo_Fname, 0, 2048);
-      snprintf(Tooo_Fname, 2040, "%s\\%s\\%s(%d)\0", BACQDir, ACQDir, filename, iFileCount);
-    } while (access(Tooo_Fname, 0) == 0);
-  }
-
-  if (iFileCount > 0)
-  {
+    /****************************************************************/
+    /* We are in Append Mode - Multiple Cluster Runs were found in  */
+    /*  multiple Attribute_List MFT Records                         */
+    /****************************************************************/
     if (binLog == 1)
-      fprintf(LogHndl, "Inf: Destination File Already Exists. \n     Renamed To: %s\n", Tooo_Fname);
-
-    printf("Inf: Destination File Already Exists. \n     Renamed To: %s\n", Tooo_Fname);
+      fprintf(LogHndl, "Inf: Appending Data (Multiple Cluster Runs).\n");
+      printf("Inf: Appending Data (Multiple Cluster Runs).\n");
   }
+  else
+  {
+    /****************************************************************/
+    /* Single or First Cluster Run:                                 */
+    /*  Make Sure the File is Not There - Don't Overwrite!          */
+    /****************************************************************/
+    iFileCount = 0;
 
+    if (access(Tooo_Fname, 0) == 0)
+    {
+      do
+      {
+        iFileCount++;
+
+        memset(Tooo_Fname, 0, 2048);
+        snprintf(Tooo_Fname, 2040, "%s\\%s\\%s(%d)\0", BACQDir, ACQDir, filename, iFileCount);
+      } while (access(Tooo_Fname, 0) == 0);
+    }
+
+    if (iFileCount > 0)
+    {
+      if (binLog == 1)
+        fprintf(LogHndl, "Inf: Destination File Already Exists. \n     Renamed To: %s\n", Tooo_Fname);
+      printf("Inf: Destination File Already Exists. \n     Renamed To: %s\n", Tooo_Fname);
+    }
+  }
 
 
   
@@ -5647,7 +5695,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
 
 
-
+  LCNType = 0;
   ReadFileRecord(index, file);
 
 
@@ -5687,11 +5735,10 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   attr = FindAttribute(file, AttributeData, 0);
   if (attr == 0)
   {
-    // AChoir Does not yet support for huge/fragmented files
-    //  where the FileName Attribute is outside of this MFT record
-    attrlist = FindAttributeII(file, AttributeAttributeList, 0);
-    if (attrlist != 0)
-     printf("\nCrud!  There is more than one Attribute List.\n");
+    // An Attribute list from an Attribute List - This should not happen
+    //attrlist = FindAttributeII(file, AttributeAttributeList, 0);
+    //if (attrlist != 0)
+    // printf("\nCrud!  There is more than one Attribute List.\n");
 
 
 
@@ -5702,14 +5749,8 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     attrlist = FindAttribute(file, AttributeAttributeList, 0);
     if (attrlist != 0)
     {
-      printf("Err: File is too Fragmented to Parse...  Bypassing...\n");
-      fprintf(LogHndl,"Err: File is too Fragmented to Parse...  Bypassing...\n");
-
-
-
-
-
-
+      printf("Inf: File is Fragmented ...  Parsing the Attribute List...\n");
+      fprintf(LogHndl,"Inf: File is Fragmented... Parsing the Attribute List...\n");
 
 
 
@@ -5718,6 +5759,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       // Testing to see if we can read the attribute list
       MaxOffset = AttributeLengthAllocated(attrlist);
       PUCHAR buf = new UCHAR[AttributeLengthAllocated(attrlist)];
+      LCNType = 0; // Read Attribute Not File
       ReadAttribute(attrlist, buf);
 
       for (iter = 0; iter < MaxOffset; iter++)
@@ -5726,10 +5768,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       }
 
 
-      if(attrlist->Nonresident == FALSE)
-        printf("\nAttr List is Resident, Sequence: %d\n", attrlist->AttributeNumber);
-      else
-        printf("\nAttr List is NON-Resident, Sequence: %d\n", attrlist->AttributeNumber);
+      //Debug Code
+      //if(attrlist->Nonresident == FALSE)
+      //  printf("\nAttr List is Resident, Sequence: %d\n", attrlist->AttributeNumber);
+      //else
+      //  printf("\nAttr List is NON-Resident, Sequence: %d\n", attrlist->AttributeNumber);
 
 
 
@@ -5739,6 +5782,9 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       LastOffset = attrdata->Length;
 
 
+      gotData = 0;
+      maxFileSize = 0;  // Set the Max File Size.
+      leftFileSize = 0; // Bytes Left in the File (Multiple Cluster Runs)
       while (MaxOffset > LastOffset)
       {
         attrdatax = attrdata ;
@@ -5753,7 +5799,18 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
           pointData = attrdata->FileReferenceNumber;
           printf("Now Dumping the Segment: %ld\n", pointData);
 
-          DumpDataII(pointData, filename, outdir, ToCreTime, ToModTime, ToAccTime, binLog);
+          if(gotData == 0)
+          {
+            printf("First Cluster Run Dumping...\n");
+            DumpDataII(pointData, filename, outdir, ToCreTime, ToModTime, ToAccTime, binLog, 0);
+            gotData = 1;
+          }
+          else
+          {
+              printf("Next Cluster Run Dumping...\n");
+              DumpDataII(pointData, filename, outdir, ToCreTime, ToModTime, ToAccTime, binLog, 1);
+          }
+
         }
 
       }
@@ -5784,21 +5841,31 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   {
 
 
-    // Check for further Fragments
-    attrlist = FindAttribute(file, AttributeAttributeList, 0);
-    if (attrlist != 0)
-    printf("Yes, there is fragmentation - After Getting the data!\n");
+    // Debug Code - Check for further Fragments
+    //attrlist = FindAttribute(file, AttributeAttributeList, 0);
+    //if (attrlist != 0)
+    //  printf("There is fragmentation - After Getting the data!\n");
 
 
 
-
+//LOH - Figure out how to determine the Size (especially for append 
+// (They are 0 - so keep track of Base record File Length minus what we write)
  
 
 
-    //Try to Force the size
+    //Try to get the file size
+    // If it is 0 - See if we are in Append and Get the number of bytes
+    //  Left in the File (leftSize)
     attrLen = AttributeLengthAllocated(attr);
-    if(attrLen < 1)
-     attrLen = 120848384;
+    if (attrLen > 0)
+    {
+      maxFileSize = attrLen;
+      leftFileSize = attrLen;
+    }
+    else
+    {
+      attrLen = leftFileSize;
+    }
 
 
 
@@ -5819,7 +5886,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
 
 
-
+    LCNType = 1; // Read Actual File Clusters into buf
     ReadAttribute(attr, buf);
 
 
@@ -5942,4 +6009,3 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   }
 
 }
-
