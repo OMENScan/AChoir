@@ -392,6 +392,8 @@ int  iXitCmd = 0;
 char XitCmd[4096];
 
 //Track Current File Information across Routines
+int fileIsFrag;
+ULONG totbytes;
 ULONG maxFileSize, leftFileSize;
 int LCNType = 0;  // 0 for Attributes, 1 for Files (used for tracking leftFileSize)
 
@@ -3692,9 +3694,9 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         }
         else
         {
-          printf("Inf: Can NOT Set Target File Owner(%s)\n", SidString);
+          printf("Wrn: Can NOT Set Target File Owner(%s)\n", SidString);
           if (binLog == 1)
-            fprintf(LogHndl, "Inf: Can NOT Set Target File Owner (%s)\n", SidString);
+            fprintf(LogHndl, "Wrn: Can NOT Set Target File Owner (%s)\n", SidString);
         }
 
         if (SecDesc)
@@ -3702,9 +3704,9 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
       }
       else
       {
-        printf("Inf: Could NOT Determine Source File Owner(Unknown)\n");
+        printf("Wrn: Could NOT Determine Source File Owner(Unknown)\n");
         if (binLog == 1)
-          fprintf(LogHndl, "Inf: Could NOT Determine Source File Owner (Unknown)\n");
+          fprintf(LogHndl, "Wrn: Could NOT Determine Source File Owner (Unknown)\n");
       }
 
 
@@ -4811,32 +4813,18 @@ BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn, PULONGL
   *lcn = 0;
   ULONGLONG base = attr->LowVcn;
 
-
-  printf("FindRun: Start - VCN: %llu - LowVCN: %llu - HighVCN: %llu\n", vcn, attr->LowVcn, attr->HighVcn);
-
-
+  //printf("FindRun: Start - VCN: %llu - LowVCN: %llu - HighVCN: %llu\n", vcn, attr->LowVcn, attr->HighVcn);
   if (vcn < attr->LowVcn || vcn > attr->HighVcn)
     return FALSE;
 
-
-
-
-  printf("FindRun: Step1\n");
-
-
-
-
-
+  //printf("FindRun: Step1\n");
   for (run = PUCHAR(Padd(attr, attr->RunArrayOffset)); *run != 0; run += RunLength(run))
   {
     *lcn += RunLCN(run);
     *count = RunCount(run);
     if (base <= vcn && vcn < base + *count)
     {
-
-      printf("FindRun: Step2\n");
-
-
+      //printf("FindRun: Step2\n");
       *lcn = RunLCN(run) == 0 ? 0 : *lcn + vcn - base;
       *count -= ULONG(vcn - base);
       return TRUE;
@@ -4844,18 +4832,11 @@ BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn, PULONGL
     else
       base += *count;
 
-
-
-    
-    
-    printf ("FindRun Step3 - Base: %llu\n", base);
-
-
-
-
-
+    //printf ("FindRun Step3 - Base: %llu\n", base);
   }
+
   return FALSE;
+
 }
 
 
@@ -4946,7 +4927,6 @@ VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG cou
   ULONGLONG lcn, runcount;
   ULONG readcount, left;
   PUCHAR bytes = PUCHAR(buffer);
-  ULONG totbytes;
 
   totbytes = 0;
   for (left = count; left > 0; left -= readcount)
@@ -4958,12 +4938,12 @@ VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG cou
     if (lcn == 0)
     {
       memset(bytes, 0, n);
-      wprintf(L"LCN: NONE\n");
+      //wprintf(L"LCN: NONE\n");
     }
     else
     {
       ReadLCN(lcn, readcount, bytes);
-      wprintf(L"LCN: 0X%.8X\n", lcn);
+      //wprintf(L"LCN: 0X%.8X\n", lcn);
     }
     vcn += readcount;
     bytes += n;
@@ -4971,24 +4951,13 @@ VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG cou
     totbytes += n;
   }
 
-
-
-
-
-  // LOH - Figure out the Total Bytes Read
+  // Determine the Total Bytes Read
   if(LCNType == 1)
   {
     leftFileSize -= totbytes;
-    printf("Total LCN Bytes Read: %ld\n", totbytes);
-    printf("Total LCN Bytes Left: %ld\n", leftFileSize);
+    //printf("Total LCN Bytes Read: %ld\n", totbytes);
+    //printf("Total LCN Bytes Left: %ld\n", leftFileSize);
   }
-
-
-
-
-
-
-
 }
 
 
@@ -5013,20 +4982,10 @@ VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
   PRESIDENT_ATTRIBUTE rattr = NULL;
   PNONRESIDENT_ATTRIBUTE nattr = NULL;
 
-
-  printf("Start Read Attribute\n");
-
-
-
+  //printf("Start Read Attribute\n");
   if (attr->Nonresident == FALSE)
   {
-
-
-
-    printf("Read Internal Attribute\n");
-
-
-
+    //printf("Read Internal Attribute\n");
     rattr = PRESIDENT_ATTRIBUTE(attr);
     memcpy(buffer, Padd(rattr, rattr->ValueOffset), rattr->ValueLength);
   }
@@ -5034,10 +4993,7 @@ VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
   {
     nattr = PNONRESIDENT_ATTRIBUTE(attr);
 
-
-    printf("Read External Attribute - VCN: %lu  Count:%lu\n", ULONG(nattr->LowVcn), ULONG(nattr->HighVcn) - ULONG(nattr->LowVcn) +1);
-
-
+    //printf("Read External Attribute - VCN: %lu  Count:%lu\n", ULONG(nattr->LowVcn), ULONG(nattr->HighVcn) - ULONG(nattr->LowVcn) +1);
     // This is the Bad Boy that caused me all the TROUBLES - 
     //   With Multiple 0x80 records this FAILS!!!  Change it to 
     //   READ THE ACTUAL LOWVCN - Not jsut set it zero!
@@ -5046,10 +5002,7 @@ VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
 
   }
 
-
-  printf("End Read Attribute\n");
-
-
+  //printf("End Read Attribute\n");
 
 }
 
@@ -5630,10 +5583,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   long iFileSize = 0;
 
   
-  
-  
-  
-  // Testing Vars
+    // Testing Vars
   PNONRESIDENT_ATTRIBUTE nonresattr = NULL;
   PATTRIBUTE_LIST attrdatax = NULL;
   USHORT MaxOffset;
@@ -5642,14 +5592,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   long pointData;
   ULONG attrLen;
   int gotData;
-
-
+  
+ 
   memset(Tooo_Fname, 0, 2048);
   snprintf(Tooo_Fname, 2040, "%s\\%s\0", outdir, filename);
-
-
-
-
+  
   if(Append == 1)
   {
     /****************************************************************/
@@ -5657,8 +5604,8 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     /*  multiple Attribute_List MFT Records                         */
     /****************************************************************/
     if (binLog == 1)
-      fprintf(LogHndl, "Inf: Appending Data (Multiple Cluster Runs).\n");
-      printf("Inf: Appending Data (Multiple Cluster Runs).\n");
+      fprintf(LogHndl, "\nInf: Appending Data (Multiple Cluster Runs).\n");
+      printf("\nInf: Appending Data (Multiple Cluster Runs).\n");
   }
   else
   {
@@ -5687,27 +5634,10 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     }
   }
 
-
-  
-
-  printf("Read\n");
-
-
-
-
+  //printf("Read\n");
   LCNType = 0;
   ReadFileRecord(index, file);
-
-
-
-
-
-  printf("Readed\n");
-
-
-
-
-
+  //printf("Readed\n");
 
 
   if (file->Ntfs.Type != 'ELIF')
@@ -5719,18 +5649,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   }
 
 
-
-
-
-
-  printf("ELIFed\n");
-
-
-
-
-
-
-
+  //printf("ELIFed\n");
   // Look for Attribute Data (0x80)
   attr = FindAttribute(file, AttributeData, 0);
   if (attr == 0)
@@ -5740,21 +5659,12 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     //if (attrlist != 0)
     // printf("\nCrud!  There is more than one Attribute List.\n");
 
-
-
-
-
-
-
     attrlist = FindAttribute(file, AttributeAttributeList, 0);
     if (attrlist != 0)
     {
+      fileIsFrag = 1;
       printf("Inf: File is Fragmented ...  Parsing the Attribute List...\n");
       fprintf(LogHndl,"Inf: File is Fragmented... Parsing the Attribute List...\n");
-
-
-
-
 
       // Testing to see if we can read the attribute list
       MaxOffset = AttributeLengthAllocated(attrlist);
@@ -5762,11 +5672,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       LCNType = 0; // Read Attribute Not File
       ReadAttribute(attrlist, buf);
 
-      for (iter = 0; iter < MaxOffset; iter++)
-      {
-        printf("%02hhX ", buf[iter]);
-      }
-
+      //Debug Code
+      //for (iter = 0; iter < MaxOffset; iter++)
+      //{
+      //  printf("%02hhX ", buf[iter]);
+      //}
 
       //Debug Code
       //if(attrlist->Nonresident == FALSE)
@@ -5774,13 +5684,9 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       //else
       //  printf("\nAttr List is NON-Resident, Sequence: %d\n", attrlist->AttributeNumber);
 
-
-
-
       attrdata = PATTRIBUTE_LIST(Padd(attrlist, PRESIDENT_ATTRIBUTE(attrlist)->ValueOffset));
-      printf("\nAttribute List Type: %04x - Length: %u - MFTID: %ld\n", attrdata->AttributeType, attrdata->Length, attrdata->FileReferenceNumber);
+      //printf("\nAttribute List Type: %04x - Length: %u - MFTID: %ld\n", attrdata->AttributeType, attrdata->Length, attrdata->FileReferenceNumber);
       LastOffset = attrdata->Length;
-
 
       gotData = 0;
       maxFileSize = 0;  // Set the Max File Size.
@@ -5790,43 +5696,35 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         attrdatax = attrdata ;
         attrdata = PATTRIBUTE_LIST(Padd(attrdatax, attrdatax->Length));
         LastOffset += attrdatax->Length;
-        printf("\nAttribute List Type: %04x - Length: %u - MFTID: %ld\n", attrdata->AttributeType, attrdata->Length, attrdata->FileReferenceNumber);
-
+        //printf("\nAttribute List Type: %04x - Length: %u - MFTID: %ld\n", attrdata->AttributeType, attrdata->Length, attrdata->FileReferenceNumber);
 
         // Go dump Data from Attribute Data Record (0x80)
         if (attrdata->AttributeType == AttributeData)
         {
           pointData = attrdata->FileReferenceNumber;
-          printf("Now Dumping the Segment: %ld\n", pointData);
+          //printf("Now Dumping the Segment: %ld\n", pointData);
 
           if(gotData == 0)
           {
-            printf("First Cluster Run Dumping...\n");
+            //printf("First Cluster Run Dumping...\n");
             DumpDataII(pointData, filename, outdir, ToCreTime, ToModTime, ToAccTime, binLog, 0);
             gotData = 1;
           }
           else
           {
-              printf("Next Cluster Run Dumping...\n");
+              //printf("Next Cluster Run Dumping...\n");
               DumpDataII(pointData, filename, outdir, ToCreTime, ToModTime, ToAccTime, binLog, 1);
+              //DumpDataII(pointData, filename, outdir, ToCreTime, ToModTime, ToAccTime, binLog, 0);
           }
 
         }
 
       }
 
-
+      fileIsFrag = 0;
       // End Test
 
-
       delete[] buf;
-
-
-
-
-
-
-
 
     }
     else
@@ -5846,13 +5744,6 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     //if (attrlist != 0)
     //  printf("There is fragmentation - After Getting the data!\n");
 
-
-
-//LOH - Figure out how to determine the Size (especially for append 
-// (They are 0 - so keep track of Base record File Length minus what we write)
- 
-
-
     //Try to get the file size
     // If it is 0 - See if we are in Append and Get the number of bytes
     //  Left in the File (leftSize)
@@ -5867,58 +5758,31 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       attrLen = leftFileSize;
     }
 
-
-
-
-
     PUCHAR buf = new UCHAR[attrLen];
 
-
-
-
-
-
-    printf("PreRead Attrib, Length: %ld\n", attrLen);
-
-
-
-
-
-
-
+    //printf("PreRead Attrib, Length: %ld\n", attrLen);
     LCNType = 1; // Read Actual File Clusters into buf
     ReadAttribute(attr, buf);
 
-
-
-
-
-
-
-
-
-
-
-    printf("PostReadAttrib\n");
-
-
-
-
-
-
-
-    iFileSize = attrLen;
+    //printf("PostReadAttrib\n");
+    //iFileSize = attrLen;
+    iFileSize = maxFileSize;
     printf("     (In)Size: %ld\n", iFileSize);
 
     if (binLog == 1)
       fprintf(LogHndl, "     (In)Size: %ld\n", iFileSize);
   
-    printf("Inf: (out)Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
+    printf("\nInf: Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
   
     if (binLog == 1)
-      fprintf(LogHndl, "Inf: (out)Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
-  
-    hFile = CreateFile((LPCSTR)Tooo_Fname, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+      fprintf(LogHndl, "\nInf: Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
+ 
+ 
+    if(Append == 1)
+      hFile = CreateFile((LPCSTR)Tooo_Fname, FILE_APPEND_DATA, 0, 0, OPEN_ALWAYS, 0, 0);
+    else
+      hFile = CreateFile((LPCSTR)Tooo_Fname, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+
     if (hFile == INVALID_HANDLE_VALUE)
     {
       if (binLog == 1)
@@ -5928,7 +5792,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       return 1;
     }
 
-    if (WriteFile(hFile, buf, attrLen, &n, 0) == 0)
+    // printf ("Writing File...  Bytes: %ld\n", totbytes);
+    //Writefile does not work properly using Attribute Length, so
+    // lets keep track of it ourselves.
+    //if (WriteFile(hFile, buf, attrLen, &n, 0) == 0)
+    if (WriteFile(hFile, buf, totbytes, &n, 0) == 0)
     {
       if (binLog == 1)
         fprintf(LogHndl, "Err: Error Writing File: %u\n", GetLastError());
@@ -5961,15 +5829,15 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       else
       {
         if (binLog == 1)
-          fprintf(LogHndl, "Err: Could NOT Set Target File Owner.\n");
-        printf("Err: Could NOT Set Target File Owner.\n");
+          fprintf(LogHndl, "Wrn: Could NOT Set Target File Owner.\n");
+        printf("Wrn: Could NOT Set Target File Owner.\n");
       }
     }
     else
     {
       if (binLog == 1)
-        fprintf(LogHndl, "Err: Could NOT Determine Source File Owner(Unknown)\n");
-      printf("Err: Could NOT Determine Source File Owner(Unknown)\n");
+        fprintf(LogHndl, "Wrn: Could NOT Determine Source File Owner(Unknown)\n");
+      printf("Wrn: Could NOT Determine Source File Owner(Unknown)\n");
     }
 
     delete[] buf;
@@ -5999,10 +5867,25 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
     if (iFileSize != Toostat.st_size)
     {
-      printf("\nWrn: File Size MisMatch\n");
-      if (binLog == 1)
-        fprintf(LogHndl, "\nWrn: File Size MisMatch\n");
+      if(fileIsFrag == 1)
+        printf("Inf: File Size Fragmentation - More Data to be Appended...\n");
+      else
+        printf("\nWrn: File Size MisMatch\n");
 
+      if (binLog == 1)
+      { 
+        if (fileIsFrag == 1)
+          fprintf(LogHndl, "Inf: File Size Fragmentation - More Data to be Appended...\n");
+        else
+          fprintf(LogHndl, "\nWrn: File Size MisMatch\n");
+      }
+    }
+    else
+    {
+      printf("\Inf: File Sizes Match\n");
+
+      if (binLog == 1)
+        fprintf(LogHndl, "Inf: File Sizes Match\n");
     }
 
     return 0;
