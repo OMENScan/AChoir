@@ -4162,7 +4162,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         printf("     (In)SID: %s\n", SidString);
         printf("     (In)Time: %llu - %llu - %llu\n", File_CreDate, File_AccDate, File_ModDate);
 
-        fprintf(LogHndl, "Inf: Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
+        fprintf(LogHndl, "\nInf: Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
         fprintf(LogHndl, "    %s\n", Full_Fname);
         fprintf(LogHndl, "     (In)SID: %s\n", SidString);
         fprintf(LogHndl, "     (In)Time: %llu - %llu - %llu\n", File_CreDate, File_AccDate, File_ModDate);
@@ -4832,7 +4832,7 @@ BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn, PULONGL
     else
       base += *count;
 
-    //printf ("FindRun Step3 - Base: %llu\n", base);
+    //printf ("FindRun End - Base: %llu\n", base);
   }
 
   return FALSE;
@@ -4993,10 +4993,10 @@ VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
   {
     nattr = PNONRESIDENT_ATTRIBUTE(attr);
 
-    //printf("Read External Attribute - VCN: %lu  Count:%lu\n", ULONG(nattr->LowVcn), ULONG(nattr->HighVcn) - ULONG(nattr->LowVcn) +1);
+    //printf("Read External Attribute - LowVCN: %lu - HighVCN: %lu -  Count:%lu\n", ULONG(nattr->LowVcn), ULONG(nattr->HighVcn), ULONG(nattr->HighVcn) - ULONG(nattr->LowVcn) +1);
     // This is the Bad Boy that caused me all the TROUBLES - 
     //   With Multiple 0x80 records this FAILS!!!  Change it to 
-    //   READ THE ACTUAL LOWVCN - Not jsut set it zero!
+    //   READ THE ACTUAL LOWVCN - Not just set it zero!
     //ReadExternalAttribute(nattr, 0, ULONG(nattr->HighVcn) + 1, buffer);
     ReadExternalAttribute(nattr, ULONG(nattr->LowVcn), ULONG(nattr->HighVcn) - ULONG(nattr->LowVcn) + 1, buffer);
 
@@ -5737,8 +5737,6 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   }
   else
   {
-
-
     // Debug Code - Check for further Fragments
     //attrlist = FindAttribute(file, AttributeAttributeList, 0);
     //if (attrlist != 0)
@@ -5760,13 +5758,16 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
     PUCHAR buf = new UCHAR[attrLen];
 
-    //printf("PreRead Attrib, Length: %ld\n", attrLen);
+    //printf("PreRead Attrib, Length: %lu\n", attrLen);
     LCNType = 1; // Read Actual File Clusters into buf
     ReadAttribute(attr, buf);
 
     //printf("PostReadAttrib\n");
     //iFileSize = attrLen;
+
     iFileSize = maxFileSize;
+
+    //printf("Attrlen: %ld - iFileSize: %ld\n", attrLen, iFileSize);
     printf("     (In)Size: %ld\n", iFileSize);
 
     if (binLog == 1)
@@ -5868,14 +5869,14 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     if (iFileSize != Toostat.st_size)
     {
       if(fileIsFrag == 1)
-        printf("Inf: File Size Fragmentation - More Data to be Appended...\n");
+        printf("\nInf: File Size Fragmentation - More Data to be Appended...\n");
       else
         printf("\nWrn: File Size MisMatch\n");
 
       if (binLog == 1)
       { 
         if (fileIsFrag == 1)
-          fprintf(LogHndl, "Inf: File Size Fragmentation - More Data to be Appended...\n");
+          fprintf(LogHndl, "\nInf: File Size Fragmentation - More Data to be Appended...\n");
         else
           fprintf(LogHndl, "\nWrn: File Size MisMatch\n");
       }
