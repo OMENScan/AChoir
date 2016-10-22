@@ -183,6 +183,7 @@ VOID ReadLCN(ULONGLONG lcn, ULONG count, PVOID buffer);
 VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG count, PVOID buffer);
 ULONG AttributeLength(PATTRIBUTE attr);
 ULONG AttributeLengthAllocated(PATTRIBUTE attr);
+ULONG AttributeLengthDataSize(PATTRIBUTE attr);
 VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer);
 VOID ReadVCN(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, ULONGLONG vcn, ULONG count, PVOID buffer);
 VOID ReadFileRecord(ULONG index, PFILE_RECORD_HEADER file);
@@ -393,8 +394,9 @@ char XitCmd[4096];
 
 //Track Current File Information across Routines
 int fileIsFrag;
-ULONG totbytes;
+ULONG totbytes, totdata;
 ULONG maxFileSize, leftFileSize;
+ULONG maxDataSize, leftDataSize;
 int LCNType = 0;  // 0 for Attributes, 1 for Files (used for tracking leftFileSize)
 
 
@@ -3474,7 +3476,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
 
   FILE* FrmHndl;
   FILE* TooHndl;
-  HANDLE HndlFrm;
+  //HANDLE HndlFrm;
   HANDLE HndlToo;
 
   DWORD dwRtnCode = 0;
@@ -3803,9 +3805,9 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 {
   //int iFileCount = 0;
 
-  char tmpTooFile[4096];
-  FILE* TooHndl;
-  HANDLE HndlToo;
+  //char tmpTooFile[4096];
+  //FILE* TooHndl;
+  //HANDLE HndlToo;
 
   CHAR drive[] = "\\\\.\\C:";
   ULONG n;
@@ -3831,7 +3833,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   BOOL pFlag = FALSE;
   char SidString[256];
 
-  HANDLE SecTokn;
+  //HANDLE SecTokn;
   int PrivSet = 0;
   int PrivOwn = 0;
   int PrivSec = 0;
@@ -4928,7 +4930,7 @@ VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG cou
   ULONG readcount, left;
   PUCHAR bytes = PUCHAR(buffer);
 
-  totbytes = 0;
+  totbytes = totdata = 0;
   for (left = count; left > 0; left -= readcount)
   {
     FindRun(attr, vcn, &lcn, &runcount);
@@ -4949,12 +4951,18 @@ VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG cou
     bytes += n;
 
     totbytes += n;
+    totdata += n;
   }
 
   // Determine the Total Bytes Read
   if(LCNType == 1)
   {
+    // Truncate the Memory Slack in the Cluster
+    if(totdata > leftDataSize)
+     totdata = leftDataSize;
+
     leftFileSize -= totbytes;
+    leftDataSize -= totdata;
     //printf("Total LCN Bytes Read: %ld\n", totbytes);
     //printf("Total LCN Bytes Left: %ld\n", leftFileSize);
   }
@@ -4974,6 +4982,14 @@ ULONG AttributeLengthAllocated(PATTRIBUTE attr)
   return attr->Nonresident == FALSE ?
     PRESIDENT_ATTRIBUTE(attr)->ValueLength :
     ULONG(PNONRESIDENT_ATTRIBUTE(attr)->AllocatedSize);
+}
+
+
+ULONG AttributeLengthDataSize(PATTRIBUTE attr)
+{
+  return attr->Nonresident == FALSE ?
+    PRESIDENT_ATTRIBUTE(attr)->ValueLength :
+    ULONG(PNONRESIDENT_ATTRIBUTE(attr)->DataSize);
 }
 
 
@@ -5110,7 +5126,7 @@ VOID FindActive()
   int File_RecNum, Dir_PrevNum, File_RecID;
   int MoreDirs, UseName;
 
-  ULONGLONG File_CreDate, File_AccDate, File_ModDate;
+  //ULONGLONG File_CreDate, File_AccDate, File_ModDate;
   char Text_CreDate[30] = "\0";
   char Text_AccDate[30] = "\0";
   char Text_ModDate[30] = "\0";
@@ -5581,16 +5597,16 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   int setOwner = 0;
   int iFileCount = 0;
   long iFileSize = 0;
+  long iDataSize = 0;
 
   
     // Testing Vars
   PNONRESIDENT_ATTRIBUTE nonresattr = NULL;
   PATTRIBUTE_LIST attrdatax = NULL;
-  USHORT MaxOffset;
-  USHORT LastOffset;
-  int iter ;
+  ULONG MaxOffset, MaxDataSize;
+  USHORT LastOffset, LastDataSize;
   long pointData;
-  ULONG attrLen;
+  ULONG attrLen, dataLen;
   int gotData;
   
  
@@ -5666,9 +5682,15 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       printf("Inf: File is Fragmented ...  Parsing the Attribute List...\n");
       fprintf(LogHndl,"Inf: File is Fragmented... Parsing the Attribute List...\n");
 
-      // Testing to see if we can read the attribute list
+      // Read the attribute list - Physical Size and Logical Size
+      //  We use Physical size to READ the clusters and Logical Size to WRITE the new file
+      MaxDataSize = AttributeLengthDataSize(attrlist);
       MaxOffset = AttributeLengthAllocated(attrlist);
-      PUCHAR buf = new UCHAR[AttributeLengthAllocated(attrlist)];
+      //printf("\n1.Physical Size: %lu  -  Logical Size: %lu\n", MaxOffset, MaxDataSize);
+      
+      PUCHAR buf = new UCHAR[MaxOffset];
+      //memset(buf, 0, MaxOffset);
+
       LCNType = 0; // Read Attribute Not File
       ReadAttribute(attrlist, buf);
 
@@ -5689,8 +5711,8 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       LastOffset = attrdata->Length;
 
       gotData = 0;
-      maxFileSize = 0;  // Set the Max File Size.
-      leftFileSize = 0; // Bytes Left in the File (Multiple Cluster Runs)
+      maxFileSize = maxDataSize = 0;  // Set the Max File Size.
+      leftFileSize = leftDataSize = 0; // Bytes Left in the File (Multiple Cluster Runs)
       while (MaxOffset > LastOffset)
       {
         attrdatax = attrdata ;
@@ -5745,18 +5767,25 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     //Try to get the file size
     // If it is 0 - See if we are in Append and Get the number of bytes
     //  Left in the File (leftSize)
+    dataLen = AttributeLengthDataSize(attr);
     attrLen = AttributeLengthAllocated(attr);
+    //printf("\n2. Physical Size: %lu  -  Logical Size: %lu\n", attrLen, dataLen);
+
     if (attrLen > 0)
     {
       maxFileSize = attrLen;
       leftFileSize = attrLen;
+      maxDataSize = dataLen;
+      leftDataSize = dataLen;
     }
     else
     {
       attrLen = leftFileSize;
+      dataLen = leftDataSize;
     }
 
     PUCHAR buf = new UCHAR[attrLen];
+    //memset(buf, 0, attrLen);
 
     //printf("PreRead Attrib, Length: %lu\n", attrLen);
     LCNType = 1; // Read Actual File Clusters into buf
@@ -5766,13 +5795,16 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     //iFileSize = attrLen;
 
     iFileSize = maxFileSize;
+    iDataSize = maxDataSize;
 
     //printf("Attrlen: %ld - iFileSize: %ld\n", attrLen, iFileSize);
-    printf("     (In)Size: %ld\n", iFileSize);
+    //printf("     (In)Size: %ld\n", iFileSize);
+    printf("     (In)Size: %ld\n", iDataSize);
 
     if (binLog == 1)
-      fprintf(LogHndl, "     (In)Size: %ld\n", iFileSize);
-  
+      //fprintf(LogHndl, "     (In)Size: %ld\n", iFileSize);
+      fprintf(LogHndl, "     (In)Size: %ld\n", iDataSize);
+
     printf("\nInf: Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
   
     if (binLog == 1)
@@ -5793,11 +5825,13 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       return 1;
     }
 
-    // printf ("Writing File...  Bytes: %ld\n", totbytes);
+    printf ("Writing File...  Physical Bytes: %ld -  Logical Bytes: %ld\n", totbytes, totdata);
+    //printf("Writing File...  Bytes: %ld - AttrLen was: %ld\n", totbytes, attrLen);
     //Writefile does not work properly using Attribute Length, so
     // lets keep track of it ourselves.
     //if (WriteFile(hFile, buf, attrLen, &n, 0) == 0)
-    if (WriteFile(hFile, buf, totbytes, &n, 0) == 0)
+    //if (WriteFile(hFile, buf, totbytes, &n, 0) == 0)
+    if (WriteFile(hFile, buf, totdata, &n, 0) == 0)
     {
       if (binLog == 1)
         fprintf(LogHndl, "Err: Error Writing File: %u\n", GetLastError());
@@ -5866,7 +5900,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         fprintf(LogHndl, "\nWrn: File TimeStamp MisMatch\n");
     }
 
-    if (iFileSize != Toostat.st_size)
+    if (iDataSize != Toostat.st_size)
     {
       if(fileIsFrag == 1)
         printf("\nInf: File Size Fragmentation - More Data to be Appended...\n");
@@ -5883,7 +5917,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     }
     else
     {
-      printf("\Inf: File Sizes Match\n");
+      printf("\nInf: File Sizes Match\n");
 
       if (binLog == 1)
         fprintf(LogHndl, "Inf: File Sizes Match\n");
