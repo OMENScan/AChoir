@@ -65,6 +65,8 @@
 /* AChoir v0.75 - Add NTFS Raw Copy (NCP:)                      */
 /*                NCP:<Wilcard File Search> <Destination Dir>   */
 /*              - Additional Recursion Error Checking           */
+/* AChoir v0.80 - NTFS Raw Reading now support Attribute List   */
+/*                (Multiple Cluster Runs/Fragmented Files)      */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -118,6 +120,7 @@
 
 // #pragma comment (lib, "offreg.lib")
 // #pragma comment(lib, "cmcfg32.lib")
+#pragma comment(lib, "Advapi32.lib")
 
 #include "accctrl.h"
 #include "aclapi.h"
@@ -127,7 +130,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.75\0";
+char Version[10] = "v0.80\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -147,7 +150,6 @@ char filename[FILENAME_MAX];
 int verboseflag = 0;
 int DebugFlag = 0;
 
-//void stripfilename(char *path);
 int ListDir(char *DirName, char *LisType);
 size_t Squish(char *SqString);
 long twoSplit(char *SpString);
@@ -180,6 +182,7 @@ VOID ReadLCN(ULONGLONG lcn, ULONG count, PVOID buffer);
 VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG count, PVOID buffer);
 ULONG AttributeLength(PATTRIBUTE attr);
 ULONG AttributeLengthAllocated(PATTRIBUTE attr);
+ULONG AttributeLengthDataSize(PATTRIBUTE attr);
 VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer);
 VOID ReadVCN(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, ULONGLONG vcn, ULONG count, PVOID buffer);
 VOID ReadFileRecord(ULONG index, PFILE_RECORD_HEADER file);
@@ -187,7 +190,7 @@ VOID LoadMFT();
 VOID UnloadMFT();
 VOID FindActive();
 int rawCopy(char *FrmFile, char *TooFile, int binLog);
-VOID DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime, int binLog);
+int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime, int binLog, int Append);
 
 
 
@@ -214,8 +217,6 @@ char MFTDBFile[1024] = "C:\\AChoir\\Cache\\C-MFT.db\0";
 sqlite3      *dbMFTHndl;
 sqlite3_stmt *dbMFTStmt;
 sqlite3_stmt *dbXMFTStmt;
-
-
 
 FILE* LogHndl;
 FILE* CpyHndl;
@@ -287,10 +288,6 @@ char OldDate[30] = "\0";
 struct tm *Old_CTime;
 struct tm *Old_MTime;
 struct tm *Old_ATime;
-
-//unsigned long LCurrTime;
-//char CDate[15] = "01/01/0001\0";
-//char CTime[15] = "01:01:00\0";
 
 char MD5In1[256] = "\0";
 char MD5In2[256] = "\0";
@@ -388,6 +385,14 @@ int  getKey;
 int  iXitCmd = 0;
 char XitCmd[4096];
 
+//Track Current File Information across Routines
+int fileIsFrag;
+ULONG totbytes, totdata;
+ULONG maxFileSize, leftFileSize;
+ULONG maxDataSize, leftDataSize;
+int LCNType = 0;  // 0 for Attributes, 1 for Files (used for tracking leftFileSize)
+
+
 // Template for padding
 template <class T1, class T2> inline T1* Padd(T1* p, T2 n)
 {
@@ -414,7 +419,6 @@ int main(int argc, char *argv[])
   BOOL bResults = FALSE;
   HINTERNET hSession = NULL, hConnect = NULL, hRequest = NULL;
     
-  //LCurrTime = time(NULL);
   char *ForSlash;
   char *RootSlash;
 
@@ -1602,14 +1606,6 @@ int main(int argc, char *argv[])
             }
               
 
-            // Debug Code - Get number of Keys and Values 
-            // if (ORQueryInfoKey(ORhKey, NULL, NULL, &nSubkeys, NULL, NULL, &nValues, NULL, NULL, NULL, NULL) == ERROR_SUCCESS)
-            //   printf("Keys and Values: %ld/%ld\n", nSubkeys, nValues);
-            // else
-            //   printf("COULD NOT Query Registry Keys and Values");
-            // End Debug Code
-
-
             /****************************************************************/
             /* Run Registry Scan Twice - First Time Native,                 */
             /*              2nd Time Check Wow6432Node Keys                 */
@@ -2493,7 +2489,6 @@ int main(int argc, char *argv[])
                 MultiByteToWideChar(0, 0, iWGetFIL+1, 2000, w_WGetFIL, 1000);
                 
                 hConnect = WinHttpConnect(hSession, lpWGetURL, INTERNET_DEFAULT_HTTP_PORT, 0);
-                //hConnect = WinHttpConnect(hSession, lpWGetURL, INTERNET_DEFAULT_HTTPS_PORT, 0);
 
                 if (hConnect)
                 {
@@ -2967,8 +2962,6 @@ int FileMD5(char *MD5FileName)
   for (di = 0; di < 16; ++di)
     sprintf(MD5Out + (di * 2), "%02x", digest[di]);
 
-  // printf("\nFile: %s, MD5:%s\n", MD5FileName, MD5Out) ;
-
   fclose(MD5Hndl);
   return 1;
 }
@@ -2982,9 +2975,6 @@ int MemAllocErr(char *ErrType)
 {
   fprintf(LogHndl, "Err: Error Allocating Enough Memory For: %s\n\n", ErrType);
   printf("Err: Error Allocating Enough Memory For: %s\n\n", ErrType);
-
-  // if(LogStart == 1)
-  //  fprintf(OutHndl, "\nERROR-35: Error Allocating Enough Memory For: %s\n", ErrType) ;
 
   exit(3);
   return 2;
@@ -3464,7 +3454,6 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
 
   FILE* FrmHndl;
   FILE* TooHndl;
-  HANDLE HndlFrm;
   HANDLE HndlToo;
 
   DWORD dwRtnCode = 0;
@@ -3474,7 +3463,6 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   BOOL pFlag = FALSE;
   char SidString[256];
   
-  //FILETIME ftCreate, ftAccess, ftWrite;
   /****************************************************************/
   /* Make Sure the File is Not There - Don't Overwrite!           */
   /****************************************************************/
@@ -3538,22 +3526,6 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
 
 
     /****************************************************************/
-    /* The code below has been removed because it is flaky          */
-    /*                                                              */
-    /* This would normally be the best way to get source file       */
-    /*  timestamps but since many artifacts are still open, it      */
-    /*  fails.  I have opted to use stat() which is more reliable,  */
-    /*  and write a FILETIME struct conversion routine.             */
-    /****************************************************************/
-    //FrmHndl = CreateFile(FrmFile, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    //if(FrmHndl == INVALID_HANDLE_VALUE)
-    // printf("Could not Read Old File Dates: %d\n", GetLastError()) ;
-    //else {
-    //GetFileTime(FrmHndl, &ftCreate, &ftAccess, &ftWrite);
-    //CloseHandle(FrmHndl) ; }
-
-
-    /****************************************************************/
     /* Copy File Code                                               */
     /****************************************************************/
     FrmHndl = fopen(FrmFile, "rb");
@@ -3603,7 +3575,6 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
       HndlToo = CreateFile(tmpTooFile, FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
         OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
-      //SetFileTime(TooHndl, &ftCreate, &ftAccess, &ftWrite);
       SetFileTime(HndlToo, &ToCTime, &ToATime, &ToMTime);
       CloseHandle(HndlToo);
       
@@ -3684,9 +3655,9 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         }
         else
         {
-          printf("Inf: Can NOT Set Target File Owner(%s)\n", SidString);
+          printf("Wrn: Can NOT Set Target File Owner(%s)\n", SidString);
           if (binLog == 1)
-            fprintf(LogHndl, "Inf: Can NOT Set Target File Owner (%s)\n", SidString);
+            fprintf(LogHndl, "Wrn: Can NOT Set Target File Owner (%s)\n", SidString);
         }
 
         if (SecDesc)
@@ -3694,9 +3665,9 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
       }
       else
       {
-        printf("Inf: Could NOT Determine Source File Owner(Unknown)\n");
+        printf("Wrn: Could NOT Determine Source File Owner(Unknown)\n");
         if (binLog == 1)
-          fprintf(LogHndl, "Inf: Could NOT Determine Source File Owner (Unknown)\n");
+          fprintf(LogHndl, "Wrn: Could NOT Determine Source File Owner (Unknown)\n");
       }
 
 
@@ -3791,12 +3762,6 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
 /****************************************************************/
 int rawCopy(char *FrmFile, char *TooFile, int binLog)
 {
-  //int iFileCount = 0;
-
-  char tmpTooFile[4096];
-  FILE* TooHndl;
-  HANDLE HndlToo;
-
   CHAR drive[] = "\\\\.\\C:";
   ULONG n;
 
@@ -3821,13 +3786,13 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   BOOL pFlag = FALSE;
   char SidString[256];
 
-  HANDLE SecTokn;
   int PrivSet = 0;
   int PrivOwn = 0;
   int PrivSec = 0;
   int PrivBac = 0;
   int PrivRes = 0;
 
+  int DDRetcd = 0;
 
   // Get The Drive Letter
   drive[4] = FrmFile[0];
@@ -3886,7 +3851,6 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
     fprintf(LogHndl, "Could Not Open MFT Working Database: %s\n", MFTDBFile);
     return 1;
   }
-
 
 
   // Make SQLite DB access as fast as possible
@@ -4095,19 +4059,12 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         //Prefer SI - Only use FN if we have to
         if (strnicmp(Text_FileTyp, "FN", 2) == 0)
         {
-          //File_CreDate = atoll(Text_FNCreDate);
-          //File_AccDate = atoll(Text_FNAccDate);
-          //File_ModDate = atoll(Text_FNModDate);
           File_CreDate = strtoull(Text_FNCreDate, &pointEnd, 10);
           File_AccDate = strtoull(Text_FNAccDate, &pointEnd, 10);
           File_ModDate = strtoull(Text_FNModDate, &pointEnd, 10);
-
         }
         else
         {
-          //File_CreDate = atoll(Text_SICreDate);
-          //File_AccDate = atoll(Text_SIAccDate);
-          //File_ModDate = atoll(Text_SIModDate);
           File_CreDate = strtoull(Text_SICreDate, &pointEnd, 10);
           File_AccDate = strtoull(Text_SIAccDate, &pointEnd, 10);
           File_ModDate = strtoull(Text_SIModDate, &pointEnd, 10);
@@ -4151,43 +4108,47 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         printf("     (In)SID: %s\n", SidString);
         printf("     (In)Time: %llu - %llu - %llu\n", File_CreDate, File_AccDate, File_ModDate);
 
-        fprintf(LogHndl, "Inf: Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
+        fprintf(LogHndl, "\nInf: Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
         fprintf(LogHndl, "    %s\n", Full_Fname);
         fprintf(LogHndl, "     (In)SID: %s\n", SidString);
         fprintf(LogHndl, "     (In)Time: %llu - %llu - %llu\n", File_CreDate, File_AccDate, File_ModDate);
 
 
-        DumpDataII(Full_MFTID, Full_Fname + i + 1, TooFile, File_Create, File_Modify, File_Access, 1);
+		// Return 0 if the File Copy Worked - 1 if it didnt
+        maxFileSize = leftFileSize = 0;
+        DDRetcd = DumpDataII(Full_MFTID, Full_Fname + i + 1, TooFile, File_Create, File_Modify, File_Access, 1, 0);
 
-
-        // If we got SI and FN, Check for possible TimeStomping
-        printf("     Time Type: %s", Text_FileTyp);
-        fprintf(LogHndl, "     Time Type: %s", Text_FileTyp);
-
-        if (strnicmp(Text_FileTyp, "SI", 2) == 0)
-        {
-          if (strnicmp(Text_FNCreDate, Text_SICreDate, 25) != 0 ||
-              strnicmp(Text_FNAccDate, Text_SIAccDate, 25) != 0 ||
-              strnicmp(Text_FNAccDate, Text_SIAccDate, 25) != 0)
-          {
-            printf("     Status: FN/SI Not Matched\n");
-            fprintf(LogHndl, "     Status: FN/SI Not Matched\n");
-          }
-          else
-          {
-            printf("     Status: FN/SI Matched\n");
-            fprintf(LogHndl, "     Status: FN/SI Matched\n");
-          }
-        }
-        else
-        {
-          printf("     Status: FN Only\n");
-          fprintf(LogHndl, "     Status: FN Only\n");
-        }
         
+		if (DDRetcd == 0)
+		{
+		  // If we got SI and FN, Check for possible TimeStomping
+		  printf("     Time Type: %s", Text_FileTyp);
+		  fprintf(LogHndl, "     Time Type: %s", Text_FileTyp);
 
-        if (SecDesc)
-          free(SecDesc);
+		  if (strnicmp(Text_FileTyp, "SI", 2) == 0)
+		  {
+		    if (strnicmp(Text_FNCreDate, Text_SICreDate, 25) != 0 ||
+				strnicmp(Text_FNAccDate, Text_SIAccDate, 25) != 0 ||
+				strnicmp(Text_FNAccDate, Text_SIAccDate, 25) != 0)
+			{
+			  printf("     Status: FN/SI Not Matched\n");
+			  fprintf(LogHndl, "     Status: FN/SI Not Matched\n");
+			}
+			else
+			{
+			  printf("     Status: FN/SI Matched\n");
+			  fprintf(LogHndl, "     Status: FN/SI Matched\n");
+			}
+		  }
+		  else
+		  {
+			printf("     Status: FN Only\n");
+			fprintf(LogHndl, "     Status: FN Only\n");
+		  }
+          
+          if (SecDesc)
+		    free(SecDesc);
+		}
 
       }
 
@@ -4233,7 +4194,6 @@ void Time_tToFileTime(time_t InTimeT, int whichTime)
 
   unsigned short wYear;
   unsigned short wMonth;
-  //unsigned short wDayOfWeek;
   unsigned short wDay;
   unsigned short wHour;
   unsigned short wMinute;
@@ -4257,17 +4217,6 @@ void Time_tToFileTime(time_t InTimeT, int whichTime)
   /* Was it DST?                                                  */
   /****************************************************************/
   wIsDST = convgtm->tm_isdst;
-
-
-  /****************************************************************/
-  /* This was during DST - Subtract an hour and reconvert         */
-  /*  Code Removed: 01/18/2016                                    */
-  /****************************************************************/
-  //if (wIsDST == 0)
-  //{
-  //  InTimeT = InTimeT - 3600;
-  //  convgtm = gmtime(&InTimeT);
-  //}
 
 
   /****************************************************************/
@@ -4368,7 +4317,6 @@ long mapsDrive(char *mapString, int mapLog)
     netRes.dwType = RESOURCETYPE_DISK;
     netRes.lpRemoteName = Conrec;
 
-    // netRC = WNetUseConnection(NULL, &netRes, NULL, NULL, Flags, szConnection, &ConnectSize, &ConnectResult);
     netRC = WNetUseConnection(NULL, &netRes, inPass, inUser, Flags, szConnection, &ConnectSize, &ConnectResult);
 
     if (netRC != NO_ERROR)
@@ -4703,10 +4651,7 @@ BOOL SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, BOOL bEnablePrivilege)
   LUID luid;
 
   if (!LookupPrivilegeValue(NULL, lpszPrivilege, &luid))
-  {
-    // printf("Err: LookupPrivilegeValue error: %u\n", GetLastError());
-    return FALSE;
-  }
+   return FALSE;
 
   ToknPriv.PrivilegeCount = 1;
   ToknPriv.Privileges[0].Luid = luid;
@@ -4717,16 +4662,10 @@ BOOL SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, BOOL bEnablePrivilege)
 
   // Enable the privilege or disable all privileges.
   if (!AdjustTokenPrivileges(hToken, FALSE, &ToknPriv, sizeof(TOKEN_PRIVILEGES), (PTOKEN_PRIVILEGES)NULL, (PDWORD)NULL))
-  {
-    // printf("Err: AdjustTokenPrivileges error: %u\n", GetLastError());
-    return FALSE;
-  }
+   return FALSE;
 
   if (GetLastError() == ERROR_NOT_ALL_ASSIGNED)
-  {
-    // printf("Inf: Could Not Set Special Privilege: %s\n", lpszPrivilege);
-    return FALSE;
-  }
+   return FALSE;
 
   return TRUE;
 }
@@ -4814,7 +4753,9 @@ BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn, PULONGL
     else
       base += *count;
   }
+
   return FALSE;
+
 }
 
 
@@ -4906,6 +4847,7 @@ VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG cou
   ULONG readcount, left;
   PUCHAR bytes = PUCHAR(buffer);
 
+  totbytes = totdata = 0;
   for (left = count; left > 0; left -= readcount)
   {
     FindRun(attr, vcn, &lcn, &runcount);
@@ -4913,12 +4855,26 @@ VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG cou
     ULONG n = readcount * bootb.BytesPerSector * bootb.SectorsPerCluster;
 
     if (lcn == 0)
-      memset(bytes, 0, n);
+     memset(bytes, 0, n);
     else
       ReadLCN(lcn, readcount, bytes);
 
     vcn += readcount;
     bytes += n;
+
+    totbytes += n;
+    totdata += n;
+  }
+
+  // Determine the Total Bytes Read
+  if(LCNType == 1)
+  {
+    // Truncate the Memory Slack in the Cluster
+    if(totdata > leftDataSize)
+     totdata = leftDataSize;
+
+    leftFileSize -= totbytes;
+    leftDataSize -= totdata;
   }
 }
 
@@ -4939,6 +4895,14 @@ ULONG AttributeLengthAllocated(PATTRIBUTE attr)
 }
 
 
+ULONG AttributeLengthDataSize(PATTRIBUTE attr)
+{
+  return attr->Nonresident == FALSE ?
+    PRESIDENT_ATTRIBUTE(attr)->ValueLength :
+    ULONG(PNONRESIDENT_ATTRIBUTE(attr)->DataSize);
+}
+
+
 VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
 {
   PRESIDENT_ATTRIBUTE rattr = NULL;
@@ -4952,7 +4916,8 @@ VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
   else
   {
     nattr = PNONRESIDENT_ATTRIBUTE(attr);
-    ReadExternalAttribute(nattr, 0, ULONG(nattr->HighVcn) + 1, buffer);
+    ReadExternalAttribute(nattr, ULONG(nattr->LowVcn), ULONG(nattr->HighVcn) - ULONG(nattr->LowVcn) + 1, buffer);
+
   }
 }
 
@@ -5007,8 +4972,22 @@ VOID LoadMFT()
   ReadSector((bootb.MftStartLcn)*(bootb.SectorsPerCluster), (BytesPerFileRecord) / (bootb.BytesPerSector), MFT);
 
   if (readRetcd == 0)
+  {
+    printf("Err: Cannot Access NTFS Volume...  Bypassing...\n");
+    fprintf(LogHndl, "Err: Cannot Access NTFS Volume...  Bypassing...\n");
+    
     return; // Don't do anything else - We cant Acccess this Volume!
+  }
+  
+  if (MFT->Ntfs.Type != 'ELIF')
+  {
+    printf("Err: Not An NTFS Volume...  Bypassing...\n");
+    fprintf(LogHndl, "Err: Not An NTFS Volume...  Bypassing...\n");
 
+    readRetcd = 0;
+    return;
+  }
+  
   FixupUpdateSequenceArray(MFT);
 }
 
@@ -5046,7 +5025,7 @@ VOID FindActive()
   int File_RecNum, Dir_PrevNum, File_RecID;
   int MoreDirs, UseName;
 
-  ULONGLONG File_CreDate, File_AccDate, File_ModDate;
+  //ULONGLONG File_CreDate, File_AccDate, File_ModDate;
   char Text_CreDate[30] = "\0";
   char Text_AccDate[30] = "\0";
   char Text_ModDate[30] = "\0";
@@ -5055,7 +5034,7 @@ VOID FindActive()
   char *iLastChar2;
   char Str_Numbers[40] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\0\0\0";
 
-
+  LCNType = 0; // Read Attribute Not File
   ReadAttribute(attr, bitmap);
 
   ULONG n = AttributeLength(FindAttribute(MFT, AttributeData, 0)) / BytesPerFileRecord;
@@ -5077,6 +5056,7 @@ VOID FindActive()
     if (!bitset(bitmap, i))
       continue;
 
+    LCNType = 0 ;
     ReadFileRecord(i, file);
 
     if (file->Ntfs.Type == 'ELIF' && (file->Flags == 1 || file->Flags == 3))
@@ -5500,8 +5480,11 @@ VOID FindActive()
 }
 
 
-VOID DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime, int binLog)
+int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime, int binLog, int Append)
 {
+  PATTRIBUTE attrlist = NULL;
+  PATTRIBUTE_LIST attrdata = NULL;
+
   PATTRIBUTE attr = NULL;
   HANDLE hFile = NULL;
   PFILE_RECORD_HEADER file = PFILE_RECORD_HEADER(new UCHAR[BytesPerFileRecord]);
@@ -5513,141 +5496,276 @@ VOID DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, F
   int setOwner = 0;
   int iFileCount = 0;
   long iFileSize = 0;
+  long iDataSize = 0;
 
-  /****************************************************************/
-  /* Make Sure the File is Not There - Don't Overwrite!           */
-  /****************************************************************/
+  PNONRESIDENT_ATTRIBUTE nonresattr = NULL;
+  PATTRIBUTE_LIST attrdatax = NULL;
+  ULONG MaxOffset, MaxDataSize;
+  USHORT LastOffset, LastDataSize;
+  long pointData;
+  ULONG attrLen, dataLen;
+  int gotData;
+ 
+ 
   memset(Tooo_Fname, 0, 2048);
   snprintf(Tooo_Fname, 2040, "%s\\%s\0", outdir, filename);
   
-  iFileCount = 0;
-
-  if (access(Tooo_Fname, 0) == 0)
+  if(Append == 1)
   {
-    do
-    {
-      iFileCount++;
-
-      memset(Tooo_Fname, 0, 2048);
-      snprintf(Tooo_Fname, 2040, "%s\\%s\\%s(%d)\0", BACQDir, ACQDir, filename, iFileCount);
-    } while (access(Tooo_Fname, 0) == 0);
-  }
-
-  if (iFileCount > 0)
-  {
+    /****************************************************************/
+    /* We are in Append Mode - Multiple Cluster Runs were found in  */
+    /*  multiple Attribute_List MFT Records                         */
+    /****************************************************************/
     if (binLog == 1)
-      fprintf(LogHndl, "Inf: Destination File Already Exists. \n     Renamed To: %s\n", Tooo_Fname);
+      fprintf(LogHndl, "\nInf: Appending Data (Multiple Cluster Runs).\n");
+      printf("\nInf: Appending Data (Multiple Cluster Runs).\n");
+  }
+  else
+  {
+    /****************************************************************/
+    /* Single or First Cluster Run:                                 */
+    /*  Make Sure the File is Not There - Don't Overwrite!          */
+    /****************************************************************/
+    iFileCount = 0;
 
-    printf("Inf: Destination File Already Exists. \n     Renamed To: %s\n", Tooo_Fname);
+    if (access(Tooo_Fname, 0) == 0)
+    {
+      do
+      {
+        iFileCount++;
+
+        memset(Tooo_Fname, 0, 2048);
+        snprintf(Tooo_Fname, 2040, "%s\\%s\\%s(%d)\0", BACQDir, ACQDir, filename, iFileCount);
+      } while (access(Tooo_Fname, 0) == 0);
+    }
+
+    if (iFileCount > 0)
+    {
+      if (binLog == 1)
+        fprintf(LogHndl, "Inf: Destination File Already Exists. \n     Renamed To: %s\n", Tooo_Fname);
+      printf("Inf: Destination File Already Exists. \n     Renamed To: %s\n", Tooo_Fname);
+    }
   }
 
+  LCNType = 0;
   ReadFileRecord(index, file);
 
   if (file->Ntfs.Type != 'ELIF')
-    return;
+  {
+    printf("Err: Not a Valid MFT Record...  Bypassing...\n");
+    fprintf(LogHndl, "Err: Not a Valid MFT Record...  Bypassing...\n");
 
+    return 1;
+  }
+
+
+  // Look for Attribute Data (0x80)
   attr = FindAttribute(file, AttributeData, 0);
   if (attr == 0)
-    return;
-
-  PUCHAR buf = new UCHAR[AttributeLengthAllocated(attr)];
-
-  ReadAttribute(attr, buf);
-
-  iFileSize = AttributeLength(attr);
-  printf("     (In)Size: %ld\n", iFileSize);
-  if (binLog == 1)
-    fprintf(LogHndl, "     (In)Size: %ld\n", iFileSize);
-
-
-  printf("Inf: (out)Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
-  if (binLog == 1)
-    fprintf(LogHndl, "Inf: (out)Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
-  
-  hFile = CreateFile((LPCSTR)Tooo_Fname, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
-  if (hFile == INVALID_HANDLE_VALUE)
   {
-    if (binLog == 1)
-      fprintf(LogHndl, "Err: Error Creating File: %u\n", GetLastError());
+    attrlist = FindAttribute(file, AttributeAttributeList, 0);
+    if (attrlist != 0)
+    {
+      fileIsFrag = 1;
+      printf("Inf: File is Fragmented ...  Parsing the Attribute List...\n");
+      fprintf(LogHndl,"Inf: File is Fragmented... Parsing the Attribute List...\n");
 
-    printf("Err: Error Creating File: %u\n", GetLastError());
-    return;
+      // Read the attribute list - Physical Size and Logical Size
+      //  We use Physical size to READ the clusters and Logical Size to WRITE the new file
+      MaxDataSize = AttributeLengthDataSize(attrlist);
+      MaxOffset = AttributeLengthAllocated(attrlist);
+      
+      PUCHAR buf = new UCHAR[MaxOffset];
+
+      LCNType = 0; // Read Attribute Not File
+      ReadAttribute(attrlist, buf);
+
+      attrdata = PATTRIBUTE_LIST(Padd(attrlist, PRESIDENT_ATTRIBUTE(attrlist)->ValueOffset));
+      LastOffset = attrdata->Length;
+
+      gotData = 0;
+      maxFileSize = maxDataSize = 0;  // Set the Max File Size.
+      leftFileSize = leftDataSize = 0; // Bytes Left in the File (Multiple Cluster Runs)
+      while (MaxOffset > LastOffset)
+      {
+        attrdatax = attrdata ;
+        attrdata = PATTRIBUTE_LIST(Padd(attrdatax, attrdatax->Length));
+        LastOffset += attrdatax->Length;
+
+        // Go dump Data from Attribute Data Record (0x80)
+        if (attrdata->AttributeType == AttributeData)
+        {
+          pointData = attrdata->FileReferenceNumber;
+
+          if(gotData == 0)
+          {
+            DumpDataII(pointData, filename, outdir, ToCreTime, ToModTime, ToAccTime, binLog, 0);
+            gotData = 1;
+          }
+          else
+          {
+              DumpDataII(pointData, filename, outdir, ToCreTime, ToModTime, ToAccTime, binLog, 1);
+          }
+        }
+      }
+
+      fileIsFrag = 0;
+
+      delete[] buf;
+    }
+    else
+    {
+      printf("Err: No MFT File Attribute Data Found...  Bypassing...\n");
+      fprintf(LogHndl, "Err: No MFT File Attribute Data Found...  Bypassing...\n");
+    }
+    
+    return 1;
   }
-
-  if (WriteFile(hFile, buf, AttributeLength(attr), &n, 0) == 0)
+  else
   {
+    //Try to get the file size
+    // If it is 0 - See if we are in Append and Get the number of bytes
+    //  Left in the File (leftSize)
+    dataLen = AttributeLengthDataSize(attr);
+    attrLen = AttributeLengthAllocated(attr);
+    if (attrLen > 0)
+    {
+      maxFileSize = attrLen;
+      leftFileSize = attrLen;
+      maxDataSize = dataLen;
+      leftDataSize = dataLen;
+    }
+    else
+    {
+      attrLen = leftFileSize;
+      dataLen = leftDataSize;
+    }
+
+    PUCHAR buf = new UCHAR[attrLen];
+
+    LCNType = 1; // Read Actual File Clusters into buf
+    ReadAttribute(attr, buf);
+
+    iFileSize = maxFileSize;
+    iDataSize = maxDataSize;
+
+    printf("     (In)Size: %ld\n", iDataSize);
+
     if (binLog == 1)
-      fprintf(LogHndl, "Err: Error Writing File: %u\n", GetLastError());
-    printf("Err: Error Writing File: %u\n", GetLastError());
-    return;
-  }
+      fprintf(LogHndl, "     (In)Size: %ld\n", iDataSize);
+
+    printf("\nInf: Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
   
-  //Set the File Times
-  SetFileTime(hFile, &ToCreTime, &ToAccTime, &ToModTime);
+    if (binLog == 1)
+      fprintf(LogHndl, "\nInf: Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
+ 
+ 
+    if(Append == 1)
+      hFile = CreateFile((LPCSTR)Tooo_Fname, FILE_APPEND_DATA, 0, 0, OPEN_ALWAYS, 0, 0);
+    else
+      hFile = CreateFile((LPCSTR)Tooo_Fname, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
 
-  //Read it back out to Verify
-  GetFileTime(hFile, &ftCreate, &ftAccess, &ftWrite);
-
-  CloseHandle(hFile);
-
-  /****************************************************************/
-  /* Set the SID (Owner) of the new file same as the old file     */
-  /****************************************************************/
-  if (gotOwner == 1)
-  {
-    setOwner = SetFileSecurity(Tooo_Fname, OWNER_SECURITY_INFORMATION, SecDesc);
-
-    if (setOwner)
+    if (hFile == INVALID_HANDLE_VALUE)
     {
       if (binLog == 1)
-        fprintf(LogHndl, "     (out)File Owner was Set Succesfully.\n");
-      printf("     (out)File Owner was Set Succesfully.\n");
+        fprintf(LogHndl, "Err: Error Creating File: %u\n", GetLastError());
+
+      printf("Err: Error Creating File: %u\n", GetLastError());
+      return 1;
+    }
+
+    if (WriteFile(hFile, buf, totdata, &n, 0) == 0)
+    {
+      if (binLog == 1)
+        fprintf(LogHndl, "Err: Error Writing File: %u\n", GetLastError());
+
+      printf("Err: Error Writing File: %u\n", GetLastError());
+      return 1;
+    }
+  
+    //Set the File Times
+    SetFileTime(hFile, &ToCreTime, &ToAccTime, &ToModTime);
+
+    //Read it back out to Verify
+    GetFileTime(hFile, &ftCreate, &ftAccess, &ftWrite);
+
+    CloseHandle(hFile);
+
+    /****************************************************************/
+    /* Set the SID (Owner) of the new file same as the old file     */
+    /****************************************************************/
+    if (gotOwner == 1)
+    {
+      setOwner = SetFileSecurity(Tooo_Fname, OWNER_SECURITY_INFORMATION, SecDesc);
+
+      if (setOwner)
+      {
+        if (binLog == 1)
+          fprintf(LogHndl, "     (out)File Owner was Set Succesfully.\n");
+        printf("     (out)File Owner was Set Succesfully.\n");
+      }
+      else
+      {
+        if (binLog == 1)
+          fprintf(LogHndl, "Wrn: Could NOT Set Target File Owner.\n");
+        printf("Wrn: Could NOT Set Target File Owner.\n");
+      }
     }
     else
     {
       if (binLog == 1)
-        fprintf(LogHndl, "Err: Could NOT Set Target File Owner.\n");
-      printf("Err: Could NOT Set Target File Owner.\n");
+        fprintf(LogHndl, "Wrn: Could NOT Determine Source File Owner(Unknown)\n");
+      printf("Wrn: Could NOT Determine Source File Owner(Unknown)\n");
     }
-  }
-  else
-  {
+
+    delete[] buf;
+
+
+    /****************************************************************/
+    /* MD5 The Files                                                */
+    /****************************************************************/
+    stat(Tooo_Fname, &Toostat);
+    FileMD5(Tooo_Fname);
     if (binLog == 1)
-      fprintf(LogHndl, "Err: Could NOT Determine Source File Owner(Unknown)\n");
-    printf("Err: Could NOT Determine Source File Owner(Unknown)\n");
+    {
+      fprintf(LogHndl, "     (out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
+      fprintf(LogHndl, "     (out)Size: %ld\n", Toostat.st_size);
+      fprintf(LogHndl, "     (out)File MD5: %s\n", MD5Out);
+    }
+    printf("     (out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
+    printf("     (out)Size: %ld\n", Toostat.st_size);
+    printf("     (out)File MD5: %s\n", MD5Out);
+
+    if ((CompareFileTime(&ToCreTime, &ftCreate) != 0) || (CompareFileTime(&ToAccTime, &ftAccess) != 0) || (CompareFileTime(&ToModTime, &ftWrite) != 0))
+    {
+      printf("\nWrn: File TimeStamp MisMatch\n");
+      if (binLog == 1)
+        fprintf(LogHndl, "\nWrn: File TimeStamp MisMatch\n");
+    }
+
+    if (iDataSize != Toostat.st_size)
+    {
+      if(fileIsFrag == 1)
+        printf("\nInf: File Size Fragmentation - More Data to be Appended...\n");
+      else
+        printf("\nWrn: File Size MisMatch\n");
+
+      if (binLog == 1)
+      { 
+        if (fileIsFrag == 1)
+          fprintf(LogHndl, "\nInf: File Size Fragmentation - More Data to be Appended...\n");
+        else
+          fprintf(LogHndl, "\nWrn: File Size MisMatch\n");
+      }
+    }
+    else
+    {
+      printf("\nInf: File Sizes Match\n");
+
+      if (binLog == 1)
+        fprintf(LogHndl, "Inf: File Sizes Match\n");
+    }
+
+    return 0;
   }
-  delete[] buf;
-
-
-  /****************************************************************/
-  /* MD5 The Files                                                */
-  /****************************************************************/
-  stat(Tooo_Fname, &Toostat);
-  FileMD5(Tooo_Fname);
-  if (binLog == 1)
-  {
-    fprintf(LogHndl, "     (out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
-    fprintf(LogHndl, "     (out)Size: %ld\n", Toostat.st_size);
-    fprintf(LogHndl, "     (out)File MD5: %s\n", MD5Out);
-  }
-  printf("     (out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
-  printf("     (out)Size: %ld\n", Toostat.st_size);
-  printf("     (out)File MD5: %s\n", MD5Out);
-
-  if ((CompareFileTime(&ToCreTime, &ftCreate) != 0) || (CompareFileTime(&ToAccTime, &ftAccess) != 0) || (CompareFileTime(&ToModTime, &ftWrite) != 0))
-  {
-    printf("\nWrn: File TimeStamp MisMatch\n");
-    if (binLog == 1)
-      fprintf(LogHndl, "\nWrn: File TimeStamp MisMatch\n");
-  }
-
-  if (iFileSize != Toostat.st_size)
-  {
-    printf("\nWrn: File Size MisMatch\n");
-    if (binLog == 1)
-      fprintf(LogHndl, "\nWrn: File Size MisMatch\n");
-
-  }
-
 }
-
