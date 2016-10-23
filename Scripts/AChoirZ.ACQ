@@ -64,6 +64,14 @@ SAY: 4c. Gathering Group Policy Information...
 SAY:
 CMD:GPResult /R /Z > &Acq\GPResult.txt
 SAY:
+SAY: 5. Raw Copy Registry Hives...
+SAY:
+ACQ:\Reg
+NCP:"&Win\System32\Config\SECURITY" "&Acq"
+NCP:"&Win\System32\Config\SOFTWARE" "&Acq"
+NCP:"&Win\System32\Config\SAM" "&Acq"
+NCP:"&Win\System32\Config\SYSTEM" "&Acq"
+SAY:
 SAY: 5a. Saving Registry Hives...
 SAY:
 ACQ:\Reg
