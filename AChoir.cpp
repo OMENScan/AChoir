@@ -67,6 +67,7 @@
 /*              - Additional Recursion Error Checking           */
 /* AChoir v0.80 - NTFS Raw Reading now support Attribute List   */
 /*                (Multiple Cluster Runs/Fragmented Files)      */
+/* AChoir v0.81 - More NTFS Raw Read honing                     */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -130,7 +131,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.80\0";
+char Version[10] = "v0.81\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -5495,13 +5496,14 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   CHAR Tooo_Fname[2048] = "\0";
   int setOwner = 0;
   int iFileCount = 0;
-  long iFileSize = 0;
+  //long iFileSize = 0;
   long iDataSize = 0;
 
   PNONRESIDENT_ATTRIBUTE nonresattr = NULL;
   PATTRIBUTE_LIST attrdatax = NULL;
   ULONG MaxOffset, MaxDataSize;
-  USHORT LastOffset, LastDataSize;
+  USHORT LastOffset;
+  //USHORT LastDataSize;
   long pointData;
   ULONG attrLen, dataLen;
   int gotData;
@@ -5595,7 +5597,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         // Go dump Data from Attribute Data Record (0x80)
         if (attrdata->AttributeType == AttributeData)
         {
-          pointData = attrdata->FileReferenceNumber;
+          pointData = (LONG)attrdata->FileReferenceNumber;
 
           if(gotData == 0)
           {
@@ -5646,8 +5648,12 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     LCNType = 1; // Read Actual File Clusters into buf
     ReadAttribute(attr, buf);
 
-    iFileSize = maxFileSize;
+    //iFileSize = maxFileSize;
     iDataSize = maxDataSize;
+
+    //In cases where the file is Resident use maxDataSize
+    if((LONG)totdata > maxDataSize)
+     totdata = maxDataSize;
 
     printf("     (In)Size: %ld\n", iDataSize);
 
