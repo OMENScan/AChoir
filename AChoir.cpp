@@ -68,6 +68,7 @@
 /* AChoir v0.80 - NTFS Raw Reading now support Attribute List   */
 /*                (Multiple Cluster Runs/Fragmented Files)      */
 /* AChoir v0.81 - More NTFS Raw Read honing                     */
+/* AChoir v0.82 - Add MAX: - Max File Size (& Mem Usage)        */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -79,7 +80,8 @@
 /****************************************************************/
 /* IMPORTANT NOTE : I could not have implemented the NTFS       */
 /* Raw Copy function without the Excellent NTFS tutorial at:    */
-/* http ://www.installsetupconfig.com/win32programming/windowsvolumeapis1index.html */
+/* http ://www.installsetupconfig.com/win32programming/         */
+/*         windowsvolumeapis1index.html                         */
 /*                                                              */
 /* Much of the code in the Achoir NTFS Raw Copy function is     */
 /* directly from this tutorial.And I want to publicly thank     */
@@ -131,7 +133,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.81\0";
+char Version[10] = "v0.82\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -205,7 +207,7 @@ char Str_Temp[1024] = "\0";
 CHAR driveLetter[] = "C\0\0\0\0";
 int gotOwner = 0;
 PSECURITY_DESCRIPTOR SecDesc = NULL;
-
+ULONG maxMemBytes = 999999999; //Max Memory Alloc = 1Gb
 
 
 // Global Variables For SQLite Databases
@@ -392,7 +394,7 @@ ULONG totbytes, totdata;
 ULONG maxFileSize, leftFileSize;
 ULONG maxDataSize, leftDataSize;
 int LCNType = 0;  // 0 for Attributes, 1 for Files (used for tracking leftFileSize)
-
+int iDepth = 0;   // Sanity Check for Recursion Loops
 
 // Template for padding
 template <class T1, class T2> inline T1* Padd(T1* p, T2 n)
@@ -425,6 +427,8 @@ int main(int argc, char *argv[])
 
   char cName[MAX_COMPUTERNAME_LENGTH + 1];
   DWORD len = 55;
+
+  char * pointEnd;
 
   time(&timeval);
   lclTime = localtime(&timeval);
@@ -2206,6 +2210,20 @@ int main(int argc, char *argv[])
 
             memset(inPass, 0, 255);
             strncpy(inPass, Inrec + 4, 254);
+          }
+          else
+          if (strnicmp(Inrec, "MAX:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Set Max File/Memory Size                                     */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            maxMemBytes = strtoul(Inrec+4, &pointEnd, 10);
+
+            fprintf(LogHndl, "Inf: Max Memory/File Bytes Set: %lu\n", maxMemBytes);
+            printf("Inf: Max Memory/File Bytes Set: %lu\n", maxMemBytes);
           }
           else
           if (strnicmp(Inrec, "MAP:", 4) == 0)
@@ -4115,10 +4133,12 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         fprintf(LogHndl, "     (In)Time: %llu - %llu - %llu\n", File_CreDate, File_AccDate, File_ModDate);
 
 
-		// Return 0 if the File Copy Worked - 1 if it didnt
-        maxFileSize = leftFileSize = 0;
-        DDRetcd = DumpDataII(Full_MFTID, Full_Fname + i + 1, TooFile, File_Create, File_Modify, File_Access, 1, 0);
+		// Set initial Variables - Maximum File Size, Btyes Left and Recursion Depth
+        maxFileSize = leftFileSize = iDepth = 0 ;
 
+        // Return 0 if the File Copy Worked - 1 if it didnt
+        DDRetcd = DumpDataII(Full_MFTID, Full_Fname + i + 1, TooFile, File_Create, File_Modify, File_Access, 1, 0);
+        iDepth--;    //We Returned 
         
 		if (DDRetcd == 0)
 		{
@@ -4837,6 +4857,7 @@ VOID ReadSector(ULONGLONG sector, ULONG count, PVOID buffer)
 
 VOID ReadLCN(ULONGLONG lcn, ULONG count, PVOID buffer)
 {
+  //wprintf(L"\nReadLCN() - Reading the LCN, LCN: 0X%.8X\n", lcn);
   ReadSector(lcn * bootb.SectorsPerCluster, count * bootb.SectorsPerCluster, buffer);
 }
 
@@ -4858,7 +4879,10 @@ VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG cou
     if (lcn == 0)
      memset(bytes, 0, n);
     else
+    {
       ReadLCN(lcn, readcount, bytes);
+      //wprintf(L"LCN: 0X%.8X\n", lcn);
+    }
 
     vcn += readcount;
     bytes += n;
@@ -4961,8 +4985,8 @@ VOID ReadFileRecord(ULONG index, PFILE_RECORD_HEADER file)
 
 VOID LoadMFT()
 {
-  printf("Inf: Locating the MFT for Raw Disk Access...\n");
-  fprintf(LogHndl, "Inf: Locating the MFT for Raw Disk Access...\n");
+  printf("\nInf: Locating the MFT for Raw Disk Access...\n");
+  fprintf(LogHndl, "\nInf: Locating the MFT for Raw Disk Access...\n");
 
   BytesPerFileRecord = bootb.ClustersPerFileRecord < 0x80
     ? bootb.ClustersPerFileRecord* bootb.SectorsPerCluster
@@ -5041,7 +5065,7 @@ VOID FindActive()
   ULONG n = AttributeLength(FindAttribute(MFT, AttributeData, 0)) / BytesPerFileRecord;
   ProgUnit = n / 50;
   
-  printf("Parsing Active Files from MFT...\nooooooooooooooooooooooooooooooooooooooooooooooooo\r");
+  printf("Parsing Active Files from MFT...\nooooooooooo+oooooooooooo|oooooooooooo+ooooooooooo\r");
 
   PFILE_RECORD_HEADER file = PFILE_RECORD_HEADER(new UCHAR[BytesPerFileRecord]);
   Progress = Max_Files = 0;
@@ -5242,7 +5266,7 @@ VOID FindActive()
 
   Progress = 0;
   ProgUnit = Max_Files / 50;
-  wprintf(L"\nBuilding Full Path Searchable Index...\nooooooooooooooooooooooooooooooooooooooooooooooooo\r");
+  wprintf(L"\nBuilding Full Path Searchable Index...\nooooooooooo+oooooooooooo|oooooooooooo+ooooooooooo\r");
 
 
   /************************************************************/
@@ -5508,7 +5532,19 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   ULONG attrLen, dataLen;
   int gotData;
  
- 
+
+  iDepth++;
+  //Sanity Check - We should not have Attribute List Within a Data Record
+  if(iDepth > 2)
+  {
+    if (binLog == 1)
+      fprintf(LogHndl, "Inf: Recursion Too Deep - Ignoring Additional Recursion...\n");
+
+    printf("Inf: Recursion Too Deep - Ignoring Additional Recursion...\n");
+
+    return 0; //The Data should still be OK
+  }
+
   memset(Tooo_Fname, 0, 2048);
   snprintf(Tooo_Fname, 2040, "%s\\%s\0", outdir, filename);
   
@@ -5569,18 +5605,18 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     if (attrlist != 0)
     {
       fileIsFrag = 1;
-      printf("Inf: File is Fragmented ...  Parsing the Attribute List...\n");
-      fprintf(LogHndl,"Inf: File is Fragmented... Parsing the Attribute List...\n");
+      printf("\nInf: File is Fragmented ...  Parsing the Attribute List...\n");
+      fprintf(LogHndl,"\nInf: File is Fragmented... Parsing the Attribute List...\n");
 
       // Read the attribute list - Physical Size and Logical Size
       //  We use Physical size to READ the clusters and Logical Size to WRITE the new file
       MaxDataSize = AttributeLengthDataSize(attrlist);
       MaxOffset = AttributeLengthAllocated(attrlist);
       
-      PUCHAR buf = new UCHAR[MaxOffset];
+      PUCHAR bufA = new UCHAR[MaxOffset];
 
       LCNType = 0; // Read Attribute Not File
-      ReadAttribute(attrlist, buf);
+      ReadAttribute(attrlist, bufA);
 
       attrdata = PATTRIBUTE_LIST(Padd(attrlist, PRESIDENT_ATTRIBUTE(attrlist)->ValueOffset));
       LastOffset = attrdata->Length;
@@ -5602,18 +5638,21 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
           if(gotData == 0)
           {
             DumpDataII(pointData, filename, outdir, ToCreTime, ToModTime, ToAccTime, binLog, 0);
+            iDepth--;    //We Returned 
+
             gotData = 1;
           }
           else
           {
-              DumpDataII(pointData, filename, outdir, ToCreTime, ToModTime, ToAccTime, binLog, 1);
+            DumpDataII(pointData, filename, outdir, ToCreTime, ToModTime, ToAccTime, binLog, 1);
+            iDepth--;    //We Returned 
           }
         }
       }
 
       fileIsFrag = 0;
 
-      delete[] buf;
+      delete[] bufA;
     }
     else
     {
@@ -5643,16 +5682,50 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       dataLen = leftDataSize;
     }
 
-    PUCHAR buf = new UCHAR[attrLen];
+
+    //Debug
+    //printf("Buffer Size = %lu\n", attrLen);
+    //printf("Data Size = %lu\n", dataLen);
+    //getchar();
+
+    //This is the Blow Up-Ski
+    // Changing to unique Buffer bufD - To avoid conflict with attr BufA
+    // Limiting File Size to 1TB - Until I can refactor this code
+    if (attrLen > maxMemBytes)
+    {
+      printf("     (In)Size: %lu\n", attrLen);
+      printf("Err: File Exceeds Max Allowed Size...  Bypassing...\n");
+
+      if (binLog == 1)
+      {
+        fprintf(LogHndl, "     (In)Size: %lu\n", attrLen);
+        fprintf(LogHndl, "Err: File Exceeds Max Allowed Size...  Bypassing...\n");
+      }
+
+      return 1;
+
+    }
+    
+    PUCHAR bufD = new UCHAR[attrLen];
+    
+    //Debug
+    //printf("Buffer Created: %lu.\n", attrLen);
+    //getchar();
+
 
     LCNType = 1; // Read Actual File Clusters into buf
-    ReadAttribute(attr, buf);
+    ReadAttribute(attr, bufD);
+
+
+    //Debug
+    //printf("Attribute Was Read.\n");
+
 
     //iFileSize = maxFileSize;
     iDataSize = maxDataSize;
 
     //In cases where the file is Resident use maxDataSize
-    if((LONG)totdata > maxDataSize)
+    if(totdata > maxDataSize)
      totdata = maxDataSize;
 
     printf("     (In)Size: %ld\n", iDataSize);
@@ -5680,7 +5753,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       return 1;
     }
 
-    if (WriteFile(hFile, buf, totdata, &n, 0) == 0)
+    if (WriteFile(hFile, bufD, totdata, &n, 0) == 0)
     {
       if (binLog == 1)
         fprintf(LogHndl, "Err: Error Writing File: %u\n", GetLastError());
@@ -5724,7 +5797,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       printf("Wrn: Could NOT Determine Source File Owner(Unknown)\n");
     }
 
-    delete[] buf;
+    delete[] bufD;
 
 
     /****************************************************************/

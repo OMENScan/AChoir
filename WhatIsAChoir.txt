@@ -1,4 +1,4 @@
-AChoir - Beta v0.75
+AChoir - Beta v0.82
 
 AChoir
 ======
@@ -208,6 +208,9 @@ JMP:<LabelName>
          Jump to a defined Label (LBL:<LabelName>)
 XIT:<Exit Command> 
          Run Command or Program on Exit
+MAX:nnnnnnnnn 
+         Maximum File Size (And Memory Allocation) For NTFS Raw Copy
+         - Default is 999999999 (1GB)
 
 
 Objects:
