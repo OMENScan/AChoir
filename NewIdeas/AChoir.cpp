@@ -198,7 +198,6 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog);
 int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime, int binLog, int Append);
 
 
-
 // Global Variables For Raw NTFS Access
 ULONG BytesPerFileRecord;
 HANDLE hVolume;
@@ -208,6 +207,7 @@ int readRetcd = 1; // Global read Return Code - When something goes real bad.
 char Str_Temp[1024] = "\0";
 CHAR driveLetter[] = "C\0\0\0\0";
 CHAR rootDrive[] = "C:\\\0\0\0";
+
 int gotOwner = 0;
 PSECURITY_DESCRIPTOR SecDesc = NULL;
 ULONG maxMemBytes = 999999999; //Max Memory Alloc = 1Gb
@@ -482,6 +482,7 @@ int main(int argc, char *argv[])
   /* What Directory are we in?                                    */
   /****************************************************************/
   getcwd(BaseDir, 1000);
+
 
   /****************************************************************/
   /* Remove any Trailing Slashes.  This happens if CWD is a       */
@@ -1793,7 +1794,7 @@ int main(int argc, char *argv[])
             fprintf(LogHndl, "\nArn: Parsing Live Registry AutoRun Keys\n");
             printf("\nArn: Parsing Live Registry AutoRun Keys\n");
 
-            
+
             /****************************************************************/
             /* If 32B - Run Registry Scan Twice - First Time Native,        */
             /*          2nd Time Disable Wow6432Node to get the Keys        */
@@ -1890,9 +1891,7 @@ int main(int argc, char *argv[])
                     /****************************************************************/
                     varConvert(iPtr1);
 
-                    //Debug
-                    //printf("32: %s\n", o32VarRec);
-                    //printf("64: %s\n", o64VarRec);
+
                     /****************************************************************/
                     /* See if it is on an NTFS Volume                               */
                     /****************************************************************/
@@ -1905,7 +1904,7 @@ int main(int argc, char *argv[])
                       if (GetVolumeInformation(rootDrive, volumeName, ARRAYSIZE(volumeName), &serialNumber,
                         &maxComponentLen, &fileSystemFlags, fileSystemName, ARRAYSIZE(fileSystemName)))
                       {
-                        if(strnicmp(fileSystemName, "NTFS", 4) == 0)
+                        if (strnicmp(fileSystemName, "NTFS", 4) == 0)
                           isNTFS = 1;
                       }
                     }
@@ -1913,10 +1912,10 @@ int main(int argc, char *argv[])
 
                     if (access(o32VarRec, 0) == 0)
                     {
-                      fprintf(LogHndl, "\nArn: %s\n     %s\n", lpValueName, (LPTSTR) lpData);
-                      printf("\nArn: %s\n     %s\n", lpValueName, (LPTSTR) lpData);
+                      fprintf(LogHndl, "\nArn: %s\n     %s\n", lpValueName, (LPTSTR)lpData);
+                      printf("\nArn: %s\n     %s\n", lpValueName, (LPTSTR)lpData);
 
-                      if(isNTFS == 1)
+                      if (isNTFS == 1)
                       {
                         sprintf(Cpyrec, "%s\\%s\0", BACQDir, ACQDir);
 
@@ -1933,8 +1932,8 @@ int main(int argc, char *argv[])
                     }
                     else
                     {
-                      fprintf(LogHndl, "\nArn: Not Found - %s\n     %s\n", lpValueName, (LPTSTR) lpData);
-                      printf("\nArn: Not Found - %s\n     %s\n", lpValueName, (LPTSTR) lpData);
+                      fprintf(LogHndl, "\nArn: Not Found - %s\n     %s\n", lpValueName, (LPTSTR)lpData);
+                      printf("\nArn: Not Found - %s\n     %s\n", lpValueName, (LPTSTR)lpData);
                     }
 
 
@@ -1945,8 +1944,8 @@ int main(int argc, char *argv[])
                     {
                       if (access(o64VarRec, 0) == 0)
                       {
-                        fprintf(LogHndl, "\nArn: (64bit)%s\n     %s\n", lpValueName, (LPTSTR) lpData);
-                        printf("\nArn: (64bit)%s\n     %s\n", lpValueName, (LPTSTR) lpData);
+                        fprintf(LogHndl, "\nArn: (64bit)%s\n     %s\n", lpValueName, (LPTSTR)lpData);
+                        printf("\nArn: (64bit)%s\n     %s\n", lpValueName, (LPTSTR)lpData);
 
                         if (isNTFS == 1)
                         {
@@ -2647,7 +2646,6 @@ int main(int argc, char *argv[])
             }
 
           }
-      
           
           /****************************************************************/
           /* End Of Script Processing Code                                */
@@ -3002,7 +3000,6 @@ md5_finish(md5_state_t *pms, md5_byte_t digest[16])
 
 
 
-
 /**********************************************************/
 /* Make an MD5 Hash from a file                           */
 /**********************************************************/
@@ -3125,6 +3122,7 @@ long varConvert(char *inVarRec)
     {
       inProgress = 0;
       convVar = getenv(envVarName);
+
 
       /****************************************************************/
       /* Check for 32bit and 64bit differences                        */
@@ -3934,16 +3932,14 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA journal_mode=MEMORY", NULL, NULL, &errmsg);
   dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA temp_store=MEMORY", NULL, NULL, &errmsg);
 
-  dbrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
+  dbMrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
 
 
   if (SQL_MFT == 1)
   {
     SpinLock = 0;
 
-    //dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (MFTRecID INTEGER PRIMARY KEY, FullFileName)\0");
     dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, FullFileName)\0");
-    
     while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
     {
       if (dbMrc == SQLITE_BUSY)
@@ -3974,9 +3970,8 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 
 
     SpinLock = 0;
-    //dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, FileName, FileDateTyp, FNCreDate, FNAccDate, FNModDate, SICreDate, SIAccDate, SIModDate)\0");
     dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, FileName, FileDateTyp, FNCreDate, FNAccDate, FNModDate, SICreDate, SIAccDate, SIModDate)\0");
-    
+
     while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
     {
       if (dbMrc == SQLITE_BUSY)
@@ -4006,9 +4001,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
     sqlite3_free(dbMQuery);
 
 
-    //dbMQuery = sqlite3_mprintf("CREATE TABLE MFTDirs (MFTRecID INTEGER PRIMARY KEY, MFTPrvID INTEGER, DirsName)\0");
     dbMQuery = sqlite3_mprintf("CREATE TABLE MFTDirs (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, DirsName)\0");
-
     while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
     {
       if (dbMrc == SQLITE_BUSY)
@@ -4051,7 +4044,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   /************************************************************/
   /* Search for the File using SQLite                         */
   /************************************************************/
-  dbMQuery = sqlite3_mprintf("Select DISTINCT * FROM FileNames AS T1, MFTFiles AS T2 WHERE T1.FullFileName LIKE '%q' AND T1.MFTRecID=T2.MFTRecID\0", FrmFile);
+  dbMQuery = sqlite3_mprintf("Select * FROM FileNames AS T1, MFTFiles AS T2 WHERE T1.FullFileName LIKE '%q' AND T1.MFTRecID=T2.MFTRecID\0", FrmFile);
 
   dbMrc = sqlite3_prepare(dbMFTHndl, dbMQuery, -1, &dbMFTStmt, 0);
   if (dbMrc == SQLITE_OK)
@@ -4879,14 +4872,11 @@ PATTRIBUTE FindAttributeX(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR n
       }
       else
         FoundAttr++;
-
-      //Sanity Check
-      if(FoundAttr > attrNum)
-       return 0;
     }
   }
   return 0;
 }
+
 
 
 VOID FixupUpdateSequenceArray(PFILE_RECORD_HEADER file)
@@ -5110,19 +5100,18 @@ VOID FindActive()
   char Ftmp_Fname[2048] = "\0";
   char Str_Temp1[15] = "\0";
   char Str_Temp2[15] = "\0";
-  int Str_Len, Str_Len1, Str_Len2, Max_Files;
+  int Str_Len, Max_Files;
   int Progress, ProgUnit;
   int File_RecNum, Dir_PrevNum, File_RecID;
-  int MoreDirs, UseName;
+  int MoreDirs;
   int iLinkCount, iLink;
+
 
   //ULONGLONG File_CreDate, File_AccDate, File_ModDate;
   char Text_CreDate[30] = "\0";
   char Text_AccDate[30] = "\0";
   char Text_ModDate[30] = "\0";
   char Text_DateTyp[5] = "\0";
-  char *iLastChar1;
-  char *iLastChar2;
   char Str_Numbers[40] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\0\0\0";
 
   LCNType = 0; // Read Attribute Not File
@@ -5131,7 +5120,7 @@ VOID FindActive()
   ULONG n = AttributeLength(FindAttribute(MFT, AttributeData, 0)) / BytesPerFileRecord;
   ProgUnit = n / 50;
   
-  printf("\nMFT: Parsing Active Files from MFT...\n     ooooooooooo+oooooooooooo|oooooooooooo+ooooooooooo\r     ");
+  printf("MFT: Parsing Active Files from MFT...\n     ooooooooooo+oooooooooooo|oooooooooooo+ooooooooooo\r     ");
 
   PFILE_RECORD_HEADER file = PFILE_RECORD_HEADER(new UCHAR[BytesPerFileRecord]);
   Progress = Max_Files = 0;
@@ -5141,11 +5130,6 @@ VOID FindActive()
     if (Progress > ProgUnit)
     {
       printf(".");
-      
-      // Force SQLite to Update the DB, then go back into Transaction Mode
-      dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
-      dbrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
-
       Progress = 0;
     }
 
@@ -5157,28 +5141,32 @@ VOID FindActive()
 
     if (file->Ntfs.Type == 'ELIF' && (file->Flags == 1 || file->Flags == 3))
     {
-      // Loop Through the FN entries in case we have Short File Names or Hard Links
+      // See How Many Links we have - Make sure we have at least two (Short & Long FN)
       iLinkCount = file->LinkCount;
+      if(iLinkCount < 1)
+       iLinkCount = 1 ;
 
-      for (iLink = 0; iLink < iLinkCount; iLink++)
+      // Bump Through Attributes and Add them to the SQLite Table
+      for(iLink=0; iLink <= iLinkCount; iLink++)
       {
-        // find FN Attribute in File Record
+        // Get 0x30 (FN) Attribute
         attr = FindAttributeX(file, AttributeFileName, 0, iLink);
         if (attr == 0)
           continue;
 
 
-        //Check for POSIX(0) or Long(1) File Name Flag. Ignore Short File Names
+        // Fell Through, So we got one.  Ee Said Ee already Got One!
         name = PFILENAME_ATTRIBUTE(Padd(attr, PRESIDENT_ATTRIBUTE(attr)->ValueOffset));
 
-        if (name->NameType == 2)
-         continue; // No Short File Names - DontWanem
 
-        //Fell Through - Let's use it!
+        // Type 0=POSIX, Type 1=Long FN, Type 2=Short FN (Ignore type 2)
+        if (name->NameType == 2)
+          continue;
+
         Str_Len = int(name->NameLength);
         wcstombs(Str_Temp, name->Name, Str_Len);
         Str_Temp[Str_Len] = '\0'; // Null Terminate the String... Sigh...
-
+      
 
         // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
         attr3 = FindAttribute(file, AttributeStandardInformation, 0);
@@ -5211,7 +5199,6 @@ VOID FindActive()
           dbMQuery = sqlite3_mprintf("INSERT INTO MFTDirs (MFTRecID, MFTPrvID, DirsName) VALUES ('%ld', '%ld', '%q')\0", i, int(name->DirectoryFileReferenceNumber), Str_Temp);
         }
 
-
         SpinLock = 0;
         while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
         {
@@ -5223,36 +5210,32 @@ VOID FindActive()
           else
           if (dbMrc == SQLITE_ERROR)
           {
-            printf("MFTError: Error Adding Entry to MFTDirs Table\n%s\n", errmsg);
+            printf("MFTError: Error Adding Entry to MFT SQLite Table\n%s\n", errmsg);
             MFT_Status = 2;
             break;
           }
           else
             Sleep(100); // In windows.h
 
-          /*****************************************************************/
-          /* Check if we are stuck in a loop.                              */
-          /*****************************************************************/
+         /*****************************************************************/
+         /* Check if we are stuck in a loop.                              */
+         /*****************************************************************/
           SpinLock++;
 
           if (SpinLock > 25)
             break;
         }
+
+        sqlite3_free(dbMQuery);
       }
 
-      sqlite3_free(dbMQuery);
-
     }
+
   }
 
 
-  // Commit Before we build the Searchable Index
-  dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
-  dbrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
-
-
-  // Create Directory Indexes for faster search
-  printf("\n     Building MFT Directory Index...\r");
+  // Create a Dirname Index for faster search
+  printf("\n     Building SQLite MFT Directory Index...\r");
   dbXQuery = sqlite3_mprintf("CREATE INDEX MFTDirs_IDX ON MFTDirs(MFTRecID ASC)\0");
 
   SpinLock = 0;
@@ -5262,11 +5245,11 @@ VOID FindActive()
       Sleep(100); // In windows.h
     else
     if (dbXrc == SQLITE_LOCKED)
-      Sleep(100); // In windows.h
+     Sleep(100); // In windows.h
     else
     if (dbXrc == SQLITE_ERROR)
     {
-      printf("MFTError: Error Building MFT Directory Index\n%s\n", errmsg);
+      printf("MFTError: Error Building Directory Index\n%s\n", errmsg);
       MFT_Status = 2;
       break;
     }
@@ -5286,13 +5269,14 @@ VOID FindActive()
 
 
   // Commit Before we build the Searchable Index
-  // Begin - To speed up performance
   dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
-  dbrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
+
+  // Begin - To speed up performance
+  dbMrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
 
   Progress = 0;
   ProgUnit = Max_Files / 50;
-  wprintf(L"\r     Building Full Path Searchable Index...\n     ooooooooooo+oooooooooooo|oooooooooooo+ooooooooooo\r     ");
+  wprintf(L"     Building Full Path Searchable Index...\n     ooooooooooo+oooooooooooo|oooooooooooo+ooooooooooo\r     ");
 
 
   /************************************************************/
@@ -5473,10 +5457,6 @@ VOID FindActive()
       if (Progress > ProgUnit)
       {
         printf(".");
-        // Force SQLite to Update the DB, then go back into Transaction Mode
-        dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
-        dbrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
-
         Progress = 0;
       }
     }
@@ -5497,7 +5477,6 @@ VOID FindActive()
   
   // Commit The FileNames Table
   dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
-
 
   // Create a Filename Index for faster search
   printf("\n     Building SQLite Full Path FileName Index...\n");
