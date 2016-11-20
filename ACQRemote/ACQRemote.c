@@ -1,5 +1,6 @@
 /****************************************************************/
 /* ACQRemote - Parse JSON and fire off remote AChoir - v0.01    */
+/* v0.02     - JSON Config Options                              */
 /****************************************************************/
 #include <stdlib.h>
 #include <stdio.h>
@@ -41,9 +42,9 @@ int  NXTPoint = 0    ;
 /*  SMTP Variables                                              */
 /****************************************************************/
 int  SendSMTP = 0;
-char LogMailer[256]  = "C:\\IISLogScan\\IISLogMail.exe\0" ;
-char SMTPFrom[256]   = "Omenscan@Gmail.com\0" ;
-char SMTPTo[256]     = "Omenscan@Gmail.com\0" ;
+char AcqMailer[256]  = "C:\\Web\\Acq\\Prog\\ACQMail.exe\0" ;
+char SMTPFrom[256]   = "Nobody@Nowhere\0" ;
+char SMTPTo[256]     = "Nobody@Nowhere\0" ;
 
 
 /****************************************************************/
@@ -103,6 +104,14 @@ char ACQBordrClr[50] = "#000000\0"  ;
 char ACQLightClr[50] = "#CCFFFF\0"  ;
 char ACQDarkClr[50]  = "#CCFFFF\0"  ;
 char ACQAdminMail[256] = "nobody@nowhere\0" ;
+
+
+/****************************************************************/
+/*  Triage Script/Program                                       */
+/****************************************************************/
+char AcqTriage[256]  = "C:\\Web\\Acq\\Prog\\ACQTriage.bat\0" ;
+char FulTriage[2048]  = "C:\\Web\\Acq\\Prog\\ACQTriage.bat Parms\0" ;
+
 
 char CDate[15] = "01/01/0001\0" ;
 char CTime[15] = "01:01:00\0"   ;
@@ -205,8 +214,14 @@ int main(int argc, char *argv[])
       else
       if(strnicmp(Inrec, "Mailer:", 7) == 0)
       {
-        strncpy(LogMailer, Inrec+7, 255)  ;
-        LogMailer[255] = '\0' ;
+        strncpy(AcqMailer, Inrec+7, 255)  ;
+        AcqMailer[255] = '\0' ;
+      }
+      else
+      if(strnicmp(Inrec, "Triage:", 7) == 0)
+      {
+        strncpy(AcqTriage, Inrec+7, 255)  ;
+        AcqTriage[255] = '\0' ;
       }
       else
       if(strnicmp(Inrec, "SMTPTo:", 7) == 0)
@@ -237,7 +252,7 @@ int main(int argc, char *argv[])
 
   }
   else
-   CGIError("Could not read Configuration File",
+   CGIError("ACQ: Could not read Configuration File",
             "ACQ: No Valid Configuration File Found", " ", " ")  ;
 
 
@@ -263,7 +278,7 @@ int main(int argc, char *argv[])
 
   }
   else
-    CGIError("No Valid Input Data Was Read",
+    CGIError("ACQ: No Valid Input Data Was Read",
              "ACQ: No Valid Input Data Was Read", " ", " ")  ;
 
 
@@ -272,11 +287,11 @@ int main(int argc, char *argv[])
   /* Generate an Email                                          */
   /**************************************************************/
   if(strlen(SMTPFrom) < 5)
-    CGIError("No From: Email Address Found in Configuration",
+    CGIError("ACQ: No From: Email Address Found in Configuration",
              "ACQ: From: Email Address was either blank or less than 5 characters: ", SMTPFrom, " ")  ;
 
   if(strlen(SMTPTo) < 5)
-    CGIError("No To: Email Address Found in Configuration",
+    CGIError("ACQ: No To: Email Address Found in Configuration",
              "ACQ: To: Email Address was either blank or less than 5 characters: ", SMTPTo, " ")  ;
 
 
@@ -348,14 +363,14 @@ int main(int argc, char *argv[])
 
     fprintf(MailHndl, "Message From: %s \n\n", SMTPFrom) ;
     fprintf(MailHndl, "Subject: Remote Triage Initated\n") ;
-    fprintf(MailHndl, "Remote Triage Initated\n") ;
+    fprintf(MailHndl, "Remote Triage Initated:\n\n") ;
 
     for(i=0; i < NumArray; i++)
     {
       fprintf(MailHndl, "%s%s\"\n", JSONArray+(i*256), DATAArray+(i*256)) ;
     }
 
-    fprintf(MailHndl, "\n***\n" ) ;
+    fprintf(MailHndl, "\n\n***\n" ) ;
     fprintf(MailHndl, "DO NOT REPLY TO THIS EMAIL:\n" ) ;
     fprintf(MailHndl, "This Email was generated from the Automated Remote Triage System\n" ) ;
 
@@ -371,20 +386,13 @@ int main(int argc, char *argv[])
   /************************************************************/
   /* Send Email                                               */
   /************************************************************/
-  //fflush(stdout) ;
-  //sprintf(MailParms, "File:C:\\Web\\ACQ\\Mail\\%d.mll\0", SessNum) ;
-  //spawnlp(P_WAIT, LogMailer, "ACQMail.EXE", MailParms, NULL);
-  //unlink(MailFile) ;
-
-
-
-  /************************************************************/
-  /* Schedule the task to run - This is to prevent doing      */
-  /* the Acquisition via this CGI program for better security */
-  /************************************************************/
-  //fflush(stdout) ;
-  //system("CMD.exe /c Dir > C:\\inetpub\\triage\\Test.dat") ;
-
+  if(SendSMTP == 1)
+  {
+    fflush(stdout) ;
+    sprintf(MailParms, "File:C:\\Web\\ACQ\\Mail\\%d.mll\0", SessNum) ;
+    spawnlp(P_WAIT, AcqMailer, "ACQMail.EXE", MailParms, NULL);
+    //unlink(MailFile) ;
+  }
 
 
   /************************************************************/
@@ -474,13 +482,29 @@ int main(int argc, char *argv[])
           iPtr+= 12              ;
         }
         else
-        if(strnicmp(Inrec+iPtr, "</body>", 7) ==0 )
+        if(strnicmp(Inrec+iPtr, "&&Triage", 8) ==0 )
         {
           fflush(stdout) ;
-          //system("CMD.exe /c C:\\Web\\ACQ\\Config\\ACQT.bat") ;
-          sprintf(Outrec+oPtr, "</BODY>") ;
+          sprintf(FulTriage, "%s ", AcqTriage);
+          for(i =0; i < NumArray; i++)
+          {
+            if(strchr(DATAArray+(i*256), ' ') != NULL)
+             strcat(FulTriage, " \"\0");
+            else
+             strcat(FulTriage, " \0");
+
+            strcat(FulTriage, DATAArray+(i*256));
+
+            if(strchr(DATAArray+(i*256), ' ') != NULL)
+             strcat(FulTriage, "\"\0");
+          }
+
+          printf("%s\n", FulTriage);
+
+          system(FulTriage) ;
+
           oPtr = strlen(Outrec)  ;
-          iPtr+= 6              ;
+          iPtr+= 7              ;
         }
         else
         if(strnicmp(Inrec+iPtr, "&&JSON", 6) ==0 )
