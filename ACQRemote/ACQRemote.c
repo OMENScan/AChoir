@@ -1,6 +1,7 @@
 /****************************************************************/
 /* ACQRemote - Parse JSON and fire off remote AChoir - v0.01    */
 /* v0.02     - JSON Config Options                              */
+/* v0.03     - Add Logging                                      */
 /****************************************************************/
 #include <stdlib.h>
 #include <stdio.h>
@@ -70,6 +71,7 @@ void JSNParse(char *Varbl, char *Value, char *InBuff, int MaxSize, int MaxBufSz)
 void Xlate(char *XlateText) ;
 void XlEsc(char *XlateText) ;
 int MemAllocErr(char *ErrType) ;
+void ACQLogger(char *ACQDate, char *ACQTime, char *AcqData, char *ACQVar) ;
 
 
 /****************************************************************/
@@ -322,10 +324,10 @@ int main(int argc, char *argv[])
   iSec   = lclTime->tm_sec       ;
 
   sprintf(CTime, "%02d:%02d:%02d\0",
-			 iHour, iMin, iSec);
+                 iHour, iMin, iSec);
 
   sprintf(CDate, "%02d/%02d/%d\0",
-			 iMonth, iDay, iYear);
+                 iMonth, iDay, iYear);
 
 
 
@@ -485,7 +487,7 @@ int main(int argc, char *argv[])
         if(strnicmp(Inrec+iPtr, "&&Triage", 8) ==0 )
         {
           fflush(stdout) ;
-          sprintf(FulTriage, "%s ", AcqTriage);
+          sprintf(FulTriage, "%s", AcqTriage);
           for(i =0; i < NumArray; i++)
           {
             if(strchr(DATAArray+(i*256), ' ') != NULL)
@@ -499,7 +501,7 @@ int main(int argc, char *argv[])
              strcat(FulTriage, "\"\0");
           }
 
-          printf("%s\n", FulTriage);
+          ACQLogger(CDate, CTime, "ACQ: Triage Initiated -", FulTriage);
 
           system(FulTriage) ;
 
@@ -1135,6 +1137,21 @@ int MemAllocErr(char *ErrType)
 
   exit (1) ;
   return 1 ;
+}
+
+
+/****************************************************************/
+/* Generic Logging Routine                                      */
+/****************************************************************/
+void ACQLogger(char *ACQDate, char *ACQTime, char *AcqData, char *ACQVar)
+{
+  LogHndl = fopen(LogLog, "at")  ;
+  if(LogHndl != NULL)
+  {
+    fprintf(LogHndl, "%s %s %s %s\n", ACQDate, ACQTime, AcqData, ACQVar)  ;
+    fclose(LogHndl) ;
+  }
+  return ;
 }
 
 
