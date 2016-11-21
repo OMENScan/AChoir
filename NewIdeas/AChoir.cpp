@@ -180,7 +180,7 @@ ULONG RunLength(PUCHAR run);
 LONGLONG RunLCN(PUCHAR run);
 ULONGLONG RunCount(PUCHAR run);
 BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn, PULONGLONG count);
-PATTRIBUTE FindAttribute(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name);
+//PATTRIBUTE FindAttribute(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name);
 PATTRIBUTE FindAttributeX(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name, int attrNum);
 VOID FixupUpdateSequenceArray(PFILE_RECORD_HEADER file);
 VOID ReadSectorToMem(ULONGLONG sector, ULONG count, PVOID buffer);
@@ -4837,23 +4837,23 @@ BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn, PULONGL
 }
 
 
-PATTRIBUTE FindAttribute(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name)
-{
-  PATTRIBUTE attr = NULL;
-
-  for (attr = PATTRIBUTE(Padd(file, file->AttributesOffset)); attr->AttributeType != -1; attr = Padd(attr, attr->Length))
-  {
-    if (attr->AttributeType == type)
-    {
-      if (name == 0 && attr->NameLength == 0)
-        return attr;
-
-      if (name != 0 && wcslen(name) == attr->NameLength && _wcsicmp(name, PWSTR(Padd(attr, attr->NameOffset))) == 0)
-        return attr;
-    }
-  }
-  return 0;
-}
+//PATTRIBUTE FindAttribute(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name)
+//{
+//  PATTRIBUTE attr = NULL;
+//
+//  for (attr = PATTRIBUTE(Padd(file, file->AttributesOffset)); attr->AttributeType != -1; attr = Padd(attr, attr->Length))
+//  {
+//    if (attr->AttributeType == type)
+//    {
+//      if (name == 0 && attr->NameLength == 0)
+//        return attr;
+//
+//      if (name != 0 && wcslen(name) == attr->NameLength && _wcsicmp(name, PWSTR(Padd(attr, attr->NameOffset))) == 0)
+//        return attr;
+//    }
+//  }
+//  return 0;
+//}
 
 
 PATTRIBUTE FindAttributeX(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name, int attrNum)
@@ -5056,12 +5056,14 @@ VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
 VOID ReadVCN(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, ULONGLONG vcn, ULONG count, PVOID buffer)
 {
   PATTRIBUTE attrlist = NULL;
-  PNONRESIDENT_ATTRIBUTE attr = PNONRESIDENT_ATTRIBUTE(FindAttribute(file, type, 0));
+  //PNONRESIDENT_ATTRIBUTE attr = PNONRESIDENT_ATTRIBUTE(FindAttribute(file, type, 0));
+  PNONRESIDENT_ATTRIBUTE attr = PNONRESIDENT_ATTRIBUTE(FindAttributeX(file, type, 0, 0));
 
   if (attr == 0 || (vcn < attr->LowVcn || vcn > attr->HighVcn))
   {
     // Support for huge files
-    attrlist = FindAttribute(file, AttributeAttributeList, 0);
+    //attrlist = FindAttribute(file, AttributeAttributeList, 0);
+    attrlist = FindAttributeX(file, AttributeAttributeList, 0, 0);
     DebugBreak();
   }
   ReadExternalAttribute(attr, vcn, count, buffer);
@@ -5138,7 +5140,8 @@ BOOL bitset(PUCHAR bitmap, ULONG i)
 
 VOID FindActive()
 {
-  PATTRIBUTE attr = FindAttribute(MFT, AttributeBitmap, 0);
+  //PATTRIBUTE attr = FindAttribute(MFT, AttributeBitmap, 0);
+  PATTRIBUTE attr = FindAttributeX(MFT, AttributeBitmap, 0, 0);
   PATTRIBUTE attr2 = attr;
   PATTRIBUTE attr3 = attr;
   PUCHAR bitmap = new UCHAR[AttributeLengthAllocated(attr)];
@@ -5169,7 +5172,8 @@ VOID FindActive()
   useDiskOrMem = 0; //Default to Memory
   ReadAttribute(attr, bitmap);
 
-  ULONG n = AttributeLength(FindAttribute(MFT, AttributeData, 0)) / BytesPerFileRecord;
+  //ULONG n = AttributeLength(FindAttribute(MFT, AttributeData, 0)) / BytesPerFileRecord;
+  ULONG n = AttributeLength(FindAttributeX(MFT, AttributeData, 0, 0)) / BytesPerFileRecord;
   ProgUnit = n / 50;
   
   printf("MFT: Parsing Active Files from MFT...\n     ooooooooooo+oooooooooooo|oooooooooooo+ooooooooooo\r     ");
@@ -5221,7 +5225,8 @@ VOID FindActive()
       
 
         // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
-        attr3 = FindAttribute(file, AttributeStandardInformation, 0);
+        //attr3 = FindAttribute(file, AttributeStandardInformation, 0);
+        attr3 = FindAttributeX(file, AttributeStandardInformation, 0, 0);
         if (attr3 != 0)
         {
           name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
@@ -5571,7 +5576,8 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   PUCHAR bufD;
   FILE* SectHndl;
   char SectFile[1024] = "C:\\AChoir\\Cache\\Sectors.tmp\0";
-  size_t inSize, outSize;
+  size_t inSize ;
+  //size_t outSize;
   ULONG totSect, difSect ;
 
   PATTRIBUTE attrlist = NULL;
@@ -5665,10 +5671,12 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
 
   // Look for Attribute Data (0x80)
-  attr = FindAttribute(file, AttributeData, 0);
+  //attr = FindAttribute(file, AttributeData, 0);
+  attr = FindAttributeX(file, AttributeData, 0, 0);
   if (attr == 0)
   {
-    attrlist = FindAttribute(file, AttributeAttributeList, 0);
+    //attrlist = FindAttribute(file, AttributeAttributeList, 0);
+    attrlist = FindAttributeX(file, AttributeAttributeList, 0, 0);
     if (attrlist != 0)
     {
       fileIsFrag = 1;
@@ -5863,6 +5871,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         }
 
         fclose(SectHndl);
+        unlink(SectFile);
 
       }
     }
