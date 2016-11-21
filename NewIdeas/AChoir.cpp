@@ -4918,6 +4918,7 @@ VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
   ULARGE_INTEGER offset;
   OVERLAPPED overlap = { 0 };
   ULONG n, cCount;
+  int iShowSector ;
 
   FILE* SectHndl;
   char SectFile[1024] = "C:\\AChoir\\Cache\\Sectors.tmp\0";
@@ -4927,6 +4928,7 @@ VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
 
   if (SectHndl != NULL)
   {
+    iShowSector = 0;
     for(cCount = 0; cCount < count; cCount++)
     {
       offset.QuadPart = (sector +cCount) * bootb.BytesPerSector;
@@ -4940,7 +4942,12 @@ VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
 
       fwrite(buffer, 1, n, SectHndl);
 
-      printf("Inf: Sectors Read: %lu\r", cCount);
+      iShowSector++;
+      if(iShowSector > 5000)
+      {
+        iShowSector = 0;
+        printf("Inf: Sectors Read: %lu\r", cCount);
+      }
     }
 
     fclose(SectHndl);
@@ -5159,6 +5166,7 @@ VOID FindActive()
   char Str_Numbers[40] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\0\0\0";
 
   LCNType = 0; // Read Attribute Not File
+  useDiskOrMem = 0; //Default to Memory
   ReadAttribute(attr, bitmap);
 
   ULONG n = AttributeLength(FindAttribute(MFT, AttributeData, 0)) / BytesPerFileRecord;
@@ -5564,7 +5572,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   FILE* SectHndl;
   char SectFile[1024] = "C:\\AChoir\\Cache\\Sectors.tmp\0";
   size_t inSize, outSize;
-
+  ULONG totSect, difSect ;
 
   PATTRIBUTE attrlist = NULL;
   PATTRIBUTE_LIST attrdata = NULL;
@@ -5675,6 +5683,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       PUCHAR bufA = new UCHAR[MaxOffset];
 
       LCNType = 0; // Read Attribute Not File
+      useDiskOrMem = 0; //Default to Memory
       ReadAttribute(attrlist, bufA);
 
       attrdata = PATTRIBUTE_LIST(Padd(attrlist, PRESIDENT_ATTRIBUTE(attrlist)->ValueOffset));
@@ -5749,13 +5758,13 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       maxMemExceed = 1 ;
       useDiskOrMem = 1 ;
 
-      printf("     (In)Size: %lu\n", attrLen);
-      printf("Inf: File Exceeds Max Memory Size...  Caching File Sections...\n");
+      printf("     (In)Size: %lu\n", dataLen);
+      printf("\nInf: File Exceeds Max Memory Size...  Caching File Sections...\n");
 
       if (binLog == 1)
       {
-        fprintf(LogHndl, "     (In)Size: %lu\n", attrLen);
-        fprintf(LogHndl, "Inf: File Exceeds Max Memory Size...  Caching File Sections...\n");
+        fprintf(LogHndl, "     (In)Size: %lu\n", dataLen);
+        fprintf(LogHndl, "\nInf: File Exceeds Max Memory Size...  Caching File Sections...\n");
       }
 
       //return 1;
@@ -5821,10 +5830,28 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       sprintf(SectFile, "%s\\%s\\Cache\\Sectors.tmp\0", BaseDir, ACQName);
       SectHndl = fopen(SectFile, "rb");
 
+      totSect = 0 ;
       if (SectHndl != NULL)
       {
         while ((inSize = fread(bufD, 1, bootb.BytesPerSector, SectHndl)) > 0)
         {
+          totSect += inSize;
+
+          // Check for Memory Slack and subtract it out
+          if (totSect > totdata)
+          {
+            // Sometimes we can be in negative territory if we have extra File Slack Sectors
+            // When that happens, ignore the File Slack Sectors (in the Cluster)
+            difSect = totSect - totdata ;
+            if(difSect >= bootb.BytesPerSector)
+             continue;
+            else
+             inSize -= difSect; // Subtract the delta from our Last Sector Read.
+
+            //printf("Total Sector: %lu - Total Data: %lu\n", totSect, totdata);
+            //printf("Last Cluster was Truncated to: %d\n", inSize);
+          }
+
           if (WriteFile(hFile, bufD, inSize, &n, 0) == 0)
           {
             if (binLog == 1)
@@ -5834,9 +5861,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
             return 1;
           }
         }
+
+        fclose(SectHndl);
+
       }
     }
-
 
 
     //Set the File Times
