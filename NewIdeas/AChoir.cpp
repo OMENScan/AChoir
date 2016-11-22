@@ -5169,7 +5169,7 @@ VOID FindActive()
   char Str_Numbers[40] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\0\0\0";
 
   LCNType = 0; // Read Attribute Not File
-  useDiskOrMem = 0; //Default to Memory
+  useDiskOrMem = maxMemExceed = 0; //Default to Memory
   ReadAttribute(attr, bitmap);
 
   //ULONG n = AttributeLength(FindAttribute(MFT, AttributeData, 0)) / BytesPerFileRecord;
@@ -5691,7 +5691,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       PUCHAR bufA = new UCHAR[MaxOffset];
 
       LCNType = 0; // Read Attribute Not File
-      useDiskOrMem = 0; //Default to Memory
+      useDiskOrMem = maxMemExceed = 0; //Default to Memory
       ReadAttribute(attrlist, bufA);
 
       attrdata = PATTRIBUTE_LIST(Padd(attrlist, PRESIDENT_ATTRIBUTE(attrlist)->ValueOffset));
@@ -5767,12 +5767,12 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       useDiskOrMem = 1 ;
 
       printf("     (In)Size: %lu\n", dataLen);
-      printf("\nInf: File Exceeds Max Memory Size...  Caching File Sections...\n");
+      printf("\nInf: File Exceeds Max Memory Size...  Caching Sectors...\n");
 
       if (binLog == 1)
       {
         fprintf(LogHndl, "     (In)Size: %lu\n", dataLen);
-        fprintf(LogHndl, "\nInf: File Exceeds Max Memory Size...  Caching File Sections...\n");
+        fprintf(LogHndl, "\nInf: File Exceeds Max Memory Size...  Caching Sectors...\n");
       }
 
       //return 1;
@@ -5884,6 +5884,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     GetFileTime(hFile, &ftCreate, &ftAccess, &ftWrite);
 
     CloseHandle(hFile);
+    useDiskOrMem = maxMemExceed = 0; //Reset to Memory
 
     /****************************************************************/
     /* Set the SID (Owner) of the new file same as the old file     */
