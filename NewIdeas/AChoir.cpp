@@ -4909,7 +4909,7 @@ VOID ReadSectorToMem(ULONGLONG sector, ULONG count, PVOID buffer)
   readRetcd = ReadFile(hVolume, buffer, count * bootb.BytesPerSector, &n, &overlap);
 
   if (readRetcd == 0)
-    printf("Err: Error Reading Sector!  Cannot Process This Volume in RAW Mode!\n");
+    printf("Err: Error Reading Sector To Memory!  Cannot Process This Volume in RAW Mode!\n");
 }
 
 
@@ -4924,21 +4924,32 @@ VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
   char SectFile[1024] = "C:\\AChoir\\Cache\\Sectors.tmp\0";
 
   sprintf(SectFile, "%s\\%s\\Cache\\Sectors.tmp\0", BaseDir, ACQName);
-  SectHndl = fopen(SectFile, "wb");
+
+  // If useDiskOrMem == 1 (<2) It is the first cluster run (new Temp File)
+  //  if it is > 1 then Append the cluster run.
+  if(useDiskOrMem < 2)
+    SectHndl = fopen(SectFile, "wb");
+  else
+    SectHndl = fopen(SectFile, "ab");
+
 
   if (SectHndl != NULL)
   {
     iShowSector = 0;
     for(cCount = 0; cCount < count; cCount++)
     {
-      offset.QuadPart = (sector +cCount) * bootb.BytesPerSector;
+      offset.QuadPart = (sector + cCount) * bootb.BytesPerSector;
       overlap.Offset = offset.LowPart;
       overlap.OffsetHigh = offset.HighPart;
 
       readRetcd = ReadFile(hVolume, buffer, bootb.BytesPerSector, &n, &overlap);
 
       if (readRetcd == 0)
-        printf("Err: Error Reading Sector!  Cannot Process This Volume in RAW Mode!\n");
+      {
+        printf("\nErr: Error Reading Sector To Disk!  Cannot Process This Volume in RAW Mode!\n");
+        cCount = count;
+        fclose(SectHndl);
+      }
 
       fwrite(buffer, 1, n, SectHndl);
 
@@ -4946,22 +4957,23 @@ VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
       if(iShowSector > 5000)
       {
         iShowSector = 0;
-        printf("Inf: Sectors Read: %lu\r", cCount);
+        printf("Inf: Sectors Read: %lu Sector #: %llu / %llu\r", cCount, sector, sector+cCount);
       }
     }
 
     fclose(SectHndl);
-
+    useDiskOrMem++;
   }
   else
-   printf("Err: Error Reading Sector!  Cannot Process This Volume in RAW Mode!\n");
+   printf("Err: Error Creating Sector Cache File!\n");
 
 }
 
 
 VOID ReadLCN(ULONGLONG lcn, ULONG count, PVOID buffer)
 {
-  //wprintf(L"\nReadLCN() - Reading the LCN, LCN: 0X%.8X\n", lcn);
+  wprintf(L"\nReadLCN() - Reading the LCN, LCN: 0X%.8X\n", lcn);
+
   if(useDiskOrMem == 0)
    ReadSectorToMem(lcn * bootb.SectorsPerCluster, count * bootb.SectorsPerCluster, buffer);
   else
@@ -4987,8 +4999,11 @@ VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG cou
      memset(bytes, 0, n);
     else
     {
-      ReadLCN(lcn, readcount, bytes);
-      //wprintf(L"LCN: 0X%.8X\n", lcn);
+      if(useDiskOrMem == 0)
+        ReadLCN(lcn, readcount, bytes);
+      else 
+        ReadLCN(lcn, readcount, buffer);
+     //wprintf(L"LCN: 0X%.8X\n", lcn);
     }
 
     vcn += readcount;
