@@ -5604,6 +5604,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   ULONG n;
 
   FILETIME ftCreate, ftAccess, ftWrite;
+  LARGE_INTEGER ftSize;
 
   CHAR Tooo_Fname[2048] = "\0";
   int setOwner = 0;
@@ -5821,10 +5822,15 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     if(totdata > maxDataSize)
      totdata = maxDataSize;
 
-    printf("     (In)Size: %ld                         \n", iDataSize);
 
-    if (binLog == 1)
-      fprintf(LogHndl, "     (In)Size: %ld                         \n", iDataSize);
+    //Only show Size if we didn't already
+    if(maxMemExceed != 1)
+    {
+      printf("     (In)Size: %ld                         \n", iDataSize);
+
+      if (binLog == 1)
+        fprintf(LogHndl, "     (In)Size: %ld                         \n", iDataSize);
+    }
 
     printf("\nInf: Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
   
@@ -5909,6 +5915,9 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     //Read it back out to Verify
     GetFileTime(hFile, &ftCreate, &ftAccess, &ftWrite);
 
+    //Read it back out to Verify
+    GetFileSizeEx(hFile, &ftSize) ;
+
     CloseHandle(hFile);
     useDiskOrMem = maxMemExceed = 0; //Reset to Memory
 
@@ -5950,11 +5959,13 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     if (binLog == 1)
     {
       fprintf(LogHndl, "     (out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
-      fprintf(LogHndl, "     (out)Size: %ld\n", Toostat.st_size);
+      //fprintf(LogHndl, "     (out)Size: %ld\n", Toostat.st_size);
+      fprintf(LogHndl, "     (out)Size: %llu\n", ftSize.QuadPart);
       fprintf(LogHndl, "     (out)File MD5: %s\n", MD5Out);
     }
-    printf("     (out)Time: %llu - %llu - %lu\n", ftCreate, ftAccess, ftWrite);
-    printf("     (out)Size: %ld\n", Toostat.st_size);
+    printf("     (out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
+    //printf("     (out)Size: %ld\n", Toostat.st_size);
+    printf("     (out)Size: %llu\n", ftSize.QuadPart);
     printf("     (out)File MD5: %s\n", MD5Out);
 
     if ((CompareFileTime(&ToCreTime, &ftCreate) != 0) || (CompareFileTime(&ToAccTime, &ftAccess) != 0) || (CompareFileTime(&ToModTime, &ftWrite) != 0))
@@ -5964,7 +5975,8 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         fprintf(LogHndl, "\nWrn: File TimeStamp MisMatch\n");
     }
 
-    if (iDataSize != Toostat.st_size)
+    //Check if ANY of the File Size Calculations (mis)Match
+    if ((iDataSize != Toostat.st_size)  && (dataLen != ftSize.QuadPart))
     {
       if(fileIsFrag == 1)
         printf("\nInf: File Size Fragmentation - More Data to be Appended...\n");
