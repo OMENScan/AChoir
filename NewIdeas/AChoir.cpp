@@ -71,7 +71,7 @@
 /* AChoir v0.82 - Add MAX: - Max File Size (& Mem Usage)        */
 /* AChoir v0.83 - Add RawCopy to ARN:                           */
 /* AChoir v0.85 - Can now Read POSIX file names & Hard Links    */
-/* AChoir v0.86 - Large File (> 1GB) Support                    */
+/* AChoir v0.89 - Large File (> 1GB) Support                    */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -136,7 +136,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.86\0";
+char Version[10] = "v0.89\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -4957,7 +4957,7 @@ VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
       if(iShowSector > 5000)
       {
         iShowSector = 0;
-        printf("Inf: Sectors Read: %lu Sector #: %llu / %llu\r", cCount, sector, sector+cCount);
+        printf("Inf: Cluster Run: %d - Sector: %llu\r", useDiskOrMem, sector+cCount);
       }
     }
 
@@ -4972,7 +4972,7 @@ VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
 
 VOID ReadLCN(ULONGLONG lcn, ULONG count, PVOID buffer)
 {
-  wprintf(L"\nReadLCN() - Reading the LCN, LCN: 0X%.8X\n", lcn);
+  //wprintf(L"\nReadLCN() - Reading the LCN, LCN: 0X%.8X\n", lcn);
 
   if(useDiskOrMem == 0)
    ReadSectorToMem(lcn * bootb.SectorsPerCluster, count * bootb.SectorsPerCluster, buffer);
@@ -5690,6 +5690,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   attr = FindAttributeX(file, AttributeData, 0, 0);
   if (attr == 0)
   {
+    // Look for Attribute Data (0x20)
     //attrlist = FindAttribute(file, AttributeAttributeList, 0);
     attrlist = FindAttributeX(file, AttributeAttributeList, 0, 0);
     if (attrlist != 0)
@@ -5703,6 +5704,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       MaxDataSize = AttributeLengthDataSize(attrlist);
       MaxOffset = AttributeLengthAllocated(attrlist);
       
+
       PUCHAR bufA = new UCHAR[MaxOffset];
 
       LCNType = 0; // Read Attribute Not File
@@ -5720,6 +5722,14 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         attrdatax = attrdata ;
         attrdata = PATTRIBUTE_LIST(Padd(attrdatax, attrdatax->Length));
         LastOffset += attrdatax->Length;
+
+        if(LastOffset >= MaxOffset)
+        {
+          printf("Err: No MFT File Attribute List Found...  Bypassing...\n");
+          fprintf(LogHndl, "Err: No MFT File Attribute List Found...  Bypassing...\n");
+          return 1 ;
+        }
+
 
         // Go dump Data from Attribute Data Record (0x80)
         if (attrdata->AttributeType == AttributeData)
@@ -5750,8 +5760,9 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       printf("Err: No MFT File Attribute Data Found...  Bypassing...\n");
       fprintf(LogHndl, "Err: No MFT File Attribute Data Found...  Bypassing...\n");
     }
-    
+
     return 1;
+
   }
   else
   {
@@ -5782,12 +5793,12 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       useDiskOrMem = 1 ;
 
       printf("     (In)Size: %lu\n", dataLen);
-      printf("\nInf: File Exceeds Max Memory Size...  Caching Sectors...\n");
+      printf("\nInf: File Exceeds Max Memory Size...  Disk Caching Sectors...\n");
 
       if (binLog == 1)
       {
         fprintf(LogHndl, "     (In)Size: %lu\n", dataLen);
-        fprintf(LogHndl, "\nInf: File Exceeds Max Memory Size...  Caching Sectors...\n");
+        fprintf(LogHndl, "\nInf: File Exceeds Max Memory Size...  Disk Caching Sectors...\n");
       }
 
       //return 1;
@@ -5810,10 +5821,10 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     if(totdata > maxDataSize)
      totdata = maxDataSize;
 
-    printf("     (In)Size: %ld\n", iDataSize);
+    printf("     (In)Size: %ld                         \n", iDataSize);
 
     if (binLog == 1)
-      fprintf(LogHndl, "     (In)Size: %ld\n", iDataSize);
+      fprintf(LogHndl, "     (In)Size: %ld                         \n", iDataSize);
 
     printf("\nInf: Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
   
@@ -5942,7 +5953,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       fprintf(LogHndl, "     (out)Size: %ld\n", Toostat.st_size);
       fprintf(LogHndl, "     (out)File MD5: %s\n", MD5Out);
     }
-    printf("     (out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
+    printf("     (out)Time: %llu - %llu - %lu\n", ftCreate, ftAccess, ftWrite);
     printf("     (out)Size: %ld\n", Toostat.st_size);
     printf("     (out)File MD5: %s\n", MD5Out);
 
