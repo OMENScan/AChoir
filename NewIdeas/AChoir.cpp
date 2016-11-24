@@ -5724,7 +5724,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         attrdata = PATTRIBUTE_LIST(Padd(attrdatax, attrdatax->Length));
         LastOffset += attrdatax->Length;
 
-        if(LastOffset >= MaxOffset)
+        if(LastOffset > MaxOffset)
         {
           printf("Err: No MFT File Attribute List Found...  Bypassing...\n");
           fprintf(LogHndl, "Err: No MFT File Attribute List Found...  Bypassing...\n");
