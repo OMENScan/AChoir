@@ -28,27 +28,27 @@ Achoir is a Framework/Scripting Tool to standardize and simplify that process.
 * AChoir v0.09 - Added creation of Index.html for simple Artifact browsing
 * AChoir v0.10 - Added Mapping to remote drives, and (re)setting the ACQDir
 * AChoir v0.11 - Added &Map variable 
-.............. - Added INI: action (switches the INI File) - Used for remote acquisition
-.............. -  Added INP: action and &Inp variable (Console Input and variable)
+* ............ - Added INI: action (switches the INI File) - Used for remote acquisition
+* ............ -  Added INP: action and &Inp variable (Console Input and variable)
 * AChoir v0.13 - New &Tmp is the Window %Temp% variable
-.............. -  New CPY: Action to copy files
-.............. -  New &FNM variable - Each &FOR File Name
+* ............ -  New CPY: Action to copy files
+* ............ -  New &FNM variable - Each &FOR File Name
 * AChoir v0.20 - Lets call this 2.0-Lots of Code improvements
 * AChoir v0.21 - Fix GMT DST idiosyncracy
 * AChoir v0.22 - New ARN: Action - Parse the Run Key and copy the Autorun EXEs
 * AChoir v0.23 - New /MNU Switch - Run the Menu.ACQ script
 * AChoir v0.24 - Expand the ARN: routine to recognize WOW64
-..............    and System32/sysnative wierdness
+* ............    and System32/sysnative wierdness
 * AChoir v0.25 - More improvements to Run Key Extract
 * Achoir v0.25b - Add WinAudit and GPResult to Scripts
 * AChoir v0.26 - Expand system variables %variable%
 * AChoir v0.27 - More improvements in remote acquisition (Map)
 * AChoir v0.28 - Add /MAP:  /USR:  and  /PWD:  command lines
-..............   and MAP:  USR:  and  PWD:  INI file Actions
-..............   to enable Mapping for Remote Acquisition
+* ............   and MAP:  USR:  and  PWD:  INI file Actions
+* ............   to enable Mapping for Remote Acquisition
 * AChoir v0.29 - Add ADM:Check and ADM:Force to check OR enforce that AChoir be run from an ADMIN ID
-.............. - Converted to MSVC 
-.............. - Also replaced libCurl with MS WinHTTP APIs
+* ............ - Converted to MSVC 
+* ............ - Also replaced libCurl with MS WinHTTP APIs
 * AChoir v0.30 - Improve CPY: - Prevent Overwriting Files
 * AChoir v0.31 - Start and End Time Stamps and &Tim variable
 * AChoir v0.32 - Changes to support 32 and 64 Bit versions!
@@ -69,10 +69,10 @@ Achoir is a Framework/Scripting Tool to standardize and simplify that process.
 * AChoir v0.56 - Improve Privileges Message Display
 * AChoir v0.57 - Fix Priv Bug & Add better Error Detection
 * AChoir v0.75 - Add NTFS Raw Copy (NCP:)
-.............. - NCP:<Wilcard File Search> <Destination Dir>
-.............. - Additional Recursion Error Checking
+* ............ - NCP:<Wilcard File Search> <Destination Dir>
+* ............ - Additional Recursion Error Checking
 * AChoir v0.80 - NTFS Raw Reading now support Attribute List
-.............. - (Multiple Cluster Runs/Fragmented Files)
+* ............ - (Multiple Cluster Runs/Fragmented Files)
 * AChoir v0.81 - More NTFS Raw Read honing
 * AChoir v0.82 - Add MAX: - Max File Size (& Mem Usage)
 * AChoir v0.83 - Add RawCopy to ARN:
