@@ -71,6 +71,7 @@
 /* AChoir v0.82 - Add MAX: - Max File Size (& Mem Usage)        */
 /* AChoir v0.83 - Add RawCopy to ARN:                           */
 /* AChoir v0.85 - Can now Read POSIX file names & Hard Links    */
+/* AChoir v0.89 - Large File (> 1GB) Support                    */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -135,7 +136,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.85\0";
+char Version[10] = "v0.89\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -179,10 +180,11 @@ ULONG RunLength(PUCHAR run);
 LONGLONG RunLCN(PUCHAR run);
 ULONGLONG RunCount(PUCHAR run);
 BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn, PULONGLONG count);
-PATTRIBUTE FindAttribute(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name);
+//PATTRIBUTE FindAttribute(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name);
 PATTRIBUTE FindAttributeX(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name, int attrNum);
 VOID FixupUpdateSequenceArray(PFILE_RECORD_HEADER file);
-VOID ReadSector(ULONGLONG sector, ULONG count, PVOID buffer);
+VOID ReadSectorToMem(ULONGLONG sector, ULONG count, PVOID buffer);
+VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer);
 VOID ReadLCN(ULONGLONG lcn, ULONG count, PVOID buffer);
 VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG count, PVOID buffer);
 ULONG AttributeLength(PATTRIBUTE attr);
@@ -211,7 +213,8 @@ CHAR rootDrive[] = "C:\\\0\0\0";
 int gotOwner = 0;
 PSECURITY_DESCRIPTOR SecDesc = NULL;
 ULONG maxMemBytes = 999999999; //Max Memory Alloc = 1Gb
-
+int maxMemExceed = 0;
+int useDiskOrMem = 0; // 0 is Memory, 1 is Disk
 
 // Global Variables For SQLite Databases
 int SpinLock;
@@ -4834,23 +4837,23 @@ BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn, PULONGL
 }
 
 
-PATTRIBUTE FindAttribute(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name)
-{
-  PATTRIBUTE attr = NULL;
-
-  for (attr = PATTRIBUTE(Padd(file, file->AttributesOffset)); attr->AttributeType != -1; attr = Padd(attr, attr->Length))
-  {
-    if (attr->AttributeType == type)
-    {
-      if (name == 0 && attr->NameLength == 0)
-        return attr;
-
-      if (name != 0 && wcslen(name) == attr->NameLength && _wcsicmp(name, PWSTR(Padd(attr, attr->NameOffset))) == 0)
-        return attr;
-    }
-  }
-  return 0;
-}
+//PATTRIBUTE FindAttribute(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name)
+//{
+//  PATTRIBUTE attr = NULL;
+//
+//  for (attr = PATTRIBUTE(Padd(file, file->AttributesOffset)); attr->AttributeType != -1; attr = Padd(attr, attr->Length))
+//  {
+//    if (attr->AttributeType == type)
+//    {
+//      if (name == 0 && attr->NameLength == 0)
+//        return attr;
+//
+//      if (name != 0 && wcslen(name) == attr->NameLength && _wcsicmp(name, PWSTR(Padd(attr, attr->NameOffset))) == 0)
+//        return attr;
+//    }
+//  }
+//  return 0;
+//}
 
 
 PATTRIBUTE FindAttributeX(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name, int attrNum)
@@ -4893,7 +4896,7 @@ VOID FixupUpdateSequenceArray(PFILE_RECORD_HEADER file)
 }
 
 
-VOID ReadSector(ULONGLONG sector, ULONG count, PVOID buffer)
+VOID ReadSectorToMem(ULONGLONG sector, ULONG count, PVOID buffer)
 {
   ULARGE_INTEGER offset;
   OVERLAPPED overlap = { 0 };
@@ -4906,14 +4909,75 @@ VOID ReadSector(ULONGLONG sector, ULONG count, PVOID buffer)
   readRetcd = ReadFile(hVolume, buffer, count * bootb.BytesPerSector, &n, &overlap);
 
   if (readRetcd == 0)
-    printf("Err: Error Reading Sector!  Cannot Process This Volume in RAW Mode!\n");
+    printf("Err: Error Reading Sector To Memory!  Cannot Process This Volume in RAW Mode!\n");
+}
+
+
+VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
+{
+  ULARGE_INTEGER offset;
+  OVERLAPPED overlap = { 0 };
+  ULONG n, cCount;
+  int iShowSector ;
+
+  FILE* SectHndl;
+  char SectFile[1024] = "C:\\AChoir\\Cache\\Sectors.tmp\0";
+
+  sprintf(SectFile, "%s\\%s\\Cache\\Sectors.tmp\0", BaseDir, ACQName);
+
+  // If useDiskOrMem == 1 (<2) It is the first cluster run (new Temp File)
+  //  if it is > 1 then Append the cluster run.
+  if(useDiskOrMem < 2)
+    SectHndl = fopen(SectFile, "wb");
+  else
+    SectHndl = fopen(SectFile, "ab");
+
+
+  if (SectHndl != NULL)
+  {
+    iShowSector = 0;
+    for(cCount = 0; cCount < count; cCount++)
+    {
+      offset.QuadPart = (sector + cCount) * bootb.BytesPerSector;
+      overlap.Offset = offset.LowPart;
+      overlap.OffsetHigh = offset.HighPart;
+
+      readRetcd = ReadFile(hVolume, buffer, bootb.BytesPerSector, &n, &overlap);
+
+      if (readRetcd == 0)
+      {
+        printf("\nErr: Error Reading Sector To Disk!  Cannot Process This Volume in RAW Mode!\n");
+        cCount = count;
+        fclose(SectHndl);
+      }
+
+      fwrite(buffer, 1, n, SectHndl);
+
+      iShowSector++;
+      if(iShowSector > 5000)
+      {
+        iShowSector = 0;
+        printf("Inf: Cluster Run: %d - Sector: %llu\r", useDiskOrMem, sector+cCount);
+      }
+    }
+
+    fclose(SectHndl);
+    useDiskOrMem++;
+  }
+  else
+   printf("Err: Error Creating Sector Cache File!\n");
+
 }
 
 
 VOID ReadLCN(ULONGLONG lcn, ULONG count, PVOID buffer)
 {
   //wprintf(L"\nReadLCN() - Reading the LCN, LCN: 0X%.8X\n", lcn);
-  ReadSector(lcn * bootb.SectorsPerCluster, count * bootb.SectorsPerCluster, buffer);
+
+  if(useDiskOrMem == 0)
+   ReadSectorToMem(lcn * bootb.SectorsPerCluster, count * bootb.SectorsPerCluster, buffer);
+  else
+   ReadSectorToDisk(lcn * bootb.SectorsPerCluster, count * bootb.SectorsPerCluster, buffer);
 }
 
 
@@ -4921,7 +4985,7 @@ VOID ReadLCN(ULONGLONG lcn, ULONG count, PVOID buffer)
 VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG count, PVOID buffer)
 {
   ULONGLONG lcn, runcount;
-  ULONG readcount, left;
+  ULONG readcount, left, n;
   PUCHAR bytes = PUCHAR(buffer);
 
   totbytes = totdata = 0;
@@ -4929,14 +4993,17 @@ VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG cou
   {
     FindRun(attr, vcn, &lcn, &runcount);
     readcount = ULONG(min(runcount, left));
-    ULONG n = readcount * bootb.BytesPerSector * bootb.SectorsPerCluster;
+    n = readcount * bootb.BytesPerSector * bootb.SectorsPerCluster;
 
     if (lcn == 0)
      memset(bytes, 0, n);
     else
     {
-      ReadLCN(lcn, readcount, bytes);
-      //wprintf(L"LCN: 0X%.8X\n", lcn);
+      if(useDiskOrMem == 0)
+        ReadLCN(lcn, readcount, bytes);
+      else 
+        ReadLCN(lcn, readcount, buffer);
+     //wprintf(L"LCN: 0X%.8X\n", lcn);
     }
 
     vcn += readcount;
@@ -4997,7 +5064,6 @@ VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
   {
     nattr = PNONRESIDENT_ATTRIBUTE(attr);
     ReadExternalAttribute(nattr, ULONG(nattr->LowVcn), ULONG(nattr->HighVcn) - ULONG(nattr->LowVcn) + 1, buffer);
-
   }
 }
 
@@ -5005,12 +5071,14 @@ VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
 VOID ReadVCN(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, ULONGLONG vcn, ULONG count, PVOID buffer)
 {
   PATTRIBUTE attrlist = NULL;
-  PNONRESIDENT_ATTRIBUTE attr = PNONRESIDENT_ATTRIBUTE(FindAttribute(file, type, 0));
+  //PNONRESIDENT_ATTRIBUTE attr = PNONRESIDENT_ATTRIBUTE(FindAttribute(file, type, 0));
+  PNONRESIDENT_ATTRIBUTE attr = PNONRESIDENT_ATTRIBUTE(FindAttributeX(file, type, 0, 0));
 
   if (attr == 0 || (vcn < attr->LowVcn || vcn > attr->HighVcn))
   {
     // Support for huge files
-    attrlist = FindAttribute(file, AttributeAttributeList, 0);
+    //attrlist = FindAttribute(file, AttributeAttributeList, 0);
+    attrlist = FindAttributeX(file, AttributeAttributeList, 0, 0);
     DebugBreak();
   }
   ReadExternalAttribute(attr, vcn, count, buffer);
@@ -5049,7 +5117,7 @@ VOID LoadMFT()
 
   MFT = PFILE_RECORD_HEADER(new UCHAR[BytesPerFileRecord]);
 
-  ReadSector((bootb.MftStartLcn)*(bootb.SectorsPerCluster), (BytesPerFileRecord) / (bootb.BytesPerSector), MFT);
+  ReadSectorToMem((bootb.MftStartLcn)*(bootb.SectorsPerCluster), (BytesPerFileRecord) / (bootb.BytesPerSector), MFT);
 
   if (readRetcd == 0)
   {
@@ -5087,7 +5155,8 @@ BOOL bitset(PUCHAR bitmap, ULONG i)
 
 VOID FindActive()
 {
-  PATTRIBUTE attr = FindAttribute(MFT, AttributeBitmap, 0);
+  //PATTRIBUTE attr = FindAttribute(MFT, AttributeBitmap, 0);
+  PATTRIBUTE attr = FindAttributeX(MFT, AttributeBitmap, 0, 0);
   PATTRIBUTE attr2 = attr;
   PATTRIBUTE attr3 = attr;
   PUCHAR bitmap = new UCHAR[AttributeLengthAllocated(attr)];
@@ -5115,9 +5184,11 @@ VOID FindActive()
   char Str_Numbers[40] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\0\0\0";
 
   LCNType = 0; // Read Attribute Not File
+  useDiskOrMem = maxMemExceed = 0; //Default to Memory
   ReadAttribute(attr, bitmap);
 
-  ULONG n = AttributeLength(FindAttribute(MFT, AttributeData, 0)) / BytesPerFileRecord;
+  //ULONG n = AttributeLength(FindAttribute(MFT, AttributeData, 0)) / BytesPerFileRecord;
+  ULONG n = AttributeLength(FindAttributeX(MFT, AttributeData, 0, 0)) / BytesPerFileRecord;
   ProgUnit = n / 50;
   
   printf("MFT: Parsing Active Files from MFT...\n     ooooooooooo+oooooooooooo|oooooooooooo+ooooooooooo\r     ");
@@ -5169,7 +5240,8 @@ VOID FindActive()
       
 
         // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
-        attr3 = FindAttribute(file, AttributeStandardInformation, 0);
+        //attr3 = FindAttribute(file, AttributeStandardInformation, 0);
+        attr3 = FindAttributeX(file, AttributeStandardInformation, 0, 0);
         if (attr3 != 0)
         {
           name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
@@ -5516,6 +5588,13 @@ VOID FindActive()
 
 int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime, int binLog, int Append)
 {
+  PUCHAR bufD;
+  FILE* SectHndl;
+  char SectFile[1024] = "C:\\AChoir\\Cache\\Sectors.tmp\0";
+  size_t inSize ;
+  //size_t outSize;
+  ULONG totSect, difSect ;
+
   PATTRIBUTE attrlist = NULL;
   PATTRIBUTE_LIST attrdata = NULL;
 
@@ -5525,6 +5604,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   ULONG n;
 
   FILETIME ftCreate, ftAccess, ftWrite;
+  LARGE_INTEGER ftSize;
 
   CHAR Tooo_Fname[2048] = "\0";
   int setOwner = 0;
@@ -5607,10 +5687,13 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
 
   // Look for Attribute Data (0x80)
-  attr = FindAttribute(file, AttributeData, 0);
+  //attr = FindAttribute(file, AttributeData, 0);
+  attr = FindAttributeX(file, AttributeData, 0, 0);
   if (attr == 0)
   {
-    attrlist = FindAttribute(file, AttributeAttributeList, 0);
+    // Look for Attribute Data (0x20)
+    //attrlist = FindAttribute(file, AttributeAttributeList, 0);
+    attrlist = FindAttributeX(file, AttributeAttributeList, 0, 0);
     if (attrlist != 0)
     {
       fileIsFrag = 1;
@@ -5622,9 +5705,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       MaxDataSize = AttributeLengthDataSize(attrlist);
       MaxOffset = AttributeLengthAllocated(attrlist);
       
+
       PUCHAR bufA = new UCHAR[MaxOffset];
 
       LCNType = 0; // Read Attribute Not File
+      useDiskOrMem = maxMemExceed = 0; //Default to Memory
       ReadAttribute(attrlist, bufA);
 
       attrdata = PATTRIBUTE_LIST(Padd(attrlist, PRESIDENT_ATTRIBUTE(attrlist)->ValueOffset));
@@ -5638,6 +5723,14 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         attrdatax = attrdata ;
         attrdata = PATTRIBUTE_LIST(Padd(attrdatax, attrdatax->Length));
         LastOffset += attrdatax->Length;
+
+        if(LastOffset > MaxOffset)
+        {
+          printf("Err: No MFT File Attribute List Found...  Bypassing...\n");
+          fprintf(LogHndl, "Err: No MFT File Attribute List Found...  Bypassing...\n");
+          return 1 ;
+        }
+
 
         // Go dump Data from Attribute Data Record (0x80)
         if (attrdata->AttributeType == AttributeData)
@@ -5668,8 +5761,9 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       printf("Err: No MFT File Attribute Data Found...  Bypassing...\n");
       fprintf(LogHndl, "Err: No MFT File Attribute Data Found...  Bypassing...\n");
     }
-    
+
     return 1;
+
   }
   else
   {
@@ -5692,23 +5786,31 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     }
 
     // Changing to unique Buffer bufD - To avoid conflict with attr BufA
-    // Limiting File Size to 1TB - Until I can refactor this code
+    // If File exceeds Max Memory, Cache the Extraction
+    maxMemExceed = useDiskOrMem = 0;
     if (attrLen > maxMemBytes)
     {
-      printf("     (In)Size: %lu\n", attrLen);
-      printf("Err: File Exceeds Max Allowed Size...  Bypassing...\n");
+      maxMemExceed = 1 ;
+      useDiskOrMem = 1 ;
+
+      printf("     (In)Size: %lu\n", dataLen);
+      printf("\nInf: File Exceeds Max Memory Size...  Disk Caching Sectors...\n");
 
       if (binLog == 1)
       {
-        fprintf(LogHndl, "     (In)Size: %lu\n", attrLen);
-        fprintf(LogHndl, "Err: File Exceeds Max Allowed Size...  Bypassing...\n");
+        fprintf(LogHndl, "     (In)Size: %lu\n", dataLen);
+        fprintf(LogHndl, "\nInf: File Exceeds Max Memory Size...  Disk Caching Sectors...\n");
       }
 
-      return 1;
+      //return 1;
 
     }
     
-    PUCHAR bufD = new UCHAR[attrLen];
+    if(maxMemExceed == 0)
+     bufD = new UCHAR[attrLen]; // Fit the whole File in memory
+    else
+     bufD = new UCHAR[bootb.BytesPerSector]; // Use Cluster Size to Disk Cache
+
     
     LCNType = 1; // Read Actual File Clusters into buf
     ReadAttribute(attr, bufD);
@@ -5720,10 +5822,15 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     if(totdata > maxDataSize)
      totdata = maxDataSize;
 
-    printf("     (In)Size: %ld\n", iDataSize);
 
-    if (binLog == 1)
-      fprintf(LogHndl, "     (In)Size: %ld\n", iDataSize);
+    //Only show Size if we didn't already
+    if(maxMemExceed != 1)
+    {
+      printf("     (In)Size: %ld                         \n", iDataSize);
+
+      if (binLog == 1)
+        fprintf(LogHndl, "     (In)Size: %ld                         \n", iDataSize);
+    }
 
     printf("\nInf: Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
   
@@ -5745,22 +5852,74 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       return 1;
     }
 
-    if (WriteFile(hFile, bufD, totdata, &n, 0) == 0)
+    if(useDiskOrMem == 0)
     {
-      if (binLog == 1)
-        fprintf(LogHndl, "Err: Error Writing File: %u\n", GetLastError());
+      // Write the File From the memory Buffer
+      if (WriteFile(hFile, bufD, totdata, &n, 0) == 0)
+      {
+        if (binLog == 1)
+          fprintf(LogHndl, "Err: Error Writing File: %u\n", GetLastError());
 
-      printf("Err: Error Writing File: %u\n", GetLastError());
-      return 1;
+        printf("Err: Error Writing File: %u\n", GetLastError());
+        return 1;
+      }
+    }  
+    else
+    {
+      // Copy the Cache Data to the Actual File
+      sprintf(SectFile, "%s\\%s\\Cache\\Sectors.tmp\0", BaseDir, ACQName);
+      SectHndl = fopen(SectFile, "rb");
+
+      totSect = 0 ;
+      if (SectHndl != NULL)
+      {
+        while ((inSize = fread(bufD, 1, bootb.BytesPerSector, SectHndl)) > 0)
+        {
+          totSect += inSize;
+
+          // Check for Memory Slack and subtract it out
+          if (totSect > totdata)
+          {
+            // Sometimes we can be in negative territory if we have extra File Slack Sectors
+            // When that happens, ignore the File Slack Sectors (in the Cluster)
+            difSect = totSect - totdata ;
+            if(difSect >= bootb.BytesPerSector)
+             continue;
+            else
+             inSize -= difSect; // Subtract the delta from our Last Sector Read.
+
+            //printf("Total Sector: %lu - Total Data: %lu\n", totSect, totdata);
+            //printf("Last Cluster was Truncated to: %d\n", inSize);
+          }
+
+          if (WriteFile(hFile, bufD, inSize, &n, 0) == 0)
+          {
+            if (binLog == 1)
+              fprintf(LogHndl, "Err: Error Writing File: %u\n", GetLastError());
+
+            printf("Err: Error Writing File: %u\n", GetLastError());
+            return 1;
+          }
+        }
+
+        fclose(SectHndl);
+        unlink(SectFile);
+
+      }
     }
-  
+
+
     //Set the File Times
     SetFileTime(hFile, &ToCreTime, &ToAccTime, &ToModTime);
 
     //Read it back out to Verify
     GetFileTime(hFile, &ftCreate, &ftAccess, &ftWrite);
 
+    //Read it back out to Verify
+    GetFileSizeEx(hFile, &ftSize) ;
+
     CloseHandle(hFile);
+    useDiskOrMem = maxMemExceed = 0; //Reset to Memory
 
     /****************************************************************/
     /* Set the SID (Owner) of the new file same as the old file     */
@@ -5800,11 +5959,13 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     if (binLog == 1)
     {
       fprintf(LogHndl, "     (out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
-      fprintf(LogHndl, "     (out)Size: %ld\n", Toostat.st_size);
+      //fprintf(LogHndl, "     (out)Size: %ld\n", Toostat.st_size);
+      fprintf(LogHndl, "     (out)Size: %llu\n", ftSize.QuadPart);
       fprintf(LogHndl, "     (out)File MD5: %s\n", MD5Out);
     }
     printf("     (out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
-    printf("     (out)Size: %ld\n", Toostat.st_size);
+    //printf("     (out)Size: %ld\n", Toostat.st_size);
+    printf("     (out)Size: %llu\n", ftSize.QuadPart);
     printf("     (out)File MD5: %s\n", MD5Out);
 
     if ((CompareFileTime(&ToCreTime, &ftCreate) != 0) || (CompareFileTime(&ToAccTime, &ftAccess) != 0) || (CompareFileTime(&ToModTime, &ftWrite) != 0))
@@ -5814,7 +5975,8 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         fprintf(LogHndl, "\nWrn: File TimeStamp MisMatch\n");
     }
 
-    if (iDataSize != Toostat.st_size)
+    //Check if ANY of the File Size Calculations (mis)Match
+    if ((iDataSize != Toostat.st_size)  && (dataLen != ftSize.QuadPart))
     {
       if(fileIsFrag == 1)
         printf("\nInf: File Size Fragmentation - More Data to be Appended...\n");

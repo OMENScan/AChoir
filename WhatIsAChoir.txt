@@ -1,4 +1,4 @@
-AChoir - Beta v0.82
+AChoir - Beta v0.89
 
 AChoir
 ======
