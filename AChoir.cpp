@@ -72,6 +72,7 @@
 /* AChoir v0.83 - Add RawCopy to ARN:                           */
 /* AChoir v0.85 - Can now Read POSIX file names & Hard Links    */
 /* AChoir v0.89 - Large File (> 1GB) Support                    */
+/* AChoir v0.90 - ADD HKCU Parsing for ARN:                     */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -355,6 +356,7 @@ long ReadK;
 long MakeK;
 
 HKEY  hKey = HKEY_LOCAL_MACHINE;
+HKEY  hKCU = HKEY_CURRENT_USER;
 ORHKEY ORhKey = HKEY_LOCAL_MACHINE;
 
 HKEY   phkResult;
@@ -1802,14 +1804,15 @@ int main(int argc, char *argv[])
             /* If 32B - Run Registry Scan Twice - First Time Native,        */
             /*          2nd Time Disable Wow6432Node to get the Keys        */
             /****************************************************************/
-            for (samLoop = 0; samLoop < 2; samLoop++)
+            for (samLoop = 0; samLoop < 4; samLoop++)
             {
               /****************************************************************/
-              /* Dump AutoRun Keys                                            */
+              /* Dump AutoRun Keys - HKLM and HKCU                            */
               /****************************************************************/
               if (samLoop == 0)
                 OpenK = RegOpenKeyEx(hKey, lpSubKey, ulOptions, samDesired, &phkResult);
               else
+              if (samLoop == 1)
               {
                 /****************************************************************/
                 /* If we are 64bit dump 32 bit Keys and visa-versa              */
@@ -1818,6 +1821,20 @@ int main(int argc, char *argv[])
                   OpenK = RegOpenKeyEx(hKey, lpSubKey, ulOptions, samWOW32, &phkResult);
                 else
                   OpenK = RegOpenKeyEx(hKey, lpSubKey, ulOptions, samWOW64, &phkResult);
+              }
+              else
+              if (samLoop == 2)
+                OpenK = RegOpenKeyEx(hKCU, lpSubKey, ulOptions, samDesired, &phkResult);
+              else
+              if (samLoop == 3)
+              {
+                /****************************************************************/
+                /* If we are 64bit dump 32 bit Keys and visa-versa              */
+                /****************************************************************/
+                if (strnicmp(Procesr, "AMD64", 5) == 0)
+                  OpenK = RegOpenKeyEx(hKCU, lpSubKey, ulOptions, samWOW32, &phkResult);
+                else
+                  OpenK = RegOpenKeyEx(hKCU, lpSubKey, ulOptions, samWOW64, &phkResult);
               }
 
 
