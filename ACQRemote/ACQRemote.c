@@ -2,6 +2,7 @@
 /* ACQRemote - Parse JSON and fire off remote AChoir - v0.01    */
 /* v0.02     - JSON Config Options                              */
 /* v0.03     - Add Logging                                      */
+/* v0.04     - Add Extensive Debugging (Normal, Verbose, Absurd)*/
 /****************************************************************/
 #include <stdlib.h>
 #include <stdio.h>
@@ -35,9 +36,9 @@ char *DATAArray ;
 /****************************************************************/
 /*  Basic Variables                                             */
 /****************************************************************/
-int  JSNPoint = 0    ;
-int  NXTPoint = 0    ;
-
+int  JSNPoint = 0 ;
+int  NXTPoint = 0 ;
+int  DeBug    = 1 ; // 1=Basic, 2=Verbose
 
 /****************************************************************/
 /*  SMTP Variables                                              */
@@ -137,7 +138,6 @@ char MailParms[256]   = "/Web/ACQ/Mail/123456.mll\0"     ;
 int iMonth, iDay, iYear, iHour, iMin, iSec ;
 unsigned long LCurrTime, LExpyTime  ;
 
-int DBug = 0 ;
 
 int main(int argc, char *argv[])
 {
@@ -159,11 +159,37 @@ int main(int argc, char *argv[])
   LCurrTime = time(NULL)     ;
   LExpyTime = LCurrTime+3200 ; // 60 Minutes Inactivity Max
 
-  DBug = 0;
+
+  /************************************************************/
+  /* Set the Time Zone and Daylight savings time, Then get    */
+  /* The Date into a struct                                   */
+  /*                                                          */
+  /*        The current year is: %d\n", lclTime.tm_year       */
+  /*        The current day is: %d\n", lclTime.tm_mday        */
+  /*        The current month is: %d\n", lclTime.tm_mon	      */
+  /************************************************************/
+  time(&timeval)          ;
+  lclTime = localtime(&timeval)  ;
+  iMonth = lclTime->tm_mon+1     ;
+  iDay   = lclTime->tm_mday      ;
+  iYear  = lclTime->tm_year+1900 ;
+  iHour  = lclTime->tm_hour      ;
+  iMin   = lclTime->tm_min       ;
+  iSec   = lclTime->tm_sec       ;
+
+  sprintf(CTime, "%02d:%02d:%02d\0",
+                 iHour, iMin, iSec);
+
+  sprintf(CDate, "%02d/%02d/%d\0",
+                 iMonth, iDay, iYear);
+
 
   /******************************************************************/
   /* Parse Env Variables                                            */
   /******************************************************************/
+  if(DeBug > 0)
+   ACQLogger(CDate, CTime, "ACQ: Parsing Environment Variables", " ");
+
   MyIPAddr       = getenv("REMOTE_ADDR")  ;
   UserName       = getenv("REMOTE_USER")  ;
   CgiRoot        = getenv("SCRIPT_NAME")  ;
@@ -171,6 +197,9 @@ int main(int argc, char *argv[])
   ContentLengthS = getenv("CONTENT_LENGTH") ;
   Qstring        = getenv("QUERY_STRING") ;
 
+
+  if(DeBug > 0)
+   ACQLogger(CDate, CTime, "ACQ: Reading POST Data", " ");
 
   // Only do the atoi if there is something to convert
   // Otherwise the CGI will hang!  Arg!
@@ -183,6 +212,9 @@ int main(int argc, char *argv[])
   /**************************************************************/
   /* Allocate JSON Array Memory                                 */
   /**************************************************************/
+  if(DeBug > 0)
+   ACQLogger(CDate, CTime, "ACQ: Allocating Memory", " ");
+
   NumArray = 0 ;
 
   JSONArray = (char *) malloc(MaxArray*256) ;
@@ -200,6 +232,9 @@ int main(int argc, char *argv[])
   /************************************************************/
   /* Load up the Parms                                        */
   /************************************************************/
+  if(DeBug > 0)
+   ACQLogger(CDate, CTime, "ACQ: Reading Config File", " ");
+
   IniHndl = fopen(IniFile, "r") ;
   if(IniHndl != NULL)
   {
@@ -243,6 +278,10 @@ int main(int argc, char *argv[])
         if(NumArray < MaxArray)
         {
           strncpy(JSONArray+(NumArray*256), Inrec+5, 255) ;
+
+          if(DeBug > 1)
+           ACQLogger(CDate, CTime, "ACQ: Initializing JSON Variable:", JSONArray+(NumArray*256));
+
           NumArray++;
         }
         else
@@ -261,21 +300,44 @@ int main(int argc, char *argv[])
   /**************************************************************/
   /* Read JSON from HTTP PUT                                    */
   /**************************************************************/
+  if(DeBug > 0)
+   ACQLogger(CDate, CTime, "ACQ: Parsing JSON Key/Value Pairs", ":");
+
+
   if(ContentLengthI > 1)
   {
+    ContentLengthI++; // Pad for Null Terminator
     VarzCGI = 1 ;
 
     InBuff   = (char *) malloc(ContentLengthI)  ;
+    memset(InBuff, 0, ContentLengthI);
     fread(InBuff, 1, ContentLengthI, stdin)   ;
+
+    if(DeBug > 2)
+     ACQLogger(CDate, CTime, "ACQ: Pre-Processed CGI Input Data Dump:", InBuff);
+
     XlEsc(InBuff);
+
+    if(DeBug > 2)
+     ACQLogger(CDate, CTime, "ACQ: Post Processed CGI Input Data Dump:", InBuff);
+
 
     /**************************************************************/
     /* Now bump through JSON Variables                            */
     /**************************************************************/
+    if(DeBug > 0)
+     ACQLogger(CDate, CTime, "ACQ: Searching CGI Input for JSON Variables", ":");
+
     for(i=0; i < NumArray; i++)
     {
+      if(DeBug > 0)
+       ACQLogger(CDate, CTime, "ACQ: JSON Variable:", JSONArray+(i*256));
+
       JSNPoint = 0 ;
       JSNParse(JSONArray+(i*256), DATAArray+(i*256), InBuff, 255, ContentLengthI) ;
+
+      if(DeBug > 0)
+       ACQLogger(CDate, CTime, "ACQ: Returned JSON Value: ", DATAArray+(i*256));
     }
 
   }
@@ -288,6 +350,9 @@ int main(int argc, char *argv[])
   /**************************************************************/
   /* Generate an Email                                          */
   /**************************************************************/
+  if(DeBug > 0)
+   ACQLogger(CDate, CTime, "ACQ: Generating EMail", " ");
+
   if(strlen(SMTPFrom) < 5)
     CGIError("ACQ: No From: Email Address Found in Configuration",
              "ACQ: From: Email Address was either blank or less than 5 characters: ", SMTPFrom, " ")  ;
@@ -303,31 +368,6 @@ int main(int argc, char *argv[])
   /**************************************************************/
   Indx = strrchr(CgiRoot, '/') ;
   CgiRoot[Indx-CgiRoot] = '\0' ;
-
-
-
-  /************************************************************/
-  /* Set the Time Zone and Daylight savings time, Then get    */
-  /* The Date into a struct                                   */
-  /*                                                          */
-  /*        The current year is: %d\n", lclTime.tm_year       */
-  /*        The current day is: %d\n", lclTime.tm_mday        */
-  /*        The current month is: %d\n", lclTime.tm_mon	      */
-  /************************************************************/
-  time(&timeval)          ;
-  lclTime = localtime(&timeval)  ;
-  iMonth = lclTime->tm_mon+1     ;
-  iDay   = lclTime->tm_mday      ;
-  iYear  = lclTime->tm_year+1900 ;
-  iHour  = lclTime->tm_hour      ;
-  iMin   = lclTime->tm_min       ;
-  iSec   = lclTime->tm_sec       ;
-
-  sprintf(CTime, "%02d:%02d:%02d\0",
-                 iHour, iMin, iSec);
-
-  sprintf(CDate, "%02d/%02d/%d\0",
-                 iMonth, iDay, iYear);
 
 
 
@@ -352,6 +392,9 @@ int main(int argc, char *argv[])
   /**************************************************************/
   /* Use the Session Name as the email file name also...        */
   /**************************************************************/
+  if(DeBug > 0)
+   ACQLogger(CDate, CTime, "ACQ: Creating Email File", " ");
+
   MailHndl = fopen(MailFile, "w") ;
   if(MailHndl != NULL)
   {
@@ -390,6 +433,9 @@ int main(int argc, char *argv[])
   /************************************************************/
   if(SendSMTP == 1)
   {
+    if(DeBug > 0)
+     ACQLogger(CDate, CTime, "ACQ: Sending Email", " ");
+
     fflush(stdout) ;
     sprintf(MailParms, "File:C:\\Web\\ACQ\\Mail\\%d.mll\0", SessNum) ;
     spawnlp(P_WAIT, AcqMailer, "ACQMail.EXE", MailParms, NULL);
@@ -400,6 +446,9 @@ int main(int argc, char *argv[])
   /************************************************************/
   /* Return HTML                                              */
   /************************************************************/
+  if(DeBug > 0)
+   ACQLogger(CDate, CTime, "ACQ: Writing CGI Output to STDOut", " ");
+
   printf("Content-type: text/html\n\n") ;
 
   //Read the HTML Skeleton File and display.
@@ -1050,6 +1099,9 @@ void CGIError(char *BErrText, char *FErrText, char *Var1, char *Var2)
 void JSNParse(char *Varbl, char *Value, char *InBuff, int MaxSize, int MaxBufSz)
 {
   int Iptr, Vptr, Xptr, DoMe, VarSz, nonBlank ;
+
+  if(DeBug > 1)
+   ACQLogger(CDate, CTime, "ACQ: Parsing JSON Variable:", Varbl);
 
   Vptr  = 0             ;
   VarSz = strlen(Varbl) ;
