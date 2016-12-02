@@ -3,6 +3,7 @@
 /* v0.02     - JSON Config Options                              */
 /* v0.03     - Add Logging                                      */
 /* v0.04     - Add Extensive Debugging (Normal, Verbose, Absurd)*/
+/* v0.05     - Add IP Auth and Multiple Run Types               */
 /****************************************************************/
 #include <stdlib.h>
 #include <stdio.h>
@@ -38,7 +39,7 @@ char *DATAArray ;
 /****************************************************************/
 int  JSNPoint = 0 ;
 int  NXTPoint = 0 ;
-int  DeBug    = 1 ; // 1=Basic, 2=Verbose
+int  DeBug    = 0 ; // 1=Basic, 2=Verbose
 
 /****************************************************************/
 /*  SMTP Variables                                              */
@@ -135,6 +136,11 @@ char EmailToo[256] = "nobody@nowhere\0" ;
 
 char MailParms[256]   = "/Web/ACQ/Mail/123456.mll\0"     ;
 
+int  gotType = 0;
+char AcqType[15] = "Default\0" ;
+char AcqTypx[15] = "[Default]\0" ;
+char IPAuth[256] = "127.0.0.1\0" ;
+
 int iMonth, iDay, iYear, iHour, iMin, iSec ;
 unsigned long LCurrTime, LExpyTime  ;
 
@@ -199,6 +205,9 @@ int main(int argc, char *argv[])
 
 
   if(DeBug > 0)
+   ACQLogger(CDate, CTime, "ACQ: Remote IP Address", MyIPAddr);
+
+  if(DeBug > 0)
    ACQLogger(CDate, CTime, "ACQ: Reading POST Data", " ");
 
   // Only do the atoi if there is something to convert
@@ -207,6 +216,15 @@ int main(int argc, char *argv[])
    ContentLengthI = atoi(ContentLengthS) ;
   else
    ContentLengthI = 0 ;
+
+  // Did We Specify a Type?
+  if(argc > 1) 
+  {
+    memset(AcqType, 0, 15);
+    memset(AcqTypx, 0, 15);
+    strncpy(AcqType, argv[1], 10) ;
+    sprintf(AcqTypx, "[%s]", AcqType) ;
+  }
 
 
   /**************************************************************/
@@ -238,54 +256,76 @@ int main(int argc, char *argv[])
   IniHndl = fopen(IniFile, "r") ;
   if(IniHndl != NULL)
   {
+    gotType = 0;
     while(fgets(Inrec, 250, IniHndl))
     {
       // Look for a Signature Input
       strtok(Inrec, "\n") ;
 
-      if(strnicmp(Inrec, "EMail:Yes", 9) == 0)
-       SendSMTP = 1 ;
-      else
-      if(strnicmp(Inrec, "EMail:No", 8) == 0)
-       SendSMTP = 0 ;
-      else
-      if(strnicmp(Inrec, "Mailer:", 7) == 0)
+      //Look for the [Section] we want to use
+      if(strnicmp(Inrec, AcqTypx, 12) == 0)
       {
-        strncpy(AcqMailer, Inrec+7, 255)  ;
-        AcqMailer[255] = '\0' ;
+        gotType = 1 ;
+        continue ;
       }
-      else
-      if(strnicmp(Inrec, "Triage:", 7) == 0)
+
+
+      //We found our section - Now pull the parameters
+      if(gotType == 1)
       {
-        strncpy(AcqTriage, Inrec+7, 255)  ;
-        AcqTriage[255] = '\0' ;
-      }
-      else
-      if(strnicmp(Inrec, "SMTPTo:", 7) == 0)
-      {
-        strncpy(SMTPTo, Inrec+7, 255)  ;
-        SMTPTo[255] = '\0' ;
-      }
-      else
-      if(strnicmp(Inrec, "SMTPFrom:", 9) == 0)
-      {
-        strncpy(SMTPFrom, Inrec+9, 255)  ;
-        SMTPFrom[255] = '\0' ;
-      }
-      else
-      if(strnicmp(Inrec, "JSON:", 5) == 0)
-      {
-        if(NumArray < MaxArray)
+        if(strnicmp(Inrec, "[End]", 5) == 0)
+         break ;
+        else
+        if(strnicmp(Inrec, "EMail:Yes", 9) == 0)
+         SendSMTP = 1 ;
+        else
+        if(strnicmp(Inrec, "EMail:No", 8) == 0)
+         SendSMTP = 0 ;
+        else
+        if(strnicmp(Inrec, "Mailer:", 7) == 0)
         {
-          strncpy(JSONArray+(NumArray*256), Inrec+5, 255) ;
-
-          if(DeBug > 1)
-           ACQLogger(CDate, CTime, "ACQ: Initializing JSON Variable:", JSONArray+(NumArray*256));
-
-          NumArray++;
+          strncpy(AcqMailer, Inrec+7, 255)  ;
+          AcqMailer[255] = '\0' ;
         }
         else
-         printf("Max array size Exceeded: %d\n", MaxArray);
+        if(strnicmp(Inrec, "Triage:", 7) == 0)
+        {
+          strncpy(AcqTriage, Inrec+7, 255)  ;
+          AcqTriage[255] = '\0' ;
+        }
+        else
+        if(strnicmp(Inrec, "SMTPTo:", 7) == 0)
+        {
+          strncpy(SMTPTo, Inrec+7, 255)  ;
+          SMTPTo[255] = '\0' ;
+        }
+        else
+        if(strnicmp(Inrec, "SMTPFrom:", 9) == 0)
+        {
+          strncpy(SMTPFrom, Inrec+9, 255)  ;
+          SMTPFrom[255] = '\0' ;
+        }
+        else
+        if(strnicmp(Inrec, "IPAuth:", 7) == 0)
+        {
+          strncpy(IPAuth, Inrec+7, 255)  ;
+          IPAuth[255] = '\0' ;
+        }
+        else
+        if(strnicmp(Inrec, "JSON:", 5) == 0)
+        {
+          if(NumArray < MaxArray)
+          {
+            strncpy(JSONArray+(NumArray*256), Inrec+5, 255) ;
+
+            if(DeBug > 1)
+             ACQLogger(CDate, CTime, "ACQ: Initializing JSON Variable:", JSONArray+(NumArray*256));
+
+            NumArray++;
+          }
+          else
+           printf("Max array size Exceeded: %d\n", MaxArray);
+        }
       }
     }
 
@@ -294,7 +334,18 @@ int main(int argc, char *argv[])
   }
   else
    CGIError("ACQ: Could not read Configuration File",
-            "ACQ: No Valid Configuration File Found", " ", " ")  ;
+            "ACQ: No Valid Configuration File Found", AcqType, " ")  ;
+
+
+  if(gotType == 0)
+   CGIError("ACQ: Invalid Triage Type",
+            "ACQ: Triage Type Not Found: ", AcqType, " ")  ;
+
+
+  if(strnicmp(MyIPAddr, IPAuth, 255) != 0)
+   CGIError("ACQ: Not Authorized",
+            "ACQ: Remote IP Address does not match Authorized IP:", MyIPAddr, IPAuth)  ;
+
 
 
   /**************************************************************/

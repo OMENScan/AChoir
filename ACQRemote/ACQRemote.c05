@@ -207,12 +207,6 @@ int main(int argc, char *argv[])
   if(DeBug > 0)
    ACQLogger(CDate, CTime, "ACQ: Remote IP Address", MyIPAddr);
 
-
-  if(strnicmp(MyIPAddr, IPAuth, 255) != 0)
-   CGIError("ACQ: Not Authorized",
-            "ACQ: Remote IP Address does not match Authorized IP:", MyIPAddr, IPAuth)  ;
-
-
   if(DeBug > 0)
    ACQLogger(CDate, CTime, "ACQ: Reading POST Data", " ");
 
@@ -269,7 +263,7 @@ int main(int argc, char *argv[])
       strtok(Inrec, "\n") ;
 
       //Look for the [Section] we want to use
-      if(strnicmp(Inrec, AcqType, 12) == 0)
+      if(strnicmp(Inrec, AcqTypx, 12) == 0)
       {
         gotType = 1 ;
         continue ;
@@ -312,9 +306,9 @@ int main(int argc, char *argv[])
           SMTPFrom[255] = '\0' ;
         }
         else
-        if(strnicmp(Inrec, "IPAuth", 6) == 0)
+        if(strnicmp(Inrec, "IPAuth:", 7) == 0)
         {
-          strncpy(IPAuth, Inrec+6, 255)  ;
+          strncpy(IPAuth, Inrec+7, 255)  ;
           IPAuth[255] = '\0' ;
         }
         else
@@ -333,15 +327,6 @@ int main(int argc, char *argv[])
            printf("Max array size Exceeded: %d\n", MaxArray);
         }
       }
-
-
-
-
-
-
-
-
-
     }
 
     fclose(IniHndl) ;
@@ -349,7 +334,18 @@ int main(int argc, char *argv[])
   }
   else
    CGIError("ACQ: Could not read Configuration File",
-            "ACQ: No Valid Configuration File Found", " ", " ")  ;
+            "ACQ: No Valid Configuration File Found", AcqType, " ")  ;
+
+
+  if(gotType == 0)
+   CGIError("ACQ: Invalid Triage Type",
+            "ACQ: Triage Type Not Found: ", AcqType, " ")  ;
+
+
+  if(strnicmp(MyIPAddr, IPAuth, 255) != 0)
+   CGIError("ACQ: Not Authorized",
+            "ACQ: Remote IP Address does not match Authorized IP:", MyIPAddr, IPAuth)  ;
+
 
 
   /**************************************************************/
