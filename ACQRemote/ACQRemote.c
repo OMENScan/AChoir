@@ -480,21 +480,6 @@ int main(int argc, char *argv[])
 
 
   /************************************************************/
-  /* Send Email                                               */
-  /************************************************************/
-  if(SendSMTP == 1)
-  {
-    if(DeBug > 0)
-     ACQLogger(CDate, CTime, "ACQ: Sending Email", " ");
-
-    fflush(stdout) ;
-    sprintf(MailParms, "File:C:\\Web\\ACQ\\Mail\\%d.mll\0", SessNum) ;
-    spawnlp(P_WAIT, AcqMailer, "ACQMail.EXE", MailParms, NULL);
-    //unlink(MailFile) ;
-  }
-
-
-  /************************************************************/
   /* Return HTML                                              */
   /************************************************************/
   if(DeBug > 0)
@@ -604,6 +589,21 @@ int main(int argc, char *argv[])
           ACQLogger(CDate, CTime, "ACQ: Triage Initiated -", FulTriage);
 
           system(FulTriage) ;
+
+
+          /************************************************************/
+          /* Should we also Send Email?                               */
+          /************************************************************/
+          if(SendSMTP == 1)
+          {
+            if(DeBug > 0)
+             ACQLogger(CDate, CTime, "ACQ: Sending Email", " ");
+
+            fflush(stdout) ;
+            sprintf(MailParms, "File:C:\\Web\\ACQ\\Mail\\%d.mll\0", SessNum) ;
+            spawnlp(P_WAIT, AcqMailer, "ACQMail.EXE", MailParms, NULL);
+            //unlink(MailFile) ;
+          }
 
           oPtr = strlen(Outrec)  ;
           iPtr+= 7              ;
