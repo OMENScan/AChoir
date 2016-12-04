@@ -312,6 +312,24 @@ int main(int argc, char *argv[])
           IPAuth[255] = '\0' ;
         }
         else
+        if(strnicmp(Inrec, "Debug:Yes", 9) == 0)
+        {
+          DeBug = 2 ;
+          ACQLogger(CDate, CTime, "ACQ: Debug is set to:", "On");
+        }
+        else
+        if(strnicmp(Inrec, "Debug:No", 8) == 0)
+        {
+          DeBug = 0 ;
+          ACQLogger(CDate, CTime, "ACQ: Debug is set to:", "Off");
+        }
+        else
+        if(strnicmp(Inrec, "Debug:Quiet", 11) == 0)
+        {
+          DeBug = 0 ;
+          ACQLogger(CDate, CTime, "ACQ: Debug is set to:", "Quiet");
+        }
+        else
         if(strnicmp(Inrec, "JSON:", 5) == 0)
         {
           if(NumArray < MaxArray)
