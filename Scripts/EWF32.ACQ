@@ -83,11 +83,12 @@ SYS:\RRV\RegRipper2.8-master\rip -r &Drv\Windows\System32\Config\SECURITY –f sec
 SAY:
 SAY: 3. Parsing Prefetch Directory...
 SAY:
-ACQ:\SYS
+ACQ:\Prf
 NCP:"&Drv\Windows\prefetch\*" "&Acq"
 SAY:
 SAY: 4. Parsing Hosts And Services Directory...
 SAY:
+ACQ:\SYS
 NCP:"&Drv\Windows\System32\Drivers\Etc\*" "&Acq"
 SAY:
 SAY: 5. Gathering AutoRun Information...

@@ -1,5 +1,5 @@
 ***************************************************
-* Live Acquisition Script (1.0)                   *
+* Live Acquisition Script (2.0)                   *
 * - Pulls Forensics artifacts for analysis        *
 * - Created by D0n Quix0te/OMENScan (May 2015)    *
 * - Inspired by many other tools                  *
@@ -29,7 +29,7 @@ EXE:\MEM\WinPmem.exe &Acq\WinPmemDump.Raw
 SAY:
 SAY: 2. Extracting Prefetch Directory...
 SAY:
-ACQ:\SYS
+ACQ:\Prf
 NCP:"&Win\prefetch\*" "&Acq"
 SAY:
 SAY: 3a. Copy Raw $MFT...
@@ -71,37 +71,13 @@ NCP:"&Win\System32\Config\SECURITY" "&Acq"
 NCP:"&Win\System32\Config\SOFTWARE" "&Acq"
 NCP:"&Win\System32\Config\SAM" "&Acq"
 NCP:"&Win\System32\Config\SYSTEM" "&Acq"
-SAY:
-SAY: 5a. Saving Registry Hives...
-SAY:
-ACQ:\Reg
-CMD:reg save HKLM\SECURITY &Acq\Security.RegSave
-CMD:reg save HKLM\SOFTWARE &Acq\Software.RegSave
-CMD:reg save HKLM\SAM &Acq\SAM.RegSave
-CMD:reg save HKLM\SYSTEM &Acq\System.RegSave
-CMD:reg save HKLM\HARDWARE &Acq\Hardware.RegSave
-SAY:
-SAY: 5b. Parsing (Exporting) Registry Hives...
-SAY:
-CMD:Reg Export HKLM &Acq\RegHKLM.dat
-CMD:Reg Export HKCU &Acq\RegHKCU.dat
-CMD:Reg Export HKCR &Acq\RegHKCR.dat
-CMD:Reg Export HKCC &Acq\RegHKCC.dat
-CMD:Reg Export HKU  &Acq\RegHKU.dat
-SAY:
-SAY: 6a. Parsing EventViewer Logs...
+SAY: 6. Copying (System32) EventViewer Logs...
 SAY:
 ACQ:\Evt
-CMD:\SYS\PSLogList.exe /accepteula -s Security > &Acq\EvtSec.dat
-CMD:\SYS\PSLogList.exe /accepteula -s Application > &Acq\EvtApp.dat
-CMD:\SYS\PSLogList.exe /accepteula -s System > &Acq\EvtSys.dat
-SAY:
-SAY: 6b. Copying (System32) Bit EventViewer Logs...
-SAY:
 ACQ:\Evt\Sys32
 NCP:"&Win\System32\winevt\Logs\*" "&Acq"
 SAY:
-SAY: 6c. Copying (Sysnative) Bit EventViewer Logs...
+SAY: 6a. Copying (Sysnative) Bit EventViewer Logs...
 SAY:
 ACQ:\Evt\Nativ
 NCP:"&Win\sysnative\winevt\Logs\*" "&Acq"

@@ -1,5 +1,5 @@
 ***************************************************
-* Live Acquisition Script (1.0)                   *
+* Live Acquisition Script (2.0)                   *
 * - Pulls Forensics artifacts for analysis        *
 * - Created by D0n Quixote/OMENScan (May 2015)    *
 * - Inspired by many other tools                  *
@@ -70,7 +70,7 @@ CMD:\RRV\RegRipper2.8-master\rip -r &Drv\Windows\System32\Config\SECURITY –f sec
 SAY:
 SAY: 3. Parsing Prefetch Directory...
 SAY:
-ACQ:\SYS
+ACQ:\Prf
 For:&Drv\Windows\prefetch\*.*
 CPY:"&For" "&Acq\&Fnm"
 CMD:Dir &Drv\Windows\prefetch /a /q /r > &Acq\Prefetch.dat
@@ -78,6 +78,7 @@ EXE:\SYS\WinPrefetchView.exe /folder &Drv\Windows\Prefetch /scomma &Acq\WinPrefe
 SAY:
 SAY: 4. Parsing Hosts And Services Directory...
 SAY:
+ACQ:\SYS
 For:&Drv\Windows\System32\Drivers\Etc\*.*
 CPY:"&For" "&Acq\&Fnm"
 SAY:
