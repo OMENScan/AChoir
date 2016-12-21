@@ -4,6 +4,9 @@
 /* v0.03     - Add Logging                                      */
 /* v0.04     - Add Extensive Debugging (Normal, Verbose, Absurd)*/
 /* v0.05     - Add IP Auth and Multiple Run Types               */
+/* v0.06     - Add POST Auth - Another Validation Check         */
+/*               A Unique String to Check in the POST body text */
+/*           - Add Comment Identified == * in column 0          */
 /****************************************************************/
 #include <stdlib.h>
 #include <stdio.h>
@@ -22,6 +25,8 @@
 #include <process.h>
 
 #include <windows.h>
+
+#define NUL '\0'
 
 
 
@@ -74,6 +79,7 @@ void Xlate(char *XlateText) ;
 void XlEsc(char *XlateText) ;
 int MemAllocErr(char *ErrType) ;
 void ACQLogger(char *ACQDate, char *ACQTime, char *AcqData, char *ACQVar) ;
+char *stristr(const char *String, const char *Pattern);
 
 
 /****************************************************************/
@@ -139,7 +145,8 @@ char MailParms[256]   = "/Web/ACQ/Mail/123456.mll\0"     ;
 int  gotType = 0;
 char AcqType[15] = "Default\0" ;
 char AcqTypx[15] = "[Default]\0" ;
-char IPAuth[256] = "127.0.0.1\0" ;
+char IPAuth[256] = "127.0.0.1\0" ;  // Validate IP Address
+char POSTAuth[256] = "\0\0\0\0\0" ; // Validate Something in the POST(Like the SID)
 
 int iMonth, iDay, iYear, iHour, iMin, iSec ;
 unsigned long LCurrTime, LExpyTime  ;
@@ -276,6 +283,9 @@ int main(int argc, char *argv[])
         if(strnicmp(Inrec, "[End]", 5) == 0)
          break ;
         else
+        if(Inrec[0] == '*')
+         continue;
+        else
         if(strnicmp(Inrec, "EMail:Yes", 9) == 0)
          SendSMTP = 1 ;
         else
@@ -310,6 +320,12 @@ int main(int argc, char *argv[])
         {
           strncpy(IPAuth, Inrec+7, 255)  ;
           IPAuth[255] = '\0' ;
+        }
+        else
+        if(strnicmp(Inrec, "POSTAuth:", 9) == 0)
+        {
+          strncpy(POSTAuth, Inrec+9, 255)  ;
+          POSTAuth[255] = '\0' ;
         }
         else
         if(strnicmp(Inrec, "Debug:Yes", 9) == 0)
@@ -389,6 +405,22 @@ int main(int argc, char *argv[])
 
     if(DeBug > 2)
      ACQLogger(CDate, CTime, "ACQ: Post Processed CGI Input Data Dump:", InBuff);
+
+
+    /**************************************************************/
+    /* Validate POSTAuth if we have one                           */
+    /**************************************************************/
+    if(strlen(POSTAuth) > 0)
+    {
+      if (stristr(InBuff, POSTAuth) > 0)
+      {
+        if(DeBug > 0)
+         ACQLogger(CDate, CTime, "ACQ: POST Validation String Verified.", " ");
+      }
+      else
+        CGIError("Err: Fatal Validation Error - POST Validation String Not Detected!",
+                 "Err: Fatal Validation Error - POST Validation String Not Detected!", " ", " ")  ;
+    }
 
 
     /**************************************************************/
@@ -1276,4 +1308,33 @@ void ACQLogger(char *ACQDate, char *ACQTime, char *AcqData, char *ACQVar)
 }
 
 
+/****************************************************************/
+/*  stristr                                                     */
+/****************************************************************/
+char *stristr(const char *String, const char *Pattern)
+{
+  char *pptr, *sptr, *start;
+
+  for (start = (char *)String; *start != NUL; start++)
+  {
+    /* find start of pattern in string */
+    for (; ((*start != NUL) && (toupper(*start) != toupper(*Pattern))); start++);
+    if (NUL == *start)
+      return NULL;
+
+    pptr = (char *)Pattern;
+    sptr = (char *)start;
+
+    while (toupper(*sptr) == toupper(*pptr))
+    {
+      sptr++;
+      pptr++;
+
+      /* if end of pattern then pattern was found */
+      if (NUL == *pptr)
+        return (start);
+    }
+  }
+  return NULL;
+}
 
