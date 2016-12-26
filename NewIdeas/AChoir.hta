@@ -1,6 +1,6 @@
 <html>
 <head>
-  <title>AChoir GUI 0.01</title>
+  <title>AChoir GUI 0.02</title>
   <HTA:APPLICATION ID="AChoirGUI" 
     APPLICATIONNAME="AChoir GUI" 
     BORDER="Yes"
@@ -12,7 +12,6 @@
   WINDOWSTATE="normal">
 
   <script type="text/javascript" language="javascript">
-
     function RunAChoir()
     {
       var rbutns = document.getElementsByName("rbtn");
@@ -66,7 +65,7 @@
 
     function resizeWin()
     {
-       window.resizeTo(1050, 850);
+       window.resizeTo(1100, 850);
        window.focus();
     }
 
@@ -77,81 +76,94 @@
 
   </script>
 
+  <style>
+    body{font: 90%/1.3 TrebuchetMS,Arial,sans-serif; text-align: left;background: #fff;padding-bottom:20px}
+    h1 { font: bold 2.1em Arial, Arial, Sans-Serif; color: #036DA7 }
+  </style>
+
 </head>
 
 
 <body onload="resizeWin()">
-  <h1> Welcome to AChoir GUI 0.01 </h1>
 
-  <p>
-  This GUI is meant to simplify running the various AChoir Scripts.
-  </p>
+<h1> Welcome to AChoir GUI 0.02 </h1>
 
-  <p>
-  This GUI does not add any functionality, so running the AChoir Scripts from a 
-  Command Prompt will give the same results.  When running Achoir in an environment 
-  where minimal impact (Observer Effect) is needed - This GUI should not be used.  
-  However,   in environment where a menu driven GUI is desired, this GUI will help 
-  to make AChoir easier to use.
-  </p>
-
-    <TABLE Width="100%" border="0">
-    <TR>
-      <TD>
-      <font color="#000000"><i><fieldset><legend>Select A Script</legend></i></font>
-
-       <p>
-       <input type="radio" checked name="rbtn" value="0">Default Script - 
-       This is the Default AChoir Script. It gathers as much information as possible
-       </p>
-
-       <p>
-       <input type="radio"         name="rbtn" value="1">No Memory - 
-       This Script gathers the same Artifact as the default script EXCEPT Memory<br>
-       </p>
-
-       <p>
-       <input type="radio"         name="rbtn" value="2">Create ZPAQ Archive - 
-       This Script gathers the same Artifact as the default script and compresses it into an Archive<br>
-       </p>
-
-       <p>
-       <input type="radio"         name="rbtn" value="3">Doc Dump - 
-       This Script gathers the most common document types based on File Extension<br>
-       </p>
-
-       <p>
-       <input type="radio"         name="rbtn" value="4">Media Dump - 
-       This Script gathers the most common Media types based on File Extension<br>
-       </p>
-
-       <p>
-       <input type="radio"         name="rbtn" value="5">USB OFF - 
-       Disable USB Write by turning ON USB Write Protection<br>
-       </p>
-
-       <p>
-       <input type="radio"         name="rbtn" value="6">USB ON - 
-       Enable USB Write by turning OFF USB Write Protection<br>
-       </p>
-
-       <input type="radio"         name="rbtn" value="7">Build - 
-       Re-Run the AChoir Toolkit Builder (Use with CAUTION).<br>
-       </p>
-      </TD>
-    </TR>
-    </TABLE>
-
+<p>
+  <TABLE Width="100%" border="0" bgcolor="#FFFFEF">
+  <TR><TD>
     <p>
-    <input type="button" value="Run AChoir" onclick="RunAChoir();"/> OR 
-    <input type="button" value="Exit GUI" onclick="ExitMe();"/>
+    This GUI is meant to simplify running the various AChoir Scripts.
     </p>
 
-    <hr>
-    <p>
-    <b><i>Important Note: </b></i>This GUI will call the 32Bit AChoir Program as Admin.
+    <p> 
+    This GUI does not add any functionality, so running the AChoir Scripts from a 
+    Command Prompt will give the same results.  When running AChoir in an environment 
+    where minimal impact (Observer Effect) is needed - This GUI should not be used.  
+    However, in environments where a menu driven GUI is desired, this GUI helps
+    to make AChoir easier to use.
     </p>
+  </TD></TR>
+  </TABLE>
+</p>
+
+<p>
+  <TABLE Width="100%" border="0">
+  <TR>
+  <TD>
+    <font color="#000000"><i><fieldset><legend>Select A Script</legend></i></font>
+
+    <p>
+      <input type="radio" checked name="rbtn" value="0">Default Script - 
+      This is the Default AChoir Script. It gathers as much information as possible
+    </p>
+
+    <p>
+      <input type="radio"         name="rbtn" value="1">No Memory - 
+      This Script gathers the same Artifacts as the Default Script EXCEPT Memory
+    </p>
+
+    <p>
+      <input type="radio"         name="rbtn" value="2">ZPAQ Archive - 
+      This Script gathers the same Artifacts as the Default Script and compresses into an Archive
+    </p>
+
+    <p>
+      <input type="radio"         name="rbtn" value="3">Doc Dump - 
+      This Script gathers the most common document types based on File Extension
+    </p>
+
+    <p>
+      <input type="radio"         name="rbtn" value="4">Media Dump - 
+      This Script gathers the most common Media types based on File Extension
+    </p>
+
+    <p>
+      <input type="radio"         name="rbtn" value="5">USB OFF - 
+      Disable USB Write by turning ON USB Write Protection
+    </p>
+
+    <p>
+      <input type="radio"         name="rbtn" value="6">USB ON - 
+      Enable USB Write by turning OFF USB Write Protection
+    </p>
+
+    <p>
+      <input type="radio"         name="rbtn" value="7">Build - 
+      Re-Run the AChoir Toolkit Builder (Use with CAUTION)
+    </p>
+  </TD>
+  </TR>
+</TABLE>
+
+<p>
+  <input type="button" value="Run AChoir" onclick="RunAChoir();"/> OR 
+  <input type="button" value="Exit GUI" onclick="ExitMe();"/>
+</p>
+
+<hr>
+<p>
+  <b><i>Important Note: </b></i>This GUI will call the 32Bit AChoir Program as Admin.
+</p>
 
 </body>
 </html>
-
