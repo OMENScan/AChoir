@@ -1,0 +1,157 @@
+<html>
+<head>
+  <title>AChoir GUI 0.01</title>
+  <HTA:APPLICATION ID="AChoirGUI" 
+    APPLICATIONNAME="AChoir GUI" 
+    BORDER="Yes"
+    CAPTION="Yes"
+    SHOWINTASKBAR="Yes"
+    SINGLEINSTANCE="Yes"
+    SYSMENU="Yes"
+    SCROLL="no"
+  WINDOWSTATE="normal">
+
+  <script type="text/javascript" language="javascript">
+
+    function RunAChoir()
+    {
+      var rbutns = document.getElementsByName("rbtn");
+      var ScrName = "/ini:AChoir.acq" ;
+      var RunMe = 1 ;
+ 
+      if (rbutns[0].checked == true) 
+      {
+        ScrName = "A-AChoir.exe /ini:AChoir.acq" ;
+      } 
+      else if (rbutns[1].checked == true) 
+      {
+        ScrName = "A-AChoir.exe /ini:NoMem.acq" ;
+      }
+      else if (rbutns[2].checked == true)
+      {
+        ScrName = "A-AChoir.exe /ini:AChoirZ.acq" ;
+      }
+      else if (rbutns[3].checked == true)
+      {
+        ScrName = "A-AChoir.exe /ini:DocDump.acq" ;
+      }
+      else if (rbutns[4].checked == true)
+      {
+        ScrName = "A-AChoir.exe /ini:MediaDump.acq" ;
+      }
+      else if (rbutns[5].checked == true)
+      {
+        ScrName = "A-AChoir.exe /ini:USBOff.acq" ;
+      }
+      else if (rbutns[6].checked == true)
+      {
+        ScrName = "A-AChoir.exe /ini:USBOn.acq" ;
+      }
+      else if (rbutns[7].checked == true)
+      {
+        ScrName = "A-AChoir.exe /ini:Build.acq" ;
+      }
+      else
+      {
+        RunMe = 0;
+        alert("Invalid Script, Please Try Again.");
+      }
+
+      if (RunMe == 1)
+      {
+        WshShell = new ActiveXObject("WScript.Shell");
+        WshShell.Run(ScrName, 1, false);
+      }
+    }
+
+    function resizeWin()
+    {
+       window.resizeTo(1050, 850);
+       window.focus();
+    }
+
+    function ExitMe()
+    {
+      self.close()
+    }
+
+  </script>
+
+</head>
+
+
+<body onload="resizeWin()">
+  <h1> Welcome to AChoir GUI 0.01 </h1>
+
+  <p>
+  This GUI is meant to simplify running the various AChoir Scripts.
+  </p>
+
+  <p>
+  This GUI does not add any functionality, so running the AChoir Scripts from a 
+  Command Prompt will give the same results.  When running Achoir in an environment 
+  where minimal impact (Observer Effect) is needed - This GUI should not be used.  
+  However,   in environment where a menu driven GUI is desired, this GUI will help 
+  to make AChoir easier to use.
+  </p>
+
+    <TABLE Width="100%" border="0">
+    <TR>
+      <TD>
+      <font color="#000000"><i><fieldset><legend>Select A Script</legend></i></font>
+
+       <p>
+       <input type="radio" checked name="rbtn" value="0">Default Script - 
+       This is the Default AChoir Script. It gathers as much information as possible
+       </p>
+
+       <p>
+       <input type="radio"         name="rbtn" value="1">No Memory - 
+       This Script gathers the same Artifact as the default script EXCEPT Memory<br>
+       </p>
+
+       <p>
+       <input type="radio"         name="rbtn" value="2">Create ZPAQ Archive - 
+       This Script gathers the same Artifact as the default script and compresses it into an Archive<br>
+       </p>
+
+       <p>
+       <input type="radio"         name="rbtn" value="3">Doc Dump - 
+       This Script gathers the most common document types based on File Extension<br>
+       </p>
+
+       <p>
+       <input type="radio"         name="rbtn" value="4">Media Dump - 
+       This Script gathers the most common Media types based on File Extension<br>
+       </p>
+
+       <p>
+       <input type="radio"         name="rbtn" value="5">USB OFF - 
+       Disable USB Write by turning ON USB Write Protection<br>
+       </p>
+
+       <p>
+       <input type="radio"         name="rbtn" value="6">USB ON - 
+       Enable USB Write by turning OFF USB Write Protection<br>
+       </p>
+
+       <input type="radio"         name="rbtn" value="7">Build - 
+       Re-Run the AChoir Toolkit Builder (Use with CAUTION).<br>
+       </p>
+      </TD>
+    </TR>
+    </TABLE>
+
+    <p>
+    <input type="button" value="Run AChoir" onclick="RunAChoir();"/> OR 
+    <input type="button" value="Exit GUI" onclick="ExitMe();"/>
+    </p>
+
+    <hr>
+    <p>
+    <b><i>Important Note: </b></i>This GUI will call the 32Bit AChoir Program as Admin.
+    </p>
+
+</body>
+</html>
+
