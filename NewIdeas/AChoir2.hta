@@ -1,6 +1,6 @@
 <html>
 <head>
-  <title>AChoir GUI 0.03</title>
+  <title>AChoir GUI 0.04</title>
   <HTA:APPLICATION ID="AChoirGUI" 
     APPLICATIONNAME="AChoir GUI" 
     BORDER="Yes"
@@ -14,7 +14,7 @@
 <script type="text/javascript">
 self.moveTo(10,10);
 self.resizeTo(1100,860);
-var panels = new Array("","panel1","panel2");
+var panels = new Array("","panel1","panel2","panel3");
 function panel(tab) 
 {
   for (i=1; i<panels.length; i++) 
@@ -83,6 +83,13 @@ function RunAChoir()
   }
 }
 
+function RunRAChoir()
+{
+  alert(HostName.value);
+  alert(AdminName.value);
+  alert(ServerName.value);
+}
+
 function ExitMe()
 {
   self.close()
@@ -135,14 +142,15 @@ function ExitMe()
 <table align="center" border="0" cellpadding="0" cellspacing="0" width="1000">
 <tr valign="top">
   <td align="right" colspan="2">
-    <span class="head">AChoir GUI 0.03</span> &nbsp; &nbsp;
+    <span class="head">AChoir GUI 0.04</span> &nbsp; &nbsp;
     <br>
   </td>
 </tr>
 <tr valign="top">
   <td colspan="2">
-    &nbsp; <span class="tabs tabs1" id="tab1" onclick="panel(1)">Local Acquisition</span>
-    &nbsp; <span class="tabs tabs0" id="tab2" onclick="panel(2)">Remote Acquisition</span>
+    &nbsp; <span class="tabs tabs1" id="tab1" onclick="panel(1)">Local->Local</span>
+    &nbsp; <span class="tabs tabs0" id="tab2" onclick="panel(2)">Local->Remote</span>
+    &nbsp; <span class="tabs tabs0" id="tab3" onclick="panel(3)">Remote->Remote</span>
 
     <div class="panel" id="panel1" style="display:block">
       <table border="0" width="100%">
@@ -151,11 +159,12 @@ function ExitMe()
 
             <TABLE Width="100%" border="0" bgcolor="#FFFFEF"><TR><TD>
             <p>
-            This Tab is meant to simplify running various LOCAL AChoir Scripts.
+            This Tab runs LOCAL Achoir scripts on a local machine, and saves the
+            artifacts to a locally attached drive.
             </p>
 
             <p> 
-            This Tab is used to run AChoir Scripts on the LOCAL machine.  Please Note: 
+            Please Note: 
             Running the AChoir Scripts from a Command Prompt will give the same results.
             When running AChoir in an environment where minimal impact is needed - This GUI 
             should not be used.  However, in environments where a menu driven GUI is desired, 
@@ -225,23 +234,178 @@ function ExitMe()
     </div>
 
     <div class="panel" id="panel2" style="display:none">
-        <table border="0" width="100%">
+      <table border="0" width="100%">
         <tr valign="top">
           <td>
             <TABLE Width="100%" border="0" bgcolor="#FFFFEF"><TR><TD>
             <p>
-            This Tab is meant to simplify running an AChoir Remote Script using PSExec.
+            This Tab runs a LOCAL Achoir script on a local machine and then switches
+            to a Remote AChoir Server, where it will save its artifacts.
             </p>
 
             <p> 
-            This Tab is used to run the Remote AChoir Script.  Please Note: 
+            Please Note: 
+            Running the Remote AChoir Script from a Command Prompt will give the same results.
+            When running AChoir in an environment where minimal impact is needed - This GUI 
+            should not be used.  However, in environments where a menu driven GUI is desired, 
+            this GUI helps to make AChoir easier to use.
+            </p>
+            </TD></TR></TABLE>
+
+
+            <p>
+            <TABLE Width="100%" border="0"><TR><TD>
+            <font color="#000000"><i><fieldset><legend>Fill In All Fields</legend></i></font>
+
+            <p>
+            Host to Triage:
+            <input type="text" size="25" name="HostName" value="MyHost">&nbsp<br>
+            <i>This is the Remote Host you want to Triage</i>
+            </p>
+
+            <p>
+            Your Admin ID:
+            <input type="text" size="25" name="AdminName" value="Domain\AdminID">&nbsp<br>
+            <i>This is your Domain Admin ID</i>
+            </p>
+
+            <p>
+            AChoir Server Share:
+            <input type="text" size="25" name="ServerName" value="\\Server\Share">&nbsp<br>
+            <i>This is the Remote Host and Share that AChoir resides on</i>
+            </p><br>
+
+            </TD></TR></TABLE>
+
+            <p>
+            <input type="button" value="Run AChoir" onclick="RunRAChoir();"/> OR 
+            <input type="button" value="Exit GUI" onclick="ExitMe();"/>
+            </p>
+
+            <hr>
+
+            <p>
+            <b><i>Important Note: </b></i>This GUI will call the 32Bit AChoir Program as Admin.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+
+    <div class="panel" id="panel2" style="display:none">
+      <table border="0" width="100%">
+        <tr valign="top">
+          <td>
+            <TABLE Width="100%" border="0" bgcolor="#FFFFEF"><TR><TD>
+            <p>
+            This Tab is meant to simplify running AChoir on a Remote machine using PSExec. It
+            will also map to a Remote AChoir Server, where it will save the artifacts.
+            </p>
+
+            <p> 
+            Please Note: 
             Running the AChoir Scripts from a Command Prompt will give the same results.
             </p>
             </TD></TR></TABLE>
+
+
+            <p>
+            <TABLE Width="100%" border="0"><TR><TD>
+            <font color="#000000"><i><fieldset><legend>Fill In All Fields</legend></i></font>
+
+            <p>
+            Host to Triage:
+            <input type="text" size="25" name="HostName" value="MyHost">&nbsp<br>
+            <i>This is the Remote Host you want to Triage</i>
+            </p>
+
+            <p>
+            Your Admin ID:
+            <input type="text" size="25" name="AdminName" value="Domain\AdminID">&nbsp<br>
+            <i>This is your Domain Admin ID</i>
+            </p>
+
+            <p>
+            AChoir Server Share:
+            <input type="text" size="25" name="ServerName" value="\\Server\Share">&nbsp<br>
+            <i>This is the Remote Host and Share that AChoir resides on</i>
+            </p><br>
+
+            </TD></TR></TABLE>
+
+            <p>
+            <input type="button" value="Run AChoir" onclick="RunRAChoir();"/> OR 
+            <input type="button" value="Exit GUI" onclick="ExitMe();"/>
+            </p>
+
+            <hr>
+
+            <p>
+            <b><i>Important Note: </b></i>This GUI will call the 32Bit AChoir Program as Admin.
+            </p>
           </td>
         </tr>
-        </table>
+      </table>
     </div>
+
+
+    <div class="panel" id="panel3" style="display:none">
+      <table border="0" width="100%">
+        <tr valign="top">
+          <td>
+            <TABLE Width="100%" border="0" bgcolor="#FFFFEF"><TR><TD>
+            <p>
+            This Tab is meant to simplify running an AChoir Remote Script on a remote
+            computer using PSExec.  It will use the AChoir Server to save the artifacts.
+            </p>
+
+            <p> 
+            Please Note: 
+            Running the AChoir Scripts from a Command Prompt will give the same results.
+            </p>
+            </TD></TR></TABLE>
+
+
+            <p>
+            <TABLE Width="100%" border="0"><TR><TD>
+            <font color="#000000"><i><fieldset><legend>Fill In All Fields</legend></i></font>
+
+            <p>
+            Host to Triage:
+            <input type="text" size="25" name="HostName" value="MyHost">&nbsp<br>
+            <i>This is the Remote Host you want to Triage</i>
+            </p>
+
+            <p>
+            Your Admin ID:
+            <input type="text" size="25" name="AdminName" value="Domain\AdminID">&nbsp<br>
+            <i>This is your Domain Admin ID</i>
+            </p>
+
+            <p>
+            AChoir Server Share:
+            <input type="text" size="25" name="ServerName" value="\\Server\Share">&nbsp<br>
+            <i>This is the Remote Host and Share that AChoir resides on</i>
+            </p><br>
+
+            </TD></TR></TABLE>
+
+            <p>
+            <input type="button" value="Run AChoir" onclick="RunRAChoir();"/> OR 
+            <input type="button" value="Exit GUI" onclick="ExitMe();"/>
+            </p>
+
+            <hr>
+
+            <p>
+            <b><i>Important Note: </b></i>This GUI will call the 32Bit AChoir Program as Admin.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </div>
+
 
   </td>
 </tr>
