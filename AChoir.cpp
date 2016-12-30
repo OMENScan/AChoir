@@ -73,6 +73,7 @@
 /* AChoir v0.85 - Can now Read POSIX file names & Hard Links    */
 /* AChoir v0.89 - Large File (> 1GB) Support                    */
 /* AChoir v0.90 - ADD HKCU Parsing for ARN:                     */
+/* AChoir v0.91 - Edge case exit Bug Fix                        */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -137,7 +138,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.90\0";
+char Version[10] = "v0.91\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -257,6 +258,8 @@ char *WinRoot = "C:\\Windows";
 char *Procesr = "AMD64";
 char *TempVar = "C:\\Windows\\Temp";
 char *ProgVar = "C:\\Program Files";
+
+int  iLogOpen = 0 ;
 
 HANDLE SecTokn;
 int PrivSet = 0;
@@ -465,6 +468,7 @@ int main(int argc, char *argv[])
   /****************************************************************/
   iIsAdmin = 0;
   iXitCmd = 0;
+  iLogOpen = 0;
 
   memset(CurrDir, 0, 1024);
   memset(TempDir, 0, 1024);
@@ -695,6 +699,7 @@ int main(int argc, char *argv[])
     exit(3);
   }
 
+  iLogOpen = 1;
 
   printf("Inf: AChoir ver: %s, Mode: %s\n", Version, RunMode);
   fprintf(LogHndl, "Inf: AChoir ver: %s, Mode: %s\n", Version, RunMode);
@@ -4412,6 +4417,7 @@ long mapsDrive(char *mapString, int mapLog)
     netRes.dwType = RESOURCETYPE_DISK;
     netRes.lpRemoteName = Conrec;
 
+    // Fresh Mapping to Server Share
     netRC = WNetUseConnection(NULL, &netRes, inPass, inUser, Flags, szConnection, &ConnectSize, &ConnectResult);
 
     if (netRC != NO_ERROR)
@@ -4524,9 +4530,11 @@ void showTime(char *showText)
       showlocal->tm_mon + 1, showlocal->tm_mday, (showlocal->tm_year + 1900),
       showlocal->tm_hour, showlocal->tm_min, showlocal->tm_sec);
 
-    fprintf(LogHndl, "Inf: %s: %02d/%02d/%04d - %02d:%02d:%02d\n", showText,
-      showlocal->tm_mon + 1, showlocal->tm_mday, (showlocal->tm_year + 1900),
-      showlocal->tm_hour, showlocal->tm_min, showlocal->tm_sec);
+    // Only Log if we have opened the Log File.
+    if(iLogOpen == 1)
+      fprintf(LogHndl, "Inf: %s: %02d/%02d/%04d - %02d:%02d:%02d\n", showText,
+        showlocal->tm_mon + 1, showlocal->tm_mday, (showlocal->tm_year + 1900),
+        showlocal->tm_hour, showlocal->tm_min, showlocal->tm_sec);
   }
 }
 
