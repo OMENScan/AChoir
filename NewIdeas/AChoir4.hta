@@ -147,10 +147,13 @@ function RunRRACh()
 
   WriteBat();
 
-  ScrName = "RunAs.exe /env /user:" + Admin2Name.value + " \"cmd.exe /c ACQ-L.bat\"" ;  
+  // ScrName = "RunAs.exe /profile /env /user:" + Admin2Name.value + " \"cmd.exe /c ACQ-L.bat\"" ;  
+  // WshShell = new ActiveXObject("WScript.Shell");
+  // WshShell.Run(ScrName, 1, false);
 
-  WshShell = new ActiveXObject("WScript.Shell");
-  WshShell.Run(ScrName, 1, false);
+  ScrName = "/c ACQ-L.bat" ;  
+  var oShell = new ActiveXObject("Shell.Application");
+  oShell.ShellExecute("Cmd.exe", ScrName, "", "runas", "1");
 }
 
 function ExitMe()
