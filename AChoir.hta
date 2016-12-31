@@ -1,6 +1,6 @@
 <html>
 <head>
-  <title>AChoir GUI 0.05</title>
+  <title>AChoir GUI 0.06</title>
   <HTA:APPLICATION ID="AChoirGUI" 
     APPLICATIONNAME="AChoir GUI" 
     BORDER="Yes"
@@ -99,7 +99,7 @@ function WriteBat()
   Rmt.WriteLine("Echo.");
   Rmt.WriteLine("net use p: /del");
   Rmt.WriteLine("net use p: " + Server2Name.value);
-  Rmt.WriteLine("if not exist p:\Achoir.exe goto :BadMap");
+  Rmt.WriteLine("if not exist p:\AChoir.exe goto :BadMap");
   Rmt.WriteLine("p:");
   Rmt.WriteLine("AChoir.exe /Ini:AChoirX.Acq");
   Rmt.WriteLine("c:");
@@ -134,7 +134,7 @@ function WriteBat()
   Lcl.Close();
 }
 
-// Run Achoir Local - Save Artifacts to Remote Server
+// Run AChoir Local - Save Artifacts to Remote Server
 function RunLRACh()
 {
   var ScrName = "/ini:AChoir.acq" ;
@@ -167,8 +167,15 @@ function ExitMe()
 </script>
 
 <style type="text/css">
- body,td,th { font-family:Arial }
-.head { font-size:110%; font-weight:bold }
+ body,td,th { 
+  font-family:Arial;
+  padding: 5px;
+}
+.head { 
+  font-size:110%;
+  font-weight:bold;
+  color:white;
+}
 .panel {
   background-color: white;
   border: solid 1px black;
@@ -184,7 +191,7 @@ function ExitMe()
   cursor: pointer;
   cursor: hand;
   font-family: arial;
-  font-size: 9pt;
+  font-size: 12pt;
   font-weight: bold;
   margin-top: 4px;
   padding: 2px 4px 0px 4px;
@@ -194,10 +201,12 @@ function ExitMe()
   z-index: 1;
 }
 .tabs0 {
-  background-color: wheat;
+  color: white;
+  background-color: gray;
   border: solid 1px black;
 }
 .tabs1 {
+  color: black;
   background-color: white;
   border-color: black black white black;
   border-style: solid solid solid solid;
@@ -207,11 +216,11 @@ function ExitMe()
 </head>
 
 
-<body>
+<body bgcolor=#879dbd>
 <table align="center" border="0" cellpadding="0" cellspacing="0" width="1000">
 <tr valign="top">
   <td align="right" colspan="2">
-    <span class="head">AChoir GUI 0.05</span> &nbsp; &nbsp;
+    <span class="head">AChoir GUI 0.06</span> &nbsp; &nbsp;
     <br>
   </td>
 </tr>
@@ -228,7 +237,7 @@ function ExitMe()
 
             <TABLE Width="100%" border="0" bgcolor="#FFFFEF"><TR><TD>
             <p>
-            This Tab runs LOCAL Achoir scripts on a local machine, and saves the
+            This Tab runs LOCAL AChoir scripts on a local machine, and saves the
             artifacts to a locally attached drive.
             </p>
 
@@ -242,56 +251,55 @@ function ExitMe()
             </TD></TR></TABLE>
 
             <p>
-            <TABLE Width="100%" border="0"><TR><TD>
+            <TABLE Width="100%" border="0" ><TR><TD>
             <font color="#000000"><i><fieldset><legend>Select A Script</legend></i></font>
 
             <p>
-            <input type="radio" checked name="rbtn" value="0">Default Script - 
-            This is the Default AChoir Script. It gathers as much information as possible
+            <input type="radio" checked name="rbtn" value="0"> Default Script - 
+            Default AChoir Script. It gathers as much information as possible
             </p>
 
             <p>
-            <input type="radio"         name="rbtn" value="1">No Memory - 
-            This Script gathers the same Artifacts as the Default Script EXCEPT Memory
+            <input type="radio"         name="rbtn" value="1"> No Memory - 
+            Gathers the same Artifacts as the Default Script EXCEPT Memory
             </p>
 
             <p>
-            <input type="radio"         name="rbtn" value="2">ZPAQ Archive - 
-            This Script gathers the same Artifacts as the Default Script and compresses into an Archive
+            <input type="radio"         name="rbtn" value="2"> ZPAQ Archive - 
+            Gathers the same Artifacts as the Default Script and compresses into an Archive
             </p>
 
             <p>
-            <input type="radio"         name="rbtn" value="3">Doc Dump - 
-            This Script gathers the most common document types based on File Extension
+            <input type="radio"         name="rbtn" value="3"> Doc Dump - 
+            Gathers the most common document types based on File Extension
             </p>
 
             <p>
-            <input type="radio"         name="rbtn" value="4">Media Dump - 
-            This Script gathers the most common Media types based on File Extension
+            <input type="radio"         name="rbtn" value="4"> Media Dump - 
+            Gathers the most common Media types based on File Extension
             </p>
 
             <p>
-            <input type="radio"         name="rbtn" value="5">USB OFF - 
+            <input type="radio"         name="rbtn" value="5"> USB OFF - 
             Disable USB Write by turning ON USB Write Protection
             </p>
 
             <p>
-            <input type="radio"         name="rbtn" value="6">USB ON - 
+            <input type="radio"         name="rbtn" value="6"> USB ON - 
             Enable USB Write by turning OFF USB Write Protection
             </p>
 
             <p>
-            <input type="radio"         name="rbtn" value="7">Build - 
+            <input type="radio"         name="rbtn" value="7"> Build - 
             Re-Run the AChoir Toolkit Builder (Use with CAUTION)
             </p>
-            </TD></TR></TABLE>
 
             <p>
             <input type="button" value="Run AChoir" onclick="RunAChoir();"/> OR 
             <input type="button" value="Exit GUI" onclick="ExitMe();"/>
             </p>
 
-            <hr>
+            </TD></TR></TABLE>
 
             <p>
             <b><i>Important Note: </b></i>This GUI will call the 32Bit AChoir Program as Admin.
@@ -308,7 +316,7 @@ function ExitMe()
           <td>
             <TABLE Width="100%" border="0" bgcolor="#FFFFEF"><TR><TD>
             <p>
-            This Tab runs a LOCAL Achoir script on a local machine and then switches
+            This Tab runs a LOCAL AChoir script on a local machine and then switches
             to a Remote AChoir Server, where it will save its artifacts.
             </p>
 
@@ -344,15 +352,14 @@ function ExitMe()
             <i>This is the Remote Host and Share that AChoir resides on</i>
             </p><br>
 
-            </TD></TR></TABLE>
-
             <p>
             <input type="button" value="Run AChoir" onclick="RunLRACh();"/> OR 
             <input type="button" value="Exit GUI" onclick="ExitMe();"/>
             </p>
 
-            <hr>
+            </TD></TR></TABLE>
 
+            <br><br><br><br><br>
             <p>
             <b><i>Important Note: </b></i>This GUI will call the 32Bit AChoir Program as Admin.
             </p>
@@ -369,12 +376,14 @@ function ExitMe()
             <TABLE Width="100%" border="0" bgcolor="#FFFFEF"><TR><TD>
             <p>
             This Tab is meant to simplify running an AChoir Remote Script on a remote
-            computer using PSExec.  It will use the AChoir Server to save the artifacts.
+            computer using PSExec.  It will instruct the remote computer to map to the
+            AChoir Server Share to run AChoir from, and save the Artifacts to the same Share.
             </p>
 
             <p> 
-            Please Note: 
-            Running the AChoir Scripts from a Command Prompt will give the same results.
+            Please Note: Two Batch Files will be created (ACQ-L.bat and ACQ-R.bat) from 
+            the data in this form.  Running the ACQ-L.bat file from an elevated Command 
+            Prompt will produce the same results.
             </p>
             </TD></TR></TABLE>
 
@@ -401,15 +410,15 @@ function ExitMe()
             <i>This is the Remote Host and Share that AChoir resides on</i>
             </p><br>
 
-            </TD></TR></TABLE>
-
             <p>
             <input type="button" value="Run AChoir" onclick="RunRRACh();"/> OR 
             <input type="button" value="Exit GUI" onclick="ExitMe();"/>
             </p>
 
-            <hr>
+            </TD></TR></TABLE>
 
+
+            <br><br><br><br><br>
             <p>
             <b><i>Important Note: </b></i>This GUI will call the 32Bit AChoir Program as Admin.
             </p>
