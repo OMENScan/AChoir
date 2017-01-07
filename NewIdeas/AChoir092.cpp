@@ -426,6 +426,9 @@ char * equDelim ;
 char tmpSig[255];
 int  tmpSize;
 
+// First 255 Bytes of Virtual Cluster 0 of File (Signature/Header)
+PUCHAR vcnZero[1024];
+
 
 // Template for padding
 template <class T1, class T2> inline T1* Padd(T1* p, T2 n)
@@ -1634,6 +1637,44 @@ int main(int argc, char *argv[])
               rawCopy(Cpyrec + iPrm1, Cpyrec + iPrm2, 1);
             }
           }
+
+
+
+
+
+          else
+          if (strnicmp(Inrec, "NCP:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Binary Copy From => To                                       */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            Squish(Inrec);
+
+            memset(Cpyrec, 0, 4096);
+            strncpy(Cpyrec, Inrec + 4, 4092);
+            twoSplit(Cpyrec);
+
+            if (iPrm2 == 0)
+            {
+              fprintf(LogHndl, "Err: Raw Copying Requires both a FROM (File) and a TO (Directory)\n");
+              printf("Err: Raw Copying Requires both a FROM (File)and a TO (Directory)\n");
+            }
+            else
+            {
+              fprintf(LogHndl, "\nNCP: %s\n     %s\n", Cpyrec + iPrm1, Cpyrec + iPrm2);
+              printf("\nNCP: %s\n     %s\n", Cpyrec + iPrm1, Cpyrec + iPrm2);
+
+              rawCopy(Cpyrec + iPrm1, Cpyrec + iPrm2, 1);
+            }
+          }
+
+
+
+
+
           else
           if ((strnicmp(Inrec, "ARN:", 4) == 0) && (strlen(Inrec) > 6))
           {
@@ -4149,6 +4190,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 
     // Lets do some Test Queries Against the SQLite MFT DB 
     dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
+
   }
 
 
@@ -5018,7 +5060,8 @@ VOID ReadSectorFSig(ULONGLONG sector, PVOID buffer)
   overlap.Offset = offset.LowPart;
   overlap.OffsetHigh = offset.HighPart;
 
-  readRetcd = ReadFile(hVolume, buffer, iSigSize, &n, &overlap);
+  //readRetcd = ReadFile(hVolume, buffer, iSigSize, &n, &overlap);
+  readRetcd = ReadFile(hVolume, buffer, bootb.BytesPerSector, &n, &overlap);
 
   if (readRetcd == 0)
     printf("Err: Error Reading Sector To Memory!  Cannot Read File Signature in RAW Mode!\n");
@@ -5181,6 +5224,11 @@ ULONG AttributeLengthDataSize(PATTRIBUTE attr)
 
 VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
 {
+  ULONGLONG lcn, runcount;
+  ULONG readcount;
+  int i, j;
+  char bigEndian[10];
+
   PRESIDENT_ATTRIBUTE rattr = NULL;
   PNONRESIDENT_ATTRIBUTE nattr = NULL;
 
@@ -5192,6 +5240,49 @@ VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
   else
   {
     nattr = PNONRESIDENT_ATTRIBUTE(attr);
+
+
+
+
+
+
+
+
+
+
+//Read first 255 bytes of VCN 0 Sesctor 0 to get the File Header/Signature
+if(ULONG(nattr->LowVcn) == 0)
+{
+  printf("Reading Virtual Cluster 0 for Signature: \n");
+  FindRun(nattr, nattr->LowVcn, &lcn, &runcount);
+  ReadSectorFSig(lcn * bootb.SectorsPerCluster, vcnZero);
+
+memset(bigEndian, 0, 10);
+for (i=0; i < iSigSize; i++)
+{
+  // Convert to big endian 
+  sprintf(bigEndian, "%08x", vcnZero[i]);
+  for (j = 7; j >= 0; j -= 2)
+  {
+    printf("%c", bigEndian[j-1]);
+    printf("%c", bigEndian[j]);
+    printf("-");   
+  }
+}
+printf ("\n");
+
+}
+
+
+
+
+
+
+
+
+
+
+
     ReadExternalAttribute(nattr, ULONG(nattr->LowVcn), ULONG(nattr->HighVcn) - ULONG(nattr->LowVcn) + 1, buffer);
   }
 }
