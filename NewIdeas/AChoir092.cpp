@@ -206,7 +206,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog);
 int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime, int binLog, int Append);
 
 // Translate Ascii to Hex
-int Xlate(char *XlateText);
+//int Xlate(char *XlateText);
 
 // Global Variables For Raw NTFS Access
 ULONG BytesPerFileRecord;
@@ -417,7 +417,7 @@ int iDepth = 0;   // Sanity Check for Recursion Loops
 //File Signature Copy Table & Vars
 int  iSigCount = 0;
 int  iSigTMax = 100;
-int  iSigSize = 21; // One Extra byte for null terminator
+int  iSigSize = 33; // One Extra byte for null terminator
 int  iTypSize = 11; // One Extra byte for null terminator
 char *SigTabl;
 char *TypTabl;
@@ -426,8 +426,9 @@ char * equDelim ;
 char tmpSig[255];
 int  tmpSize;
 
-// First 255 Bytes of Virtual Cluster 0 of File (Signature/Header)
-PUCHAR vcnZero[1024];
+// First Sesctor of Virtual Cluster 0 of File (Signature/Header)
+int ivcnZero = 0;
+PUCHAR vcnZero;
 
 
 // Template for padding
@@ -2117,22 +2118,27 @@ int main(int argc, char *argv[])
               strncpy(TypTabl+(iSigCount*iTypSize), Tmprec+4, equDelim-Tmprec-4);
 
               //Convert from ASCII to Hex (Max should be 255 bytes)
-              memset(tmpSig, 0, 255);
-              equDelim++;
-              strncpy(tmpSig, equDelim, iSigSize*2) ;
-              strtok(tmpSig, "\n");
-              strtok(tmpSig, "\r");
+              //memset(tmpSig, 0, 255);
+              //equDelim++;
+              //strncpy(tmpSig, equDelim, (iSigSize-1)*2) ;
+              //strtok(tmpSig, "\n");
+              //strtok(tmpSig, "\r");
 
-              tmpSize = Xlate(tmpSig) ;
-              if(tmpSize > iSigSize)
-               tmpSize = iSigSize-1;
+              equDelim++;
+              strncpy(SigTabl+(iSigCount*iSigSize), equDelim, iSigSize-1);
+
+              //tmpSize = Xlate(tmpSig) ;
+              //if(tmpSize > iSigSize)
+              // tmpSize = iSigSize-1;
 
               //Load into Size Table
-              SizTabl[iSigCount] = tmpSize;
+              //SizTabl[iSigCount] = tmpSize;
+
+              SizTabl[iSigCount] = strlen(equDelim);
 
               //Load into Sig Table
-              memcpy(SigTabl+(iSigCount*iSigSize), tmpSig, tmpSize) ;
-              SigTabl[(iSigCount*iSigSize)+tmpSize] = '\0' ;
+              //memcpy(SigTabl+(iSigCount*iSigSize), tmpSig, tmpSize) ;
+              //SigTabl[(iSigCount*iSigSize)+tmpSize] = '\0' ;
 
               iSigCount++ ; 
             }
@@ -4052,6 +4058,13 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
     return 1;
   }
 
+  // Allocate vcn Sector 0 for later use (do it just once)
+  if (ivcnZero == 0)
+  {
+    ivcnZero = 1;
+    vcnZero = new UCHAR[bootb.BytesPerSector];
+  }
+
 
   //Load MFT Info
   LoadMFT();
@@ -4186,7 +4199,6 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
     // The primary partition supplied else
     // default C:\ will be used
     FindActive();
-
 
     // Lets do some Test Queries Against the SQLite MFT DB 
     dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
@@ -5060,7 +5072,6 @@ VOID ReadSectorFSig(ULONGLONG sector, PVOID buffer)
   overlap.Offset = offset.LowPart;
   overlap.OffsetHigh = offset.HighPart;
 
-  //readRetcd = ReadFile(hVolume, buffer, iSigSize, &n, &overlap);
   readRetcd = ReadFile(hVolume, buffer, bootb.BytesPerSector, &n, &overlap);
 
   if (readRetcd == 0)
@@ -5225,9 +5236,9 @@ ULONG AttributeLengthDataSize(PATTRIBUTE attr)
 VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
 {
   ULONGLONG lcn, runcount;
-  ULONG readcount;
-  int i, j;
+  int i, j, k;
   char bigEndian[10];
+  char ltlEndian[10];
 
   PRESIDENT_ATTRIBUTE rattr = NULL;
   PNONRESIDENT_ATTRIBUTE nattr = NULL;
@@ -5258,21 +5269,30 @@ if(ULONG(nattr->LowVcn) == 0)
   ReadSectorFSig(lcn * bootb.SectorsPerCluster, vcnZero);
 
 memset(bigEndian, 0, 10);
-for (i=0; i < iSigSize; i++)
+memset(ltlEndian, 0, 10);
+memset(tmpSig, 0, 255);
+
+// Convert n Bytes into n*2 Hex Chars
+for (i=0; i < (iSigSize-1)/2; i++)
 {
   // Convert to big endian 
-  sprintf(bigEndian, "%08x", vcnZero[i]);
-  for (j = 7; j >= 0; j -= 2)
-  {
-    printf("%c", bigEndian[j-1]);
-    printf("%c", bigEndian[j]);
-    printf("-");   
-  }
-}
-printf ("\n");
+  //k=0;
+  //sprintf(bigEndian, "%08x", vcnZero[i]);
+  //for (j = 7; j >= 0; j -= 2)
+  //{
+  //  ltlEndian[k] = bigEndian[j-1];
+  //  ltlEndian[k+1] = bigEndian[j];
+  //  k+=2;
+  //}
+  //strcat(tmpSig, ltlEndian);
+  
+  sprintf(tmpSig+(i*2), "%02x", vcnZero[i]);
 
 }
 
+printf ("%s\n", tmpSig);
+
+}
 
 
 
@@ -6228,96 +6248,94 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 /* Convert any %nn to hex number - This routine allows binary       */
 /*  comparison for strings                                          */
 /********************************************************************/
-int Xlate(char *XlateText)
-{
-  int TextSize ;
-  int Ptr1, Ptr2, XPtr ;
-  char *XTable = "0123456789ABCDEF" ;
-  int HexNum ;
-  int DidWe = 0 ;
-
-  TextSize = strlen(XlateText) ;
-  Ptr2 = 0 ;
-
-
+//int Xlate(char *XlateText)
+//{
+//  int TextSize ;
+//  int Ptr1, Ptr2, XPtr ;
+//  char *XTable = "0123456789ABCDEF" ;
+//  int HexNum ;
+//  int DidWe = 0 ;
+//
+//  TextSize = strlen(XlateText) ;
+//  Ptr2 = 0 ;
+//
+//
   /**************************************************************/
   /* Look Through the Passed string encoded characters          */
   /**************************************************************/
-  for(Ptr1=0; Ptr1 < TextSize; Ptr1++)
-  {
-    switch(XlateText[Ptr1])
-    {
+//  for(Ptr1=0; Ptr1 < TextSize; Ptr1++)
+//  {
+//    switch(XlateText[Ptr1])
+//    {
       /**************************************************************/
       /* Convert %nn to one hex byte (nn)                           */
       /*  Note: If %nn encoding is invalid default to 00            */
       /**************************************************************/
-      case '%':
-      Ptr1++ ;
-
-      HexNum = 0 ;
-      DidWe = 1 ;
-
-
-      if(XlateText[Ptr1] == '%')
-      {
+//      case '%':
+//      Ptr1++ ;
+//
+//      HexNum = 0 ;
+//      DidWe = 1 ;
+//
+//
+ //     if(XlateText[Ptr1] == '%')
+ //     {
         /**********************************************************/
         /* Convert %% to a single %                               */
         /**********************************************************/
-
-        XlateText[Ptr2] = XlateText[Ptr1] ;
-      }
-      else
-      {
+//        XlateText[Ptr2] = XlateText[Ptr1] ;
+//      }
+//      else
+//      {
         /**********************************************************/
         /* Else do HEX conversion                                 */
         /**********************************************************/
-        for(XPtr=0; XPtr < 16; XPtr++)
-        {
-          if(toupper(XlateText[Ptr1]) == XTable[XPtr])
-             HexNum = XPtr*16 ;
-        }
-
-        Ptr1++ ;
-        for(XPtr=0; XPtr < 16; XPtr++)
-        {
-          if(toupper(XlateText[Ptr1]) == XTable[XPtr])
-             HexNum += XPtr ;
-        }
-
-        XlateText[Ptr2] = HexNum ;
-      }
-
-      Ptr2++ ;
-      break ;
-
-
+//        for(XPtr=0; XPtr < 16; XPtr++)
+//        {
+//          if(toupper(XlateText[Ptr1]) == XTable[XPtr])
+//             HexNum = XPtr*16 ;
+//        }
+//
+//        Ptr1++ ;
+//        for(XPtr=0; XPtr < 16; XPtr++)
+//        {
+//          if(toupper(XlateText[Ptr1]) == XTable[XPtr])
+//             HexNum += XPtr ;
+//        }
+//
+//        XlateText[Ptr2] = HexNum ;
+//      }
+//
+//      Ptr2++ ;
+//      break ;
+//
       /**********************************************************/
       /* Just copy the byte (if the pointers are not equal).    */
       /**********************************************************/
-      default:
-      if(Ptr1 > Ptr2)
-       XlateText[Ptr2] = XlateText[Ptr1] ;
-
-      Ptr2++ ;
-      break ;
-
-    }
-  }
-
+//      default:
+//      if(Ptr1 > Ptr2)
+//       XlateText[Ptr2] = XlateText[Ptr1] ;
+//
+//      Ptr2++ ;
+//      break ;
+//
+//    }
+//  }
+//
   /**************************************************************/
   /* If we did any Conversion, wipe out the rest of the line    */
   /**************************************************************/
-  if(DidWe == 1)
-  {
-    for(Ptr1=Ptr2; Ptr1 < TextSize; Ptr1++)
-    {
-      XlateText[Ptr1] = '\0' ;
-    }
-  }
-
+//  if(DidWe == 1)
+//  {
+//    for(Ptr1=Ptr2; Ptr1 < TextSize; Ptr1++)
+//    {
+//      XlateText[Ptr1] = '\0' ;
+//    }
+//  }
+//
   /**************************************************************/
   /* Return the New Size of our converted/compressed string     */
   /*  (it might contain %00s)                                   */
   /**************************************************************/
-  return Ptr2 ;
-}
+//  return Ptr2 ;
+//}
