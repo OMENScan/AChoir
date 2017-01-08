@@ -141,7 +141,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.91\0";
+char Version[10] = "v0.92\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -197,6 +197,7 @@ ULONG AttributeLength(PATTRIBUTE attr);
 ULONG AttributeLengthAllocated(PATTRIBUTE attr);
 ULONG AttributeLengthDataSize(PATTRIBUTE attr);
 VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer);
+int  ReadAttributeS(PATTRIBUTE attr, PVOID buffer, CHAR* filetype);
 VOID ReadVCN(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, ULONGLONG vcn, ULONG count, PVOID buffer);
 VOID ReadFileRecord(ULONG index, PFILE_RECORD_HEADER file);
 VOID LoadMFT();
@@ -425,6 +426,9 @@ int  *SizTabl;
 char * equDelim ;
 char tmpSig[255];
 int  tmpSize;
+int  iNCS = 0;
+int  iNCSFound = 0; // 0==Found, 1==Not
+
 
 // First Sesctor of Virtual Cluster 0 of File (Signature/Header)
 int ivcnZero = 0;
@@ -439,7 +443,7 @@ template <class T1, class T2> inline T1* Padd(T1* p, T2 n)
 
 int main(int argc, char *argv[])
 {
-  int i, j;
+  int i;
   int iPtr;
   size_t oPtr, ArnLen, ArnPtr;
   int RunMe, ForMe, LstMe, Looper, LoopNum;
@@ -1143,16 +1147,16 @@ int main(int argc, char *argv[])
               iPtr += 3;
             }
             else
-            if ((o32VarRec[iPtr] == '*') && (strnicmp(o32VarRec, "NCP:", 4) == 0))
+            if ((o32VarRec[iPtr] == '*') && ((strnicmp(o32VarRec, "NCP:", 4) == 0) || (strnicmp(o32VarRec, "NCS:", 4) == 0)))
             {
-              //Special Case to replace WildCard for NCP: with SQLite Wildcards (%)
+              //Special Case to replace WildCard for NCP: or NCS: with SQLite Wildcards (%)
               sprintf(Inrec + oPtr, "%%\0");
               oPtr = strlen(Inrec);
             }
             else
-            if ((o32VarRec[iPtr] == '?') && (strnicmp(o32VarRec, "NCP:", 4) == 0))
+            if ((o32VarRec[iPtr] == '?') && ((strnicmp(o32VarRec, "NCP:", 4) == 0) || (strnicmp(o32VarRec, "NCP:", 4) == 0)))
             {
-              //Special Case to replace WildCards for NCP: with SQLite Wildcards (_)
+              //Special Case to replace WildCards for NCP: or NCS: with SQLite Wildcards (_)
               sprintf(Inrec + oPtr, "_\0");
               oPtr = strlen(Inrec);
             }
@@ -1611,11 +1615,16 @@ int main(int argc, char *argv[])
             }
           }
           else
-          if (strnicmp(Inrec, "NCP:", 4) == 0)
+          if ((strnicmp(Inrec, "NCP:", 4) == 0) || (strnicmp(Inrec, "NCS:", 4) == 0))
           {
             /****************************************************************/
-            /* Binary Copy From => To                                       */
+            /* Raw NTFS Binary File Copy From => To                         */
             /****************************************************************/
+            if (strnicmp(Inrec, "NCS:", 4) == 0)
+             iNCS = 1;
+            else
+             iNCS = 0;
+
             strtok(Inrec, "\n");
             strtok(Inrec, "\r");
 
@@ -1632,50 +1641,12 @@ int main(int argc, char *argv[])
             }
             else
             {
-              fprintf(LogHndl, "\nNCP: %s\n     %s\n", Cpyrec + iPrm1, Cpyrec + iPrm2);
-              printf("\nNCP: %s\n     %s\n", Cpyrec + iPrm1, Cpyrec + iPrm2);
+              fprintf(LogHndl, "\n%.3s: %s\n     %s\n", Inrec, Cpyrec + iPrm1, Cpyrec + iPrm2);
+              printf("\n%.3s: %s\n     %s\n", Inrec, Cpyrec + iPrm1, Cpyrec + iPrm2);
 
               rawCopy(Cpyrec + iPrm1, Cpyrec + iPrm2, 1);
             }
           }
-
-
-
-
-
-          else
-          if (strnicmp(Inrec, "NCP:", 4) == 0)
-          {
-            /****************************************************************/
-            /* Binary Copy From => To                                       */
-            /****************************************************************/
-            strtok(Inrec, "\n");
-            strtok(Inrec, "\r");
-
-            Squish(Inrec);
-
-            memset(Cpyrec, 0, 4096);
-            strncpy(Cpyrec, Inrec + 4, 4092);
-            twoSplit(Cpyrec);
-
-            if (iPrm2 == 0)
-            {
-              fprintf(LogHndl, "Err: Raw Copying Requires both a FROM (File) and a TO (Directory)\n");
-              printf("Err: Raw Copying Requires both a FROM (File)and a TO (Directory)\n");
-            }
-            else
-            {
-              fprintf(LogHndl, "\nNCP: %s\n     %s\n", Cpyrec + iPrm1, Cpyrec + iPrm2);
-              printf("\nNCP: %s\n     %s\n", Cpyrec + iPrm1, Cpyrec + iPrm2);
-
-              rawCopy(Cpyrec + iPrm1, Cpyrec + iPrm2, 1);
-            }
-          }
-
-
-
-
-
           else
           if ((strnicmp(Inrec, "ARN:", 4) == 0) && (strlen(Inrec) > 6))
           {
@@ -2109,36 +2080,14 @@ int main(int argc, char *argv[])
             else
             if (strchr(Inrec, '=') != NULL)
             {
-              /****************************************************************/
-              /* IMPORTANT NOTE: This routine uses Tmprec instead of Inrec.   */
-              /*  - This is to preventany accidental variable expansion       */
-              /****************************************************************/
               //Parse File Type and signature
-              equDelim = strchr(Tmprec, '=');
-              strncpy(TypTabl+(iSigCount*iTypSize), Tmprec+4, equDelim-Tmprec-4);
-
-              //Convert from ASCII to Hex (Max should be 255 bytes)
-              //memset(tmpSig, 0, 255);
-              //equDelim++;
-              //strncpy(tmpSig, equDelim, (iSigSize-1)*2) ;
-              //strtok(tmpSig, "\n");
-              //strtok(tmpSig, "\r");
+              equDelim = strchr(Inrec, '=');
+              strncpy(TypTabl+(iSigCount*iTypSize), Inrec+4, equDelim-Inrec-4);
 
               equDelim++;
               strncpy(SigTabl+(iSigCount*iSigSize), equDelim, iSigSize-1);
 
-              //tmpSize = Xlate(tmpSig) ;
-              //if(tmpSize > iSigSize)
-              // tmpSize = iSigSize-1;
-
-              //Load into Size Table
-              //SizTabl[iSigCount] = tmpSize;
-
               SizTabl[iSigCount] = strlen(equDelim);
-
-              //Load into Sig Table
-              //memcpy(SigTabl+(iSigCount*iSigSize), tmpSig, tmpSize) ;
-              //SigTabl[(iSigCount*iSigSize)+tmpSize] = '\0' ;
 
               iSigCount++ ; 
             }
@@ -4342,12 +4291,21 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           }
         }
 
-        printf("\nInf: Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
+        if (iNCS == 1)
+        {
+          printf("\nInf: Signature Check MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
+          fprintf(LogHndl, "\nInf: Signature Check MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
+        }
+        else
+        {
+          printf("\nInf: Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
+          fprintf(LogHndl, "\nInf: Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
+        }
+
         printf("    %s\n", Full_Fname);
         printf("     (In)SID: %s\n", SidString);
         printf("     (In)Time: %llu - %llu - %llu\n", File_CreDate, File_AccDate, File_ModDate);
 
-        fprintf(LogHndl, "\nInf: Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
         fprintf(LogHndl, "    %s\n", Full_Fname);
         fprintf(LogHndl, "     (In)SID: %s\n", SidString);
         fprintf(LogHndl, "     (In)Time: %llu - %llu - %llu\n", File_CreDate, File_AccDate, File_ModDate);
@@ -4363,8 +4321,8 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 		    if (DDRetcd == 0)
 		    {
 		      // If we got SI and FN, Check for possible TimeStomping
-		      printf("     Time Type: %s", Text_FileTyp);
-		      fprintf(LogHndl, "     Time Type: %s", Text_FileTyp);
+		      printf("     (Chk)Time Type: %s", Text_FileTyp);
+		      fprintf(LogHndl, "     (Chk)Time Type: %s", Text_FileTyp);
 
           if (strnicmp(Text_FileTyp, "SI", 2) == 0)
 		      {
@@ -4372,19 +4330,19 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 				        strnicmp(Text_FNAccDate, Text_SIAccDate, 25) != 0 ||
 				        strnicmp(Text_FNAccDate, Text_SIAccDate, 25) != 0)
 			      {
-			        printf("     Status: FN/SI Not Matched\n");
-			        fprintf(LogHndl, "     Status: FN/SI Not Matched\n");
+			        printf("     (Chk)FN/SI Not Matched\n");
+			        fprintf(LogHndl, "     (Chk)FN/SI Not Matched\n");
 			      }
 			      else
 			      {
-			        printf("     Status: FN/SI Matched\n");
-			        fprintf(LogHndl, "     Status: FN/SI Matched\n");
+			        printf("     (Chk)FN/SI Matched\n");
+			        fprintf(LogHndl, "     (Chk)FN/SI Matched\n");
 			      }
 		      }
 		      else
 		      {
-			      printf("     Status: FN Only\n");
-			      fprintf(LogHndl, "     Status: FN Only\n");
+			      printf("     (Chk)FN Only\n");
+			      fprintf(LogHndl, "     (Chk)FN Only\n");
 		      }
           
           if (SecDesc)
@@ -5235,10 +5193,27 @@ ULONG AttributeLengthDataSize(PATTRIBUTE attr)
 
 VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
 {
+  PRESIDENT_ATTRIBUTE rattr = NULL;
+  PNONRESIDENT_ATTRIBUTE nattr = NULL;
+
+  if (attr->Nonresident == FALSE)
+  {
+    rattr = PRESIDENT_ATTRIBUTE(attr);
+    memcpy(buffer, Padd(rattr, rattr->ValueOffset), rattr->ValueLength);
+  }
+  else
+  {
+    nattr = PNONRESIDENT_ATTRIBUTE(attr);
+    ReadExternalAttribute(nattr, ULONG(nattr->LowVcn), ULONG(nattr->HighVcn) - ULONG(nattr->LowVcn) + 1, buffer);
+  }
+}
+
+
+// Read File Attributes with Search (NCS:)
+int ReadAttributeS(PATTRIBUTE attr, PVOID buffer, CHAR* filetype)
+{
   ULONGLONG lcn, runcount;
-  int i, j, k;
-  char bigEndian[10];
-  char ltlEndian[10];
+  int i;
 
   PRESIDENT_ATTRIBUTE rattr = NULL;
   PNONRESIDENT_ATTRIBUTE nattr = NULL;
@@ -5252,59 +5227,54 @@ VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
   {
     nattr = PNONRESIDENT_ATTRIBUTE(attr);
 
+    //Read first 255 bytes of VCN 0 Sector 0 to get the File Header/Signature
+    if(ULONG(nattr->LowVcn) == 0)
+    {
+      // Set Found variable on VCluster 0 only (in case there are multiple cluster runs)
+      iNCSFound = 0;
 
+      //printf("Reading Virtual Cluster 0 for Signature: \n");
+      FindRun(nattr, nattr->LowVcn, &lcn, &runcount);
+      ReadSectorFSig(lcn * bootb.SectorsPerCluster, vcnZero);
 
+      // Start with a clean slate
+      memset(tmpSig, 0, iSigSize);
 
+      // Convert n Bytes into n*2 Hex Chars
+      for (i=0; i < (iSigSize-1)/2; i++)
+      {
+        sprintf(tmpSig+(i*2), "%02x", vcnZero[i]);
+      }
 
+      // Compare with the Signature and FileType Tables
+      for (i=0; i < iSigCount; i++)
+      {
+        if(strnicmp(tmpSig, SigTabl+(i*iSigSize), SizTabl[i]) == 0)
+        {
+          iNCSFound = 1;
+          printf("     (Sig)Signature Match Found.\n");
+          fprintf(LogHndl, "     (Sig)Signature Match Found.\n");
+        }
 
-
-
-
-
-//Read first 255 bytes of VCN 0 Sesctor 0 to get the File Header/Signature
-if(ULONG(nattr->LowVcn) == 0)
-{
-  printf("Reading Virtual Cluster 0 for Signature: \n");
-  FindRun(nattr, nattr->LowVcn, &lcn, &runcount);
-  ReadSectorFSig(lcn * bootb.SectorsPerCluster, vcnZero);
-
-memset(bigEndian, 0, 10);
-memset(ltlEndian, 0, 10);
-memset(tmpSig, 0, 255);
-
-// Convert n Bytes into n*2 Hex Chars
-for (i=0; i < (iSigSize-1)/2; i++)
-{
-  // Convert to big endian 
-  //k=0;
-  //sprintf(bigEndian, "%08x", vcnZero[i]);
-  //for (j = 7; j >= 0; j -= 2)
-  //{
-  //  ltlEndian[k] = bigEndian[j-1];
-  //  ltlEndian[k+1] = bigEndian[j];
-  //  k+=2;
-  //}
-  //strcat(tmpSig, ltlEndian);
-  
-  sprintf(tmpSig+(i*2), "%02x", vcnZero[i]);
-
-}
-
-printf ("%s\n", tmpSig);
-
-}
-
-
-
-
-
-
-
-
-
-
-    ReadExternalAttribute(nattr, ULONG(nattr->LowVcn), ULONG(nattr->HighVcn) - ULONG(nattr->LowVcn) + 1, buffer);
+        if(strnicmp(filetype, TypTabl+(i*iTypSize), iTypSize) == 0)
+        {
+          iNCSFound = 1;
+          printf("     (Sig)File Extention Match Found.\n");
+          fprintf(LogHndl, "     (Sig)File Extention Match Found.\n");
+        }
+      }
+    }
+    if(iNCSFound == 1)
+     ReadExternalAttribute(nattr, ULONG(nattr->LowVcn), ULONG(nattr->HighVcn) - ULONG(nattr->LowVcn) + 1, buffer);
+    else
+    {
+      printf("     (Sig)No Signature Match - File Copy Bypassed.\n");
+      fprintf(LogHndl, "     (Sig)No Signature Match - File copy Bypassed.\n");
+    }
   }
+
+  return iNCSFound ;
+
 }
 
 
@@ -5860,7 +5830,10 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   long pointData;
   ULONG attrLen, dataLen;
   int gotData;
- 
+
+  CHAR filetype[11] = "\0";
+  char *dotPos;
+
 
   iDepth++;
   //Sanity Check - We should not have Attribute List Within a Data Record
@@ -6053,7 +6026,28 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
     
     LCNType = 1; // Read Actual File Clusters into buf
-    ReadAttribute(attr, bufD);
+
+    // Should we just get the data or do a Signature Search
+    if(iNCS == 1)
+    {
+
+      // Parse Out the FileType for Signature Checking
+      memset(filetype, 0, 11);
+      dotPos = strrchr(filename, '.') ;
+
+      if(dotPos)
+       strncpy(filetype, dotPos + 1, 10);
+
+
+      //ReadAttributeS return a 1 if Sig found and a 0 if not
+      if (ReadAttributeS(attr, bufD, filetype) == 0)
+      {
+        delete[] bufD;
+        return 1;
+      }
+    }
+    else
+     ReadAttribute(attr, bufD);
 
     //iFileSize = maxFileSize;
     iDataSize = maxDataSize;
@@ -6089,6 +6083,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         fprintf(LogHndl, "Err: Error Creating File: %u\n", GetLastError());
 
       printf("Err: Error Creating File: %u\n", GetLastError());
+      delete[] bufD;
       return 1;
     }
 
@@ -6101,6 +6096,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
           fprintf(LogHndl, "Err: Error Writing File: %u\n", GetLastError());
 
         printf("Err: Error Writing File: %u\n", GetLastError());
+        delete[] bufD;
         return 1;
       }
     }  
@@ -6138,6 +6134,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
               fprintf(LogHndl, "Err: Error Writing File: %u\n", GetLastError());
 
             printf("Err: Error Writing File: %u\n", GetLastError());
+            delete[] bufD;
             return 1;
           }
         }
@@ -6233,10 +6230,10 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     }
     else
     {
-      printf("\nInf: File Sizes Match\n");
+      printf("\n     (Chk)File Sizes Match\n");
 
       if (binLog == 1)
-        fprintf(LogHndl, "Inf: File Sizes Match\n");
+        fprintf(LogHndl, "     (Chk)File Sizes Match\n");
     }
 
     return 0;
