@@ -5222,6 +5222,49 @@ int ReadAttributeS(PATTRIBUTE attr, PVOID buffer, CHAR* filetype)
   {
     rattr = PRESIDENT_ATTRIBUTE(attr);
     memcpy(buffer, Padd(rattr, rattr->ValueOffset), rattr->ValueLength);
+
+    // Working Memory
+    memset(vcnZero, 0, 255);
+    memcpy(vcnZero, Padd(rattr, rattr->ValueOffset), rattr->ValueLength);
+
+    // Set Found variable on VCluster 0 only (in case there are multiple cluster runs)
+    iNCSFound = 0;
+
+    // Start with a clean slate
+    memset(tmpSig, 0, iSigSize);
+
+    // Convert n Bytes into n*2 Hex Chars
+    for (i=0; i < (iSigSize-1)/2; i++)
+    {
+      sprintf(tmpSig+(i*2), "%02x", vcnZero[i]);
+    }
+
+    // Compare with the Signature and FileType Tables
+    for (i=0; i < iSigCount; i++)
+    {
+      if(strnicmp(tmpSig, SigTabl+(i*iSigSize), SizTabl[i]) == 0)
+      {
+        iNCSFound = 1;
+        printf("     (Sig)Signature Match Found in Resident File.\n");
+        fprintf(LogHndl, "     (Sig)Signature Match Found Resident File.\n");
+      }
+
+      if(strnicmp(filetype, TypTabl+(i*iTypSize), iTypSize) == 0)
+      {
+        iNCSFound = 1;
+        printf("     (Sig)File Extention Match Found.\n");
+        fprintf(LogHndl, "     (Sig)File Extention Match Found.\n");
+      }
+    }
+
+    if(iNCSFound == 0)
+    {
+      printf("     (Sig)No Signature Match in Resident File - File Copy Bypassed.\n");
+      fprintf(LogHndl, "     (Sig)No Signature Match Resident File - File copy Bypassed.\n");
+    }
+
+    return iNCSFound ;
+
   }
   else
   {
