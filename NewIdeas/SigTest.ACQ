@@ -1,0 +1,26 @@
+***************************************************
+* Live Document Acquisition Script (2.0)          *
+* - Pulls Common Media File Types from disk       *
+* - Created by D0n Quix0te/OMENScan (May 2015)    *
+***************************************************
+SAY:
+SAY: Loading Video File Signatures...
+SAY:
+ACQ:\
+Sig:Clear
+Sig:Mov=0100020304050607
+Sig:Mov=6674797071742020
+Sig:Avi=415649204c495354
+Sig:Mpg=000001b3000001b7
+Sig:Mpg=000001ba000001b9
+Sig:Mp4=000000146674797069736f6d
+Sig:Mp4=0000001866747970
+Sig:Mp4=0000001c66747970
+Sig:Mp4=6674797033677035
+Sig:MP4=667479704d534e56
+Sig:MP4=6674797069736f6d
+SAY:
+SAY: Searching for Video Files for all User Profiles...
+SAY:
+ACQ:\Vids
+NCS:"C:\Users\*" "&Acq"
