@@ -179,7 +179,7 @@ int PreIndex();
 BOOL IsUserAdmin(VOID);
 void showTime(char *showText);
 void USB_Protect(DWORD USBOnOff);
-int  cleanUp_Exit(int exitRC);
+void cleanUp_Exit(int exitRC);
 BOOL SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, BOOL bEnablePrivilege);
 char * convert_sid_to_string_sid(const PSID psid, char *sid_str);
 
@@ -204,7 +204,7 @@ VOID ReadVCN(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, ULONGLONG vcn, ULONG
 VOID ReadFileRecord(ULONG index, PFILE_RECORD_HEADER file);
 VOID LoadMFT();
 VOID UnloadMFT();
-VOID FindActive();
+int FindActive();
 int rawCopy(char *FrmFile, char *TooFile, int binLog);
 int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime, int binLog, int Append);
 
@@ -220,7 +220,8 @@ CHAR driveLetter[] = "C\0\0\0\0";
 CHAR rootDrive[] = "C:\\\0\0\0";
 
 int gotOwner = 0;
-PSECURITY_DESCRIPTOR SecDesc = NULL;
+//PSECURITY_DESCRIPTOR SecDesc = NULL;
+PSECURITY_DESCRIPTOR SecDesc[255];
 //ULONG maxMemBytes = 999999999; //Max Memory Alloc = ~1GB
 ULONG maxMemBytes = 262144000;   //Max Memory Alloc = 250MB
 int maxMemExceed = 0;
@@ -491,6 +492,11 @@ int main(int argc, char *argv[])
   /****************************************************************/
   /* Set Defaults                                                 */
   /****************************************************************/
+  // Set SQLite to Single Threading - It's faster, and more reliable
+  // Sometimes the program bombs on exit with Mutex error - Disable it.
+  sqlite3_config(SQLITE_CONFIG_SINGLETHREAD);
+  sqlite3_config(SQLITE_CONFIG_MEMSTATUS, 0);
+
   iIsAdmin = 0;
   iXitCmd = 0;
   iLogOpen = 0;
@@ -603,7 +609,7 @@ int main(int argc, char *argv[])
       printf(" /MAP:<Server\\Share> - Map to a Remote Server\n");
       printf(" /INI:<File Name> - Run the <File Name> script instead of AChoir.ACQ\n");
       
-      exit(0);
+      _exit(0);
     }
     else
     if ((strnicmp(argv[i], "/BLD", 4) == 0) && (strlen(argv[i]) == 4))
@@ -742,7 +748,7 @@ int main(int argc, char *argv[])
   if (LogHndl == NULL)
   {
     printf("Err: Could not Open Log File.\n");
-    exit(3);
+    _exit(3);
   }
 
   iLogOpen = 1;
@@ -2112,8 +2118,8 @@ int main(int argc, char *argv[])
               equDelim++;
               strncpy(SigTabl+(iSigCount*iSigSize), equDelim, iSigSize-1);
 
-              SizTabl[iSigCount] = strlen(equDelim);
-              //printf ("Sig: %s, Size: %d\n", SigTabl+(iSigCount*iSigSize), SizTabl[iSigCount]);
+              SizTabl[iSigCount] = (int) strlen(equDelim);
+              //printf ("Sig: %s, Ext: %s, Size: %d\n", SigTabl+(iSigCount*iSigSize), TypTabl+(iSigCount*iTypSize), SizTabl[iSigCount]);
 
               // Sanity Check - Only Bump Counter if we got something!
               if (SizTabl[iSigCount] > 0)
@@ -3182,7 +3188,7 @@ int MemAllocErr(char *ErrType)
   fprintf(LogHndl, "Err: Error Allocating Enough Memory For: %s\n\n", ErrType);
   printf("Err: Error Allocating Enough Memory For: %s\n\n", ErrType);
 
-  exit(3);
+  _exit(3);
 }
 
 
@@ -3713,12 +3719,19 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
     /****************************************************************/
     gotOwner = 0;
 
+    /****************************************************************/
+    /* NOTE: Not sure why the Call to get the Security Descriptor   */
+    /*       size does not work - I'll figure it out later. For now */
+    /*       I'll just use a static buffer & 200 bytes              */
+    /****************************************************************/
     // First Call is to get the Length and Malloc the buffer
-    GetFileSecurity(FrmFile, OWNER_SECURITY_INFORMATION, SecDesc, 0, &SecLen);
-    SecDesc = (PSECURITY_DESCRIPTOR) malloc(SecLen);
-    if(SecDesc == NULL) 
-     MemAllocErr("Security Descriptor") ;
+    //GetFileSecurity(FrmFile, OWNER_SECURITY_INFORMATION, SecDesc, 0, &SecLen);
+    //SecDesc = (PSECURITY_DESCRIPTOR) malloc(SecLen);
+    //SecDesc = PSECURITY_DESCRIPTOR (new (std::nothrow) UCHAR[200]);
+    //if(SecDesc == NULL) 
+    // MemAllocErr("Security Descriptor") ;
 
+    SecLen = 200;
 
     // Second Call actually populates the Security Description Structure
     if (GetFileSecurity(FrmFile, OWNER_SECURITY_INFORMATION, SecDesc, SecLen, &LenSec))
@@ -3867,10 +3880,11 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
             fprintf(LogHndl, "Wrn: Can NOT Set Target File Owner (%s)\n", SidString);
         }
 
-        if (SecDesc != NULL)
-        {
-          free(SecDesc);
-        }
+        //if (SecDesc != NULL)
+        //{
+          //free(SecDesc);
+          //delete[] SecDesc;
+        //}
       }
       else
       {
@@ -4062,17 +4076,17 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   }
 
 
-  // Make SQLite DB access as fast as possible
-  dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA cache_size=4000", NULL, NULL, &errmsg);
-  dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA synchronous=NORMAL", NULL, NULL, &errmsg);
-  dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA journal_mode=MEMORY", NULL, NULL, &errmsg);
-  dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA temp_store=MEMORY", NULL, NULL, &errmsg);
-
-  dbMrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
-
-
   if (SQL_MFT == 1)
   {
+    // Make SQLite DB access as fast as possible
+    dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA cache_size=4000", NULL, NULL, &errmsg);
+    dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA synchronous=NORMAL", NULL, NULL, &errmsg);
+    dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA journal_mode=MEMORY", NULL, NULL, &errmsg);
+    dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA temp_store=MEMORY", NULL, NULL, &errmsg);
+
+    dbMrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
+
+
     SpinLock = 0;
 
     dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, FullFileName)\0");
@@ -4173,6 +4187,8 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 
     // Lets do some Test Queries Against the SQLite MFT DB 
     dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
+
+    sqlite3_close(dbMFTHndl);
   }
 
 
@@ -4180,6 +4196,14 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   /************************************************************/
   /* Search for the File using SQLite                         */
   /************************************************************/
+  dbrc = sqlite3_open(MFTDBFile, &dbMFTHndl);
+  if (dbrc != SQLITE_OK)
+  {
+    printf("Could Not Open MFT Working Database : %s\n", MFTDBFile);
+    fprintf(LogHndl, "Could Not Open MFT Working Database: %s\n", MFTDBFile);
+    return 1;
+  }
+
   dbMQuery = sqlite3_mprintf("Select * FROM FileNames AS T1, MFTFiles AS T2 WHERE T1.FullFileName LIKE '%q' AND T1.MFTRecID=T2.MFTRecID\0", FrmFile);
 
   dbMrc = sqlite3_prepare(dbMFTHndl, dbMQuery, -1, &dbMFTStmt, 0);
@@ -4259,7 +4283,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           }
         }
 
-        for (i = strlen(Full_Fname); i > 0; i--)
+        for (i = (int) strlen(Full_Fname); i > 0; i--)
         {
           if (Full_Fname[i] == '\\')
             break;
@@ -4298,11 +4322,19 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         /****************************************************************/
         gotOwner = 0;
 
+        /****************************************************************/
+        /* NOTE: Not sure why the Call to get the Security Descriptor   */
+        /*       size does not work - I'll figure it out later. For now */
+        /*       I'll just use 200 bytes - That should work fine.       */
+        /****************************************************************/
         // First Call is to get the Length and Malloc the buffer
-        GetFileSecurity(Full_Fname, OWNER_SECURITY_INFORMATION, SecDesc, 0, &SecLen);
-        SecDesc = (PSECURITY_DESCRIPTOR) malloc(SecLen);
-        if(SecDesc == NULL) 
-         MemAllocErr("Security Descriptor") ;
+        //GetFileSecurity(Full_Fname, OWNER_SECURITY_INFORMATION, SecDesc, 0, &SecLen);
+        //SecDesc = (PSECURITY_DESCRIPTOR) malloc(SecLen);
+        //SecDesc = PSECURITY_DESCRIPTOR (new (std::nothrow) UCHAR[200]);
+        //if(SecDesc == NULL) 
+        // MemAllocErr("Security Descriptor") ;
+
+        SecLen = 200;
 
         // Second Call actually populates the Security Description Structure
         if (GetFileSecurity(Full_Fname, OWNER_SECURITY_INFORMATION, SecDesc, SecLen, &LenSec))
@@ -4359,10 +4391,11 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 			      fprintf(LogHndl, "     Status: FN Only\n");
 		      }
           
-          if (SecDesc !=NULL)
-          {
-            free(SecDesc);
-          }
+          //if (SecDesc !=NULL)
+          //{
+            //free(SecDesc);
+            //delete[] SecDesc;
+          //}
 
 		    }
 
@@ -4791,75 +4824,76 @@ void USB_Protect(DWORD USBOnOff)
 
 
 
-int cleanUp_Exit(int exitRC)
+void cleanUp_Exit(int exitRC)
 {
-/****************************************************************/
-/* Cleanup                                                      */
-/****************************************************************/
-if (access(ForFile, 0) == 0)
-unlink(ForFile);
+  /****************************************************************/
+  /* Cleanup                                                      */
+  /****************************************************************/
+  if (access(ForFile, 0) == 0)
+   unlink(ForFile);
 
 
-if (iHtmMode == 1)
-{
-  fprintf(HtmHndl, "</td><td align=right>\n");
-  fprintf(HtmHndl, "<button onclick=\"window.history.forward()\">&gt;&gt;</button>\n");
-  fprintf(HtmHndl, "</td></tr></table>\n<p>\n");
-  fprintf(HtmHndl, "<iframe name=AFrame height=400 width=900 scrolling=auto src=file:./></iframe>\n");
-  fprintf(HtmHndl, "</p>\n</body></html>\n");
+  if (iHtmMode == 1)
+  {
+    fprintf(HtmHndl, "</td><td align=right>\n");
+    fprintf(HtmHndl, "<button onclick=\"window.history.forward()\">&gt;&gt;</button>\n");
+    fprintf(HtmHndl, "</td></tr></table>\n<p>\n");
+    fprintf(HtmHndl, "<iframe name=AFrame height=400 width=900 scrolling=auto src=file:./></iframe>\n");
+    fprintf(HtmHndl, "</p>\n</body></html>\n");
 
-  fclose(HtmHndl);
-}
-
-
-if (iRunMode == 1)
-{
-  fprintf(LogHndl, "Inf: Setting All Artifacts to Read-Only.\n");
-  printf("Inf: Setting All Artifacts to Read-Only.\n");
-
-  sprintf(TempDir, "%s\\*.*\0", BACQDir);
-  ListDir(TempDir, "ROS");
-}
+    fclose(HtmHndl);
+  }
 
 
-/****************************************************************/
-/* All Done with Acquisition                    `               */
-/****************************************************************/
-printf("\n"); // Make a blank Line.
-showTime("Acquisition Completed");
+  if (iRunMode == 1)
+  {
+    fprintf(LogHndl, "Inf: Setting All Artifacts to Read-Only.\n");
+    printf("Inf: Setting All Artifacts to Read-Only.\n");
 
-if (iXitCmd == 1)
-{
-  fprintf(LogHndl, "\nXit: Queuing Exit Program:\n %s\n", XitCmd);
-  printf("\nXit: Queuing Exit Program:\n %s\n", XitCmd);
-}
-
-/****************************************************************/
-/* Make a Copy of the Logfile in the ACQDirectory               */
-/****************************************************************/
-if (access(BACQDir, 0) == 0)
-{
-  fprintf(LogHndl, "\nInf: Copying Log File...\n");
-  printf("\nInf: Copying Log File...\n");
-
-  //Very Last Log Entry - Close Log now, and copy WITHOUT LOGGING
-  fclose(LogHndl);
-
-  sprintf(CpyFile, "%s\\ACQ-IR-%04d%02d%02d-%02d%02d.Log\0", BACQDir, iYYYY, iMonth, iDay, iHour, iMin);
-  binCopy(LogFile, CpyFile, 0);
-}
+    sprintf(TempDir, "%s\\*.*\0", BACQDir);
+    ListDir(TempDir, "ROS");
+  }
 
 
-/****************************************************************/
-/* Run Final Exit Program - This will not be logged             */
-/****************************************************************/
-if (iXitCmd == 1)
-{
-  LastRC = system(XitCmd);
-}
+  /****************************************************************/
+  /* All Done with Acquisition                    `               */
+  /****************************************************************/
+  printf("\n"); // Make a blank Line.
+  showTime("Acquisition Completed");
 
-printf("Inf: Exit Return Code: %d\n", exitRC);
-exit(exitRC) ;
+  if (iXitCmd == 1)
+  {
+    fprintf(LogHndl, "\nXit: Queuing Exit Program:\n %s\n", XitCmd);
+    printf("\nXit: Queuing Exit Program:\n %s\n", XitCmd);
+  }
+
+  /****************************************************************/
+  /* Make a Copy of the Logfile in the ACQDirectory               */
+  /****************************************************************/
+  if (access(BACQDir, 0) == 0)
+  {
+    fprintf(LogHndl, "\nInf: Copying Log File...\n");
+    printf("\nInf: Copying Log File...\n");
+
+    //Very Last Log Entry - Close Log now, and copy WITHOUT LOGGING
+    fclose(LogHndl);
+
+    sprintf(CpyFile, "%s\\ACQ-IR-%04d%02d%02d-%02d%02d.Log\0", BACQDir, iYYYY, iMonth, iDay, iHour, iMin);
+    binCopy(LogFile, CpyFile, 0);
+  }
+
+
+  /****************************************************************/
+  /* Run Final Exit Program - This will not be logged             */
+  /****************************************************************/
+  if (iXitCmd == 1)
+  {
+    LastRC = system(XitCmd);
+  }
+
+  printf("Inf: Exit Return Code: %d\n", exitRC);
+
+  _exit(exitRC) ;
 
 }
 
@@ -5108,8 +5142,9 @@ VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
       if (readRetcd == 0)
       {
         printf("\nErr: Error Reading Sector To Disk!  Cannot Process This Volume in RAW Mode!\n");
-        cCount = count;
-        fclose(SectHndl);
+        cCount = count;    // Bypass the rest
+        fclose(SectHndl);  // Close
+        continue;          // Loop back to top
       }
 
       fwrite(buffer, 1, n, SectHndl);
@@ -5344,7 +5379,7 @@ BOOL bitset(PUCHAR bitmap, ULONG i)
 }
 
 
-VOID FindActive()
+int FindActive()
 {
   //PATTRIBUTE attr = FindAttribute(MFT, AttributeBitmap, 0);
   PATTRIBUTE attr = FindAttributeX(MFT, AttributeBitmap, 0, 0);
@@ -5494,6 +5529,7 @@ VOID FindActive()
         }
 
         sqlite3_free(dbMQuery);
+
       }
 
     }
@@ -5554,7 +5590,7 @@ VOID FindActive()
   {
     printf("MFTErr: Could Not Read MFT Database: %s\n", MFTDBFile);
     MFT_Status = 2;
-    return;
+    return 2;
   }
 
   SpinLock = 0;
@@ -5570,7 +5606,7 @@ VOID FindActive()
     {
       printf("MFTErr: MFT Database Error: %s\n", sqlite3_errmsg(dbMFTHndl));
       MFT_Status = 2;
-      return;
+      return 2;
     }
     else
     if (dbrc == SQLITE_ROW)
@@ -5777,6 +5813,7 @@ VOID FindActive()
   }
 
   sqlite3_free(dbXQuery);
+
   delete[] bitmap;
   delete[] file;
 
@@ -5790,7 +5827,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   char SectFile[1024] = "C:\\AChoir\\Cache\\Sectors.tmp\0";
   size_t inSize ;
   //size_t outSize;
-  ULONG totSect, difSect ;
+  size_t totSect, difSect ;
 
   PATTRIBUTE attrlist = NULL;
   PATTRIBUTE_LIST attrdata = NULL;
@@ -5824,6 +5861,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
 
   iDepth++;
+
   //Sanity Check - We should not have Attribute List Within a Data Record
   if(iDepth > 2)
   {
@@ -6062,21 +6100,22 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       memset(filetype, 0, 11);
       dotPos = strrchr(filename, '.') ;
 
-      if(dotPos)
+      if(dotPos !=NULL)
        strncpy(filetype, dotPos + 1, 10);
 
 
       // Compare with the Signature and FileType Tables
       for (i=0; i < iSigCount; i++)
       {
-        if(strnicmp(tmpSig, SigTabl+(i*iSigSize), SizTabl[i]) == 0)
+        if((strnicmp(tmpSig, SigTabl+(i*iSigSize), SizTabl[i]) == 0) && (strlen(SigTabl+(i*iSigSize)) > 0))
         {
           iNCSFound = 1;
+
           printf("     (Sig)Header Signature Match Found in File (%s)\n", tmpSig);
           fprintf(LogHndl, "     (Sig)Header Signature Match Found in File (%s)\n", tmpSig);
         }
 
-        if(strnicmp(filetype, TypTabl+(i*iTypSize), iTypSize) == 0)
+        if((strnicmp(filetype, TypTabl+(i*iTypSize), iTypSize) == 0) && (strlen(filetype) > 0))
         {
           iNCSFound = 1;
           printf("     (Sig)File Extention Match Found (%s)\n", filetype);
@@ -6191,7 +6230,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
               //printf("Last Cluster was Truncated to: %d\n", inSize);
             }
 
-            if (WriteFile(hFile, bufD, inSize, &n, 0) == 0)
+            if (WriteFile(hFile, bufD, (DWORD) inSize, &n, 0) == 0)
             {
               if (binLog == 1)
                 fprintf(LogHndl, "Err: Error Writing File: %u\n", GetLastError());
