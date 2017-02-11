@@ -1,4 +1,4 @@
-AChoir - Beta v0.89
+AChoir - Beta v0.95
 
 AChoir
 ======
@@ -174,6 +174,17 @@ LST:<FileName>
 CPY:     Copy Files (CPY:<FromFile> <ToFile>) - Supports Quotes
 NCP:     NTFS Raw File Copy - Supports Wildcards (* and ?)
          NCP:<File(s) to Copy>  <Destination Directory>
+Sig:Clear Clears out the AChoir Signature Table 
+Sig:<Typ=xxxx> 
+         Loads a File Signature ino the Signature Table. The first 
+         variable is the File Type, the second is the Hex Signature
+         (must be in the form of XX).
+         Signature Type can be up to 10 bytes (i.e JPG, JPEG, MOV, etc)
+         Signatures can be up to 32 Chars (16 bytes)
+         There cane be up to 100 Active Signatures loaded.
+         (Sig:Clear - Clears the table back to 0)
+NCS:     NTFS RAW Copy Files by Signature (Loaded by the Sig: 
+         command - Supports Wildcards (* and ?)
 ARN:     Search Registry Run Key and copy the EXEs 
          (possible malware persistence)
 ARN:<Offline Registry> 
