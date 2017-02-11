@@ -77,6 +77,13 @@
 /* AChoir v0.92 - Sig:<Typ=xxxx> Load File Type, Hex Signature  */
 /*              - NCS: NTFS Copy by Signature                   */
 /*                (Used together to copy Files by Signature)    */
+/* AChoir v0.93 - Refactored some SQLite Code to avoid random   */
+/*                 Heap Corruption issues                       */
+/* AChoir v0.95 - FINALLY Fix Abend Bug in Large File Support   */
+/*              - Got rid of the other attempts to fix it       */
+/*              - NOTE: v0.95 will be slower than previous      */
+/*                Versions. I opted for slower and safer code   */
+/*                with a smaller memory footprint.              */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -97,6 +104,7 @@
 /****************************************************************/
 
 #include "stdafx.h"
+#include "VLD.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -144,7 +152,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.92\0";
+char Version[10] = "v0.95\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -188,7 +196,6 @@ ULONG RunLength(PUCHAR run);
 LONGLONG RunLCN(PUCHAR run);
 ULONGLONG RunCount(PUCHAR run);
 BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn, PULONGLONG count);
-//PATTRIBUTE FindAttribute(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name);
 PATTRIBUTE FindAttributeX(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name, int attrNum);
 VOID FixupUpdateSequenceArray(PFILE_RECORD_HEADER file);
 VOID ReadSectorX(ULONGLONG sector, PVOID buffer);
@@ -220,10 +227,14 @@ CHAR driveLetter[] = "C\0\0\0\0";
 CHAR rootDrive[] = "C:\\\0\0\0";
 
 int gotOwner = 0;
-//PSECURITY_DESCRIPTOR SecDesc = NULL;
+
+// Static Security Descriptor Buffer
 PSECURITY_DESCRIPTOR SecDesc[255];
-//ULONG maxMemBytes = 999999999; //Max Memory Alloc = ~1GB
-ULONG maxMemBytes = 262144000;   //Max Memory Alloc = 250MB
+// Dynamic Security Descriptor Buffer
+//PSECURITY_DESCRIPTOR SecDesc = NULL;
+
+//Start with Max Memory Alloc = 250MB
+ULONG maxMemBytes = 262144000;
 int maxMemExceed = 0;
 int useDiskOrMem = 0; // 0 is Memory, 1 is Disk
 
@@ -438,12 +449,13 @@ template <class T1, class T2> inline T1* Padd(T1* p, T2 n)
   return (T1*)((char *)p + n);
 }
 
+
 int main(int argc, char *argv[])
 {
   int i;
   int iPtr;
   size_t oPtr, ArnLen, ArnPtr;
-  int RunMe, ForMe, LstMe, Looper, LoopNum;
+  int RunMe, ForMe, LstMe, Looper, LoopNum ;
 
   char Tmprec[2048];
   char Filrec[2048];
@@ -492,10 +504,11 @@ int main(int argc, char *argv[])
   /****************************************************************/
   /* Set Defaults                                                 */
   /****************************************************************/
+  // These are TEST SQLite Optimizations - I may pull them out later.
   // Set SQLite to Single Threading - It's faster, and more reliable
   // Sometimes the program bombs on exit with Mutex error - Disable it.
-  sqlite3_config(SQLITE_CONFIG_SINGLETHREAD);
-  sqlite3_config(SQLITE_CONFIG_MEMSTATUS, 0);
+  //sqlite3_config(SQLITE_CONFIG_SINGLETHREAD);
+  //sqlite3_config(SQLITE_CONFIG_MEMSTATUS, 0);
 
   iIsAdmin = 0;
   iXitCmd = 0;
@@ -559,9 +572,6 @@ int main(int argc, char *argv[])
   /* Allocate File Signature and Type Tables.                     */
   /****************************************************************/
   iSigCount = 0;
-  ClustZero = new (std::nothrow) UCHAR[bootb.BytesPerSector * 2]; // Files Sector 0 Buffer
-  if(ClustZero == NULL) 
-   MemAllocErr("Cluster Search Buffer") ;
 
   SigTabl  = (char *) malloc(iSigTMax * iSigSize)  ;
   if(SigTabl == NULL) 
@@ -609,7 +619,7 @@ int main(int argc, char *argv[])
       printf(" /MAP:<Server\\Share> - Map to a Remote Server\n");
       printf(" /INI:<File Name> - Run the <File Name> script instead of AChoir.ACQ\n");
       
-      _exit(0);
+      exit(0);
     }
     else
     if ((strnicmp(argv[i], "/BLD", 4) == 0) && (strlen(argv[i]) == 4))
@@ -723,7 +733,6 @@ int main(int argc, char *argv[])
   /****************************************************************/
   sprintf(IniFile, "%s\\%s\0", BaseDir, inFnam);
   sprintf(WGetFile, "%s\\AChoir.Dat\0", BaseDir);
-  //sprintf(ForFile, "%s\\ForFiles\0", BaseDir);
   sprintf(ForFile, "%s\\%s\\Cache\\ForFiles\0", BaseDir, ACQName);
   sprintf(LstFile, "%s\\LstFiles\0", BaseDir);
   sprintf(ChkFile, "%s\\AChoir.exe\0", BaseDir);
@@ -748,7 +757,7 @@ int main(int argc, char *argv[])
   if (LogHndl == NULL)
   {
     printf("Err: Could not Open Log File.\n");
-    _exit(3);
+    exit(3);
   }
 
   iLogOpen = 1;
@@ -1516,6 +1525,7 @@ int main(int argc, char *argv[])
                 fprintf(LogHndl, "Err: Could Not Open INI File: %s - Exiting.\n", Inrec + 4);
                 printf("Err: Could Not Open INI File: %s - Exiting.\n", Inrec + 4);
                 cleanUp_Exit(3);
+                exit (3);
               }
             }
           }
@@ -1558,6 +1568,7 @@ int main(int argc, char *argv[])
               printf("Err: Script IS NOT Running As Admin!\n     Please Re-Run As Admin!\n     Exiting.\n");
               fprintf(LogHndl, "Err: Running As NON-Admin\n     Please Re-Run as Admin!\n     Exiting.");
               cleanUp_Exit(3);
+              exit (3);
             }
           }
           else
@@ -1628,21 +1639,23 @@ int main(int argc, char *argv[])
             /****************************************************************/
             do
             {
-              bufT = new (std::nothrow) UCHAR[maxMemBytes];
+              bufT  = (UCHAR *) malloc(maxMemBytes)  ;
+              //bufT = new (std::nothrow) UCHAR[maxMemBytes];
 
               if(bufT == NULL)
                maxMemBytes -= 26214400; // Subtract 25M
 
               if (maxMemBytes < 52428800)
               {
-                MemAllocErr("Data Buffer") ; // Less than 50M - Error Out
+                MemAllocErr("Test Data Buffer") ; // Less than 50M - Error Out
               }
 
             } while (bufT == NULL);
 
 
             // Allocation Worked - Delete the buffer and continue...
-            delete[] bufT;
+            //delete[] bufT;
+            free (bufT);
 
             /****************************************************************/
             /* Binary Copy From => To                                       */
@@ -1668,8 +1681,8 @@ int main(int argc, char *argv[])
             }
             else
             {
-              fprintf(LogHndl, "\nNCP: %s\n     %s\n", Cpyrec + iPrm1, Cpyrec + iPrm2);
-              printf("\nNCP: %s\n     %s\n", Cpyrec + iPrm1, Cpyrec + iPrm2);
+              fprintf(LogHndl, "\n%.4s %s\n     %s\n", Inrec, Cpyrec + iPrm1, Cpyrec + iPrm2);
+              printf("\n%.4s %s\n     %s\n", Inrec, Cpyrec + iPrm1, Cpyrec + iPrm2);
 
               rawCopy(Cpyrec + iPrm1, Cpyrec + iPrm2, 1);
             }
@@ -2119,7 +2132,6 @@ int main(int argc, char *argv[])
               strncpy(SigTabl+(iSigCount*iSigSize), equDelim, iSigSize-1);
 
               SizTabl[iSigCount] = (int) strlen(equDelim);
-              //printf ("Sig: %s, Ext: %s, Size: %d\n", SigTabl+(iSigCount*iSigSize), TypTabl+(iSigCount*iTypSize), SizTabl[iSigCount]);
 
               // Sanity Check - Only Bump Counter if we got something!
               if (SizTabl[iSigCount] > 0)
@@ -2250,6 +2262,7 @@ int main(int argc, char *argv[])
               fprintf(LogHndl, "Required File Not Found: %s - Exiting!\n", Inrec + 4);
               printf("Required File Not Found: %s - Exiting!\n", Inrec + 4);
               cleanUp_Exit(3);
+              exit (3);
             }
             else
             {
@@ -2260,7 +2273,7 @@ int main(int argc, char *argv[])
           else
           if (strnicmp(Inrec, "SAY:", 4) == 0)
           {
-            // Echo To Screen
+            // Echo To Screen and Log
             strtok(Inrec, "\n");
             strtok(Inrec, "\r");
 
@@ -2285,6 +2298,7 @@ int main(int argc, char *argv[])
               fprintf(LogHndl, "\nYou have requested Achoir to Quit.\n");
               printf("\nYou have requested Achoir to Quit.\n");
               cleanUp_Exit(0);
+              exit;
             }
           }
           else
@@ -2338,7 +2352,6 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\n");
             strtok(Inrec, "\r");
 
-            //sprintf(MD5File, "%s\\ForFiles\0", BaseDir);
             sprintf(MD5File, "%s\\%s\\Cache\\ForFiles\0", BaseDir, ACQName);
             MD5Hndl = fopen(MD5File, "w");
 
@@ -2382,6 +2395,7 @@ int main(int argc, char *argv[])
             
             fclose(LogHndl);
             cleanUp_Exit(LastRC);
+            exit (LastRC);
           }
           else
           if (strnicmp(Inrec, "USR:", 4) == 0)
@@ -2811,6 +2825,7 @@ int main(int argc, char *argv[])
     fprintf(LogHndl, "\nErr: Input Script Not Found:\n     %s\n\n", IniFile);
     printf("\nErr: Input Script Not Found:\n     %s\n\n", IniFile);
     cleanUp_Exit(1);
+    exit (1);
   }
 
 
@@ -2824,6 +2839,7 @@ int main(int argc, char *argv[])
   }
 
   cleanUp_Exit(0);
+  exit;
 
 }
 
@@ -3188,7 +3204,7 @@ int MemAllocErr(char *ErrType)
   fprintf(LogHndl, "Err: Error Allocating Enough Memory For: %s\n\n", ErrType);
   printf("Err: Error Allocating Enough Memory For: %s\n\n", ErrType);
 
-  _exit(3);
+  exit(3);
 }
 
 
@@ -3720,20 +3736,11 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
     gotOwner = 0;
 
     /****************************************************************/
-    /* NOTE: Not sure why the Call to get the Security Descriptor   */
-    /*       size does not work - I'll figure it out later. For now */
-    /*       I'll just use a static buffer & 200 bytes              */
+    /* NOTE: Use Static Security Descriptor Buffer. Its Safer       */
     /****************************************************************/
-    // First Call is to get the Length and Malloc the buffer
-    //GetFileSecurity(FrmFile, OWNER_SECURITY_INFORMATION, SecDesc, 0, &SecLen);
-    //SecDesc = (PSECURITY_DESCRIPTOR) malloc(SecLen);
-    //SecDesc = PSECURITY_DESCRIPTOR (new (std::nothrow) UCHAR[200]);
-    //if(SecDesc == NULL) 
-    // MemAllocErr("Security Descriptor") ;
-
     SecLen = 200;
 
-    // Second Call actually populates the Security Description Structure
+    // Populate the Security Description Structure
     if (GetFileSecurity(FrmFile, OWNER_SECURITY_INFORMATION, SecDesc, SecLen, &LenSec))
     {
       if (GetSecurityDescriptorOwner(SecDesc, &pSidOwner, &pFlag))
@@ -3880,11 +3887,6 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
             fprintf(LogHndl, "Wrn: Can NOT Set Target File Owner (%s)\n", SidString);
         }
 
-        //if (SecDesc != NULL)
-        //{
-          //free(SecDesc);
-          //delete[] SecDesc;
-        //}
       }
       else
       {
@@ -4078,19 +4080,18 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 
   if (SQL_MFT == 1)
   {
-    // Make SQLite DB access as fast as possible
-    dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA cache_size=4000", NULL, NULL, &errmsg);
-    dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA synchronous=NORMAL", NULL, NULL, &errmsg);
-    dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA journal_mode=MEMORY", NULL, NULL, &errmsg);
-    dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA temp_store=MEMORY", NULL, NULL, &errmsg);
-
-    dbMrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
+    // Optimizations to make SQLite DB access as fast as possible
+    // Note: I have disabled most of them because they take up too much memory
+    //       I have opted for slower, less memory itensive options
+    //dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA cache_size=4000", NULL, NULL, &errmsg);
+    //dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA synchronous=NORMAL", NULL, NULL, &errmsg);
+    //dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA journal_mode=MEMORY", NULL, NULL, &errmsg);
+    dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA journal_mode=OFF", NULL, NULL, &errmsg);
+    //dbrc = sqlite3_exec(dbMFTHndl, "PRAGMA temp_store=MEMORY", NULL, NULL, &errmsg);
 
 
     SpinLock = 0;
-
-    dbMQuery = sqlite3_mprintf("CREATE TABLE FileNames (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, FullFileName)\0");
-    while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
+    while ((dbMrc = sqlite3_exec(dbMFTHndl, "CREATE TABLE FileNames (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, FullFileName)", 0, 0, &errmsg)) != SQLITE_OK)
     {
       if (dbMrc == SQLITE_BUSY)
         Sleep(100); // In windows.h
@@ -4116,13 +4117,9 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
       if (SpinLock > 25)
         break;
     }
-    sqlite3_free(dbMQuery);
-
 
     SpinLock = 0;
-    dbMQuery = sqlite3_mprintf("CREATE TABLE MFTFiles (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, FileName, FileDateTyp, FNCreDate, FNAccDate, FNModDate, SICreDate, SIAccDate, SIModDate)\0");
-
-    while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
+    while ((dbMrc = sqlite3_exec(dbMFTHndl, "CREATE TABLE MFTFiles (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, FileName, FileDateTyp, FNCreDate, FNAccDate, FNModDate, SICreDate, SIAccDate, SIModDate)", 0, 0, &errmsg)) != SQLITE_OK)
     {
       if (dbMrc == SQLITE_BUSY)
         Sleep(100); // In windows.h
@@ -4148,11 +4145,9 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
       if (SpinLock > 25)
         break;
     }
-    sqlite3_free(dbMQuery);
 
 
-    dbMQuery = sqlite3_mprintf("CREATE TABLE MFTDirs (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, DirsName)\0");
-    while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
+    while ((dbMrc = sqlite3_exec(dbMFTHndl, "CREATE TABLE MFTDirs (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, MFTPrvID INTEGER, DirsName)", 0, 0, &errmsg)) != SQLITE_OK)
     {
       if (dbMrc == SQLITE_BUSY)
         Sleep(100); // In windows.h
@@ -4178,17 +4173,13 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
       if (SpinLock > 25)
         break;
     }
-    sqlite3_free(dbMQuery);
+
+    sqlite3_exec(dbMFTHndl, "CREATE INDEX MFTDirs_IDX ON MFTDirs(MFTRecID ASC)", 0, 0, &errmsg);
+
 
     // The primary partition supplied else
     // default C:\ will be used
     FindActive();
-
-
-    // Lets do some Test Queries Against the SQLite MFT DB 
-    dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
-
-    sqlite3_close(dbMFTHndl);
   }
 
 
@@ -4196,14 +4187,6 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   /************************************************************/
   /* Search for the File using SQLite                         */
   /************************************************************/
-  dbrc = sqlite3_open(MFTDBFile, &dbMFTHndl);
-  if (dbrc != SQLITE_OK)
-  {
-    printf("Could Not Open MFT Working Database : %s\n", MFTDBFile);
-    fprintf(LogHndl, "Could Not Open MFT Working Database: %s\n", MFTDBFile);
-    return 1;
-  }
-
   dbMQuery = sqlite3_mprintf("Select * FROM FileNames AS T1, MFTFiles AS T2 WHERE T1.FullFileName LIKE '%q' AND T1.MFTRecID=T2.MFTRecID\0", FrmFile);
 
   dbMrc = sqlite3_prepare(dbMFTHndl, dbMQuery, -1, &dbMFTStmt, 0);
@@ -4323,20 +4306,11 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         gotOwner = 0;
 
         /****************************************************************/
-        /* NOTE: Not sure why the Call to get the Security Descriptor   */
-        /*       size does not work - I'll figure it out later. For now */
-        /*       I'll just use 200 bytes - That should work fine.       */
+        /* NOTE: Use a Static Security Descriptor Buffer.  Its Safer    */
         /****************************************************************/
-        // First Call is to get the Length and Malloc the buffer
-        //GetFileSecurity(Full_Fname, OWNER_SECURITY_INFORMATION, SecDesc, 0, &SecLen);
-        //SecDesc = (PSECURITY_DESCRIPTOR) malloc(SecLen);
-        //SecDesc = PSECURITY_DESCRIPTOR (new (std::nothrow) UCHAR[200]);
-        //if(SecDesc == NULL) 
-        // MemAllocErr("Security Descriptor") ;
-
         SecLen = 200;
 
-        // Second Call actually populates the Security Description Structure
+        // Populate the Security Description Structure
         if (GetFileSecurity(Full_Fname, OWNER_SECURITY_INFORMATION, SecDesc, SecLen, &LenSec))
         {
           if (GetSecurityDescriptorOwner(SecDesc, &pSidOwner, &pFlag))
@@ -4391,12 +4365,6 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 			      fprintf(LogHndl, "     Status: FN Only\n");
 		      }
           
-          //if (SecDesc !=NULL)
-          //{
-            //free(SecDesc);
-            //delete[] SecDesc;
-          //}
-
 		    }
 
       }
@@ -4423,7 +4391,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   sqlite3_close(dbMFTHndl);
   CloseHandle(hVolume);
 
-  //UnLoad MFT Info
+  //UnLoad MFT Info - Disabled for now - Sometimes causes a crash
   //UnloadMFT();
 
   return 0;
@@ -4590,6 +4558,7 @@ long mapsDrive(char *mapString, int mapLog)
           fprintf(LogHndl, "Err: Program Exit Requested.\n");
 
         cleanUp_Exit(1);
+        exit (1);
       }
     }
     else
@@ -4817,6 +4786,7 @@ void USB_Protect(DWORD USBOnOff)
         fprintf(LogHndl, "\nYou have requested Achoir to Exit.\n");
         printf("\nYou have requested Achoir to Exit.\n");
         cleanUp_Exit(0);
+        exit ;
       }
     }
   }
@@ -4893,8 +4863,7 @@ void cleanUp_Exit(int exitRC)
 
   printf("Inf: Exit Return Code: %d\n", exitRC);
 
-  _exit(exitRC) ;
-
+  //exit(exitRC) ;
 }
 
 
@@ -5015,25 +4984,6 @@ BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn, PULONGL
 }
 
 
-//PATTRIBUTE FindAttribute(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name)
-//{
-//  PATTRIBUTE attr = NULL;
-//
-//  for (attr = PATTRIBUTE(Padd(file, file->AttributesOffset)); attr->AttributeType != -1; attr = Padd(attr, attr->Length))
-//  {
-//    if (attr->AttributeType == type)
-//    {
-//      if (name == 0 && attr->NameLength == 0)
-//        return attr;
-//
-//      if (name != 0 && wcslen(name) == attr->NameLength && _wcsicmp(name, PWSTR(Padd(attr, attr->NameOffset))) == 0)
-//        return attr;
-//    }
-//  }
-//  return 0;
-//}
-
-
 PATTRIBUTE FindAttributeX(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR name, int attrNum)
 {
   PATTRIBUTE attr = NULL;
@@ -5063,8 +5013,11 @@ PATTRIBUTE FindAttributeX(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, PWSTR n
 VOID FixupUpdateSequenceArray(PFILE_RECORD_HEADER file)
 {
   ULONG iFix = 0;
-  PUSHORT usa = PUSHORT(Padd(file, file->Ntfs.UsaOffset));
-  PUSHORT sector = PUSHORT(file);
+  PUSHORT usa;
+  PUSHORT sector;
+
+  usa = PUSHORT(Padd(file, file->Ntfs.UsaOffset));
+  sector = PUSHORT(file);
 
   for (iFix = 1; iFix < file->Ntfs.UsaCount; iFix++)
   {
@@ -5168,8 +5121,6 @@ VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
 
 VOID ReadLCN(ULONGLONG lcn, ULONG count, PVOID buffer)
 {
-  //wprintf(L"\nReadLCN() - Reading the LCN, LCN: 0X%.8X\n", lcn);
-
   if(useDiskOrMem == 0)
    ReadSectorToMem(lcn * bootb.SectorsPerCluster, count * bootb.SectorsPerCluster, buffer);
   else
@@ -5199,7 +5150,6 @@ VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG cou
         ReadLCN(lcn, readcount, bytes);
       else 
         ReadLCN(lcn, readcount, buffer);
-     //wprintf(L"LCN: 0X%.8X\n", lcn);
     }
 
     vcn += readcount;
@@ -5289,17 +5239,14 @@ VOID ReadAttributeX(PATTRIBUTE attr, PVOID buffer)
 VOID ReadVCN(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, ULONGLONG vcn, ULONG count, PVOID buffer)
 {
   PATTRIBUTE attrlist = NULL;
-  //PNONRESIDENT_ATTRIBUTE attr = PNONRESIDENT_ATTRIBUTE(FindAttribute(file, type, 0));
   PNONRESIDENT_ATTRIBUTE attr = PNONRESIDENT_ATTRIBUTE(FindAttributeX(file, type, 0, 0));
 
   if (attr == 0 || (vcn < attr->LowVcn || vcn > attr->HighVcn))
   {
     // Support for huge files
-    //attrlist = FindAttribute(file, AttributeAttributeList, 0);
     attrlist = FindAttributeX(file, AttributeAttributeList, 0, 0);
 
     printf("Err: Dropping into Debug Break\n");
-
     DebugBreak();
   }
   ReadExternalAttribute(attr, vcn, count, buffer);
@@ -5308,25 +5255,27 @@ VOID ReadVCN(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, ULONGLONG vcn, ULONG
 
 VOID ReadFileRecord(ULONG index, PFILE_RECORD_HEADER file)
 {
-  ULONG clusters = bootb.ClustersPerFileRecord;
+  PUCHAR p;
+  ULONG clusters;
+  ULONGLONG vcn;
 
+  clusters = bootb.ClustersPerFileRecord;
   if (clusters > 0x80)
     clusters = 1;
-
-  PUCHAR p = new (std::nothrow) UCHAR[bootb.BytesPerSector* bootb.SectorsPerCluster * clusters];
-  ULONGLONG vcn = ULONGLONG(index) * BytesPerFileRecord / bootb.BytesPerSector / bootb.SectorsPerCluster;
-
-  // Did we allocate our Record oK?
+  
+  p = (UCHAR *) malloc(bootb.BytesPerSector * bootb.SectorsPerCluster * clusters)  ;
   if(p == NULL) 
    MemAllocErr("MFT Record Buffer") ;
 
+  vcn = ULONGLONG(index) * BytesPerFileRecord / bootb.BytesPerSector / bootb.SectorsPerCluster;
 
   ReadVCN(MFT, AttributeData, vcn, clusters, p);
   LONG m = (bootb.SectorsPerCluster * bootb.BytesPerSector / BytesPerFileRecord) - 1;
   ULONG n = m > 0 ? (index & m) : 0;
 
   memcpy(file, p + n * BytesPerFileRecord, BytesPerFileRecord);
-  delete[] p;
+
+  free(p);
 
   FixupUpdateSequenceArray(file);
 }
@@ -5381,7 +5330,6 @@ BOOL bitset(PUCHAR bitmap, ULONG i)
 
 int FindActive()
 {
-  //PATTRIBUTE attr = FindAttribute(MFT, AttributeBitmap, 0);
   PATTRIBUTE attr = FindAttributeX(MFT, AttributeBitmap, 0, 0);
   PATTRIBUTE attr2 = attr;
   PATTRIBUTE attr3 = attr;
@@ -5402,7 +5350,6 @@ int FindActive()
   int iLinkCount, iLink;
 
 
-  //ULONGLONG File_CreDate, File_AccDate, File_ModDate;
   char Text_CreDate[30] = "\0";
   char Text_AccDate[30] = "\0";
   char Text_ModDate[30] = "\0";
@@ -5417,10 +5364,10 @@ int FindActive()
   useDiskOrMem = maxMemExceed = 0; //Default to Memory
   ReadAttribute(attr, bitmap);
 
-  //ULONG n = AttributeLength(FindAttribute(MFT, AttributeData, 0)) / BytesPerFileRecord;
   ULONG n = AttributeLength(FindAttributeX(MFT, AttributeData, 0, 0)) / BytesPerFileRecord;
   ProgUnit = n / 50;
-  
+
+  dbrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
   printf("MFT: Parsing Active Files from MFT...\n     ooooooooooo+oooooooooooo|oooooooooooo+ooooooooooo\r     ");
 
   PFILE_RECORD_HEADER file = PFILE_RECORD_HEADER(new UCHAR[BytesPerFileRecord]);
@@ -5430,6 +5377,9 @@ int FindActive()
     Progress++;
     if (Progress > ProgUnit)
     {
+      dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
+      dbrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
+
       printf(".");
       Progress = 0;
     }
@@ -5470,7 +5420,6 @@ int FindActive()
       
 
         // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
-        //attr3 = FindAttribute(file, AttributeStandardInformation, 0);
         attr3 = FindAttributeX(file, AttributeStandardInformation, 0, 0);
         if (attr3 != 0)
         {
@@ -5531,55 +5480,20 @@ int FindActive()
         sqlite3_free(dbMQuery);
 
       }
-
     }
-
   }
-
-
-  // Create a Dirname Index for faster search
-  printf("\n     Building SQLite MFT Directory Index...\r");
-  dbXQuery = sqlite3_mprintf("CREATE INDEX MFTDirs_IDX ON MFTDirs(MFTRecID ASC)\0");
-
-  SpinLock = 0;
-  while ((dbXrc = sqlite3_exec(dbMFTHndl, dbXQuery, 0, 0, &errmsg)) != SQLITE_OK)
-  {
-    if (dbXrc == SQLITE_BUSY)
-      Sleep(100); // In windows.h
-    else
-    if (dbXrc == SQLITE_LOCKED)
-     Sleep(100); // In windows.h
-    else
-    if (dbXrc == SQLITE_ERROR)
-    {
-      printf("MFTError: Error Building Directory Index\n%s\n", errmsg);
-      MFT_Status = 2;
-      break;
-    }
-    else
-      Sleep(100); // In windows.h
-
-    /*****************************************************************/
-    /* Check if we are stuck in a loop.                              */
-    /*****************************************************************/
-    SpinLock++;
-
-    if (SpinLock > 25)
-      break;
-  }
-
-  sqlite3_free(dbXQuery);
 
 
   // Commit Before we build the Searchable Index
   dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
 
-  // Begin - To speed up performance
-  dbMrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
 
   Progress = 0;
   ProgUnit = Max_Files / 50;
-  wprintf(L"     Building Full Path Searchable Index...\n     ooooooooooo+oooooooooooo|oooooooooooo+ooooooooooo\r     ");
+
+  // Begin - To speed up performance
+  dbrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
+  wprintf(L"\n     Building Full Path Searchable Index...\n     ooooooooooo+oooooooooooo|oooooooooooo+ooooooooooo\r     ");
 
 
   /************************************************************/
@@ -5759,6 +5673,9 @@ int FindActive()
       Progress++;
       if (Progress > ProgUnit)
       {
+        dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
+        dbrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
+
         printf(".");
         Progress = 0;
       }
@@ -5781,38 +5698,6 @@ int FindActive()
   // Commit The FileNames Table
   dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
 
-  // Create a Filename Index for faster search
-  printf("\n     Building SQLite Full Path FileName Index...\n");
-  dbXQuery = sqlite3_mprintf("CREATE INDEX FileNames_IDX ON FileNames(FullFileName ASC)\0");
-
-  SpinLock = 0;
-  while ((dbXrc = sqlite3_exec(dbMFTHndl, dbXQuery, 0, 0, &errmsg)) != SQLITE_OK)
-  {
-    if (dbXrc == SQLITE_BUSY)
-      Sleep(100); // In windows.h
-    else
-    if (dbXrc == SQLITE_LOCKED)
-      Sleep(100); // In windows.h
-    else
-    if (dbXrc == SQLITE_ERROR)
-    {
-      printf("MFTError: Error Building FileNames/FileName Index\n%s\n", errmsg);
-      MFT_Status = 2;
-      break;
-    }
-    else
-      Sleep(100); // In windows.h
-
-    /*****************************************************************/
-    /* Check if we are stuck in a loop.                              */
-    /*****************************************************************/
-    SpinLock++;
-
-    if (SpinLock > 25)
-      break;
-  }
-
-  sqlite3_free(dbXQuery);
 
   delete[] bitmap;
   delete[] file;
@@ -5823,6 +5708,7 @@ int FindActive()
 int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime, int binLog, int Append)
 {
   PUCHAR bufD;
+  PUCHAR bufA;
   FILE* SectHndl;
   char SectFile[1024] = "C:\\AChoir\\Cache\\Sectors.tmp\0";
   size_t inSize ;
@@ -5915,6 +5801,8 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   }
 
   LCNType = 0;
+  useDiskOrMem = maxMemExceed = 0; //Reset Default to Memory
+
   ReadFileRecord(index, file);
 
   if (file->Ntfs.Type != 'ELIF')
@@ -5928,12 +5816,10 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
 
   // Look for Attribute Data (0x80)
-  //attr = FindAttribute(file, AttributeData, 0);
   attr = FindAttributeX(file, AttributeData, 0, 0);
   if (attr == 0)
   {
     // Look for Attribute Data (0x20)
-    //attrlist = FindAttribute(file, AttributeAttributeList, 0);
     attrlist = FindAttributeX(file, AttributeAttributeList, 0, 0);
     if (attrlist != 0)
     {
@@ -5945,9 +5831,8 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       //  We use Physical size to READ the clusters and Logical Size to WRITE the new file
       MaxDataSize = AttributeLengthDataSize(attrlist);
       MaxOffset = AttributeLengthAllocated(attrlist);
-      
 
-      PUCHAR bufA = new (std::nothrow) UCHAR[MaxOffset];
+      bufA  = (UCHAR *) malloc(MaxOffset);
 
       // Did we allocate our Record oK?
       if(bufA == NULL) 
@@ -5975,7 +5860,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
           printf("Err: No MFT File Attribute List Found...  Bypassing...\n");
           fprintf(LogHndl, "Err: No MFT File Attribute List Found...  Bypassing...\n");
 
-          delete[] bufA;
+          free(bufA);
           delete[] file;
           return 1 ;
         }
@@ -5988,6 +5873,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
           if(gotData == 0)
           {
+            //printf("Now looking at MFT Record: %lu", pointData);
             DDRetcd = DumpDataII(pointData, filename, outdir, ToCreTime, ToModTime, ToAccTime, binLog, 0);
             iDepth--;    //We Returned 
 
@@ -5995,7 +5881,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
             if (DDRetcd == 1)
             {
-              delete[] bufA;
+              free (bufA);
               delete[] file;
               return 1;
             }
@@ -6007,7 +5893,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
             if (DDRetcd == 1)
             {
-              delete[] bufA;
+              free (bufA);
               delete[] file;
               return 1;
             }
@@ -6018,7 +5904,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       fileIsFrag = 0;
 
       delete[] file;
-      delete[] bufA;
+      free (bufA);
     }
     else
     {
@@ -6084,7 +5970,12 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       /* If we are doing an NCS - Read the First Cluster and compare  */
       /*  to the Signature Table entries                              */
       /****************************************************************/
-      memset(ClustZero, 0, bootb.BytesPerSector * 2);
+      ClustZero  = (UCHAR *) malloc(bootb.BytesPerSector * bootb.SectorsPerCluster)  ;
+      if(ClustZero == NULL) 
+       MemAllocErr("Cluster Search Buffer") ;
+      else
+       memset(ClustZero, 0, bootb.BytesPerSector * bootb.SectorsPerCluster);
+
       ReadAttributeX(attr, ClustZero);
 
       // Start with a clean slate
@@ -6095,6 +5986,10 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       {
         sprintf(tmpSig+(i*2), "%02x", ClustZero[i]);
       }
+
+      // No Longer Needed.
+      if (ClustZero != NULL)
+       free(ClustZero);
 
       // Parse Out the FileType for Signature Checking
       memset(filetype, 0, 11);
@@ -6136,10 +6031,12 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     // Complete the copy if we are dng an NCP: - or if the NCS: Signature was found
     if (iNCSFound == 1)
     {
+
       if(maxMemExceed == 0)
-       bufD = new (std::nothrow) UCHAR[attrLen]; // Fit the whole File in memory
+       bufD  = (UCHAR *) malloc(attrLen)  ;
       else
-       bufD = new (std::nothrow) UCHAR[bootb.BytesPerSector]; // Use Cluster Size to Disk Cache
+       bufD  = (UCHAR *) malloc(bootb.BytesPerSector * bootb.SectorsPerCluster)  ;
+
 
       // Did we allocate our Data Buffer OK?
       if(bufD == NULL) 
@@ -6147,7 +6044,6 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
       ReadAttribute(attr, bufD);
 
-      //iFileSize = maxFileSize;
       iDataSize = maxDataSize;
 
       //In cases where the file is Resident use maxDataSize
@@ -6182,7 +6078,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
         printf("Err: Error Creating File: %u\n", GetLastError());
 
-        delete[] bufD;
+        free(bufD);
         delete[] file;
         return 1;
       }
@@ -6197,7 +6093,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
           printf("Err: Error Writing File: %u\n", GetLastError());
 
-          delete[] bufD;
+          free(bufD);
           delete[] file;
           return 1;
         }
@@ -6225,9 +6121,6 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
                continue;
               else
                inSize -= difSect; // Subtract the delta from our Last Sector Read.
-
-              //printf("Total Sector: %lu - Total Data: %lu\n", totSect, totdata);
-              //printf("Last Cluster was Truncated to: %d\n", inSize);
             }
 
             if (WriteFile(hFile, bufD, (DWORD) inSize, &n, 0) == 0)
@@ -6237,7 +6130,8 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
               printf("Err: Error Writing File: %u\n", GetLastError());
 
-              delete[] bufD;
+
+              free(bufD);
               delete[] file;
               return 1;
             }
@@ -6251,21 +6145,17 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
 
       //Set the File Times
-      //SetFileTime(hFile, &ToCreTime, &ToAccTime, &ToModTime);
       if(SetFileTime(hFile, &ToCreTime, &ToAccTime, &ToModTime) == 0)
        printf("Err: Error Setting File Time!\n");
 
       //Read it back out to Verify
-      //GetFileTime(hFile, &ftCreate, &ftAccess, &ftWrite);
       if(GetFileTime(hFile, &ftCreate, &ftAccess, &ftWrite) == 0)
        printf("Err: Error Retrieving File Time!\n");
 
       //Read it back out to Verify
-      //GetFileSizeEx(hFile, &ftSize) ;
       if(GetFileSizeEx(hFile, &ftSize) == 0)
        printf("Err: Error Getting File Size!\n");
 
-      //CloseHandle(hFile);
       if(CloseHandle(hFile) == 0)
        printf("Err: Error Closing File!\n");
 
@@ -6298,27 +6188,24 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         printf("Wrn: Could NOT Determine Source File Owner(Unknown)\n");
       }
 
-      delete[] bufD;
-      //printf("Del, ");
+
+      free(bufD);
+
 
       /****************************************************************/
       /* MD5 The Files                                                */
       /****************************************************************/
       _stat(Tooo_Fname, &Toostat); // Debug - Sometimes we hang on _stat!
-      //printf("stat, ");
 
       FileMD5(Tooo_Fname);
-      //printf("MD5\n");
 
       if (binLog == 1)
       {
         fprintf(LogHndl, "     (out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
-        //fprintf(LogHndl, "     (out)Size: %ld\n", Toostat.st_size);
         fprintf(LogHndl, "     (out)Size: %llu\n", ftSize.QuadPart);
         fprintf(LogHndl, "     (out)File MD5: %s\n", MD5Out);
       }
       printf("     (out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
-      //printf("     (out)Size: %ld\n", Toostat.st_size);
       printf("     (out)Size: %llu\n", ftSize.QuadPart);
       printf("     (out)File MD5: %s\n", MD5Out);
 
@@ -6355,11 +6242,13 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
     }
 
+    useDiskOrMem = maxMemExceed = 0; //Reset Default to Memory
     delete[] file;
     return 0;
 
   }
 
+  useDiskOrMem = maxMemExceed = 0; //Reset Default to Memory
   delete[] file;
   return 0;
 
