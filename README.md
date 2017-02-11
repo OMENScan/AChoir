@@ -78,6 +78,14 @@ Achoir is a Framework/Scripting Tool to standardize and simplify that process.
 * AChoir v0.83 - Add RawCopy to ARN:
 * AChoir v0.85 - Can now Read POSIX file names & Hard Links
 * AChoir v0.89 - Large File (> 1GB) Support
+* AChoir v0.90 - ADD HKCU Parsing for ARN:
+* AChoir v0.91 - Edge case exit Bug Fix
+* AChoir v0.92 - Sig:<Typ=xxxx> Load File Type, Hex Signature
+* ............ - NCS: NTFS Copy by Signature
+* ............   (Used together to copy Files by Signature)
+* AChoir v0.93 - Refactored some SQLite Code to avoid random
+* ............   Heap Corruption issues
+* AChoir v0.95 - FINALLY Fix Abend Bug in Large File Support
 
 
 # Quick Start (tl;dr):
