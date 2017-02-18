@@ -1,73 +1,99 @@
 ***************************************************
-* Live Document Acquisition Script (1.0)          *
-* - Pulls Common File Types from disk             *
+* Live Document Acquisition Script (2.0)          *
+* - Pulls Common Media File Types from disk       *
 * - Created by D0n Quix0te/OMENScan (May 2015)    *
 ***************************************************
 SAY:
 SAY: * * *   Please MAKE SURE you are running this as an Administrator  * * * 
 SAY: * * * Administrator right are required for many of these utilities * * * 
 SAY:
-SAY: AChoir will scan the Hard drive and pull the following Files:
-SAY:  *.DOC, *.ODF, *.XLS, *.ODT, *.PPT, *.ODS, *.PDF
-SAY:  *.PST, *.OST, *.EML, *.MBOX, *.DBX, *.MSF
+SAY: AChoir will scan the Hard drive and pull Document Files based on File 
+SAY:  Type AND/OR File signature/Header
 SAY:
 PZZ: Press Any Key to Continue, or q to QUIT
 SAY:
-SAY: 00. Save The Raw $MFT and $LogFile...
+SAY: Step 1. Loading Document File Signatures...
 SAY:
-ACQ:\RawData
-NCP:"C:\$MFT" "&Acq"
-NCP:"C:\$LogFile" "&Acq"
+Sig:Clear
+Sig:DOC=d0cf11e0a1b11ae1
+Sig:DOC=0d444f43
+Sig:DOC=1234567890ff
+Sig:DOC=31be000000ab0000
+Sig:DOC=504b0304140000000000
+Sig:DOC=7ffe340a
+Sig:DOC=cf11e0a1b11ae100
+Sig:doc=d0cf11e0a1b1
+Sig:DOC=dba52d00
+Sig:DOC=eca5c100
+Sig:DOCX=504b0304
+Sig:DOT=d0cf11e0a1b11ae1
+Sig:FDF=255044462525454f46
+Sig:ODP=504b0304
+Sig:ODT=504b0304
+Sig:OTT=504b0304
+Sig:PDF=255044462525454f46
+Sig:PDF=255044462d312e320d0a25e2e3cf
+Sig:PPS=d0cf11e0a1b11ae1
+Sig:PPT=006e1ef0
+Sig:PPT=0f00e803
+Sig:PPT=a0461df0
+Sig:PPT=d0cf11e0a1b11ae1
+Sig:PPT=fdffffff0e000000
+Sig:PPT=fdffffff1c000000
+Sig:PPT=fdffffff43000000
+Sig:PPTX=504b0304
+Sig:RTF=7b5c727466
+Sig:WIZ=d0cf11e0a1b11ae1
+Sig:WK1=0000020006040600
+Sig:WK3=00001a0000100400
+Sig:WK4=00001a0002100400
+Sig:WK5=00001a0002100400
+Sig:WKS=00001a001004
+Sig:WKS=0e574b53
+Sig:WKS=ff00020004040554
+Sig:WP=ff575043
+Sig:WP5=ff575043
+Sig:WP6=ff575043
+Sig:WPD=ff575043
+Sig:WPG=ff575043
+Sig:WPP=ff575043
+Sig:WPS=d0cf11e0a1b11ae1
+Sig:WRI=31be
+Sig:WRI=32be
+Sig:WRI=be000000ab
+Sig:XLA=d0cf11e0a1b11ae1
+Sig:XLS=0902060000001000b9045c00
+Sig:XLS=0904060000001000f6055c00
+Sig:XLS=0908100000060500
+Sig:XLS=d0cf11e0a1b11ae1
+Sig:XLS=fdffffff10
+Sig:XLS=fdffffff1f
+Sig:XLS=fdffffff22
+Sig:XLS=fdffffff23
+Sig:XLS=fdffffff28
+Sig:XLS=fdffffff29
+Sig:XLSX=504b0304
+Sig:XML=3c3f786d6c
+Sig:XML=3c3f786d6c2076657273696f6e3d22
+Sig:XML=fffe3c0052004f004f005400530054
 SAY:
-ACQ:\DOC
+SAY: Step 2. Loading Email File Signatures...
 SAY:
-SAY: 1. Now Extracting All DOC files...  This may take a while...
-NCP:"C:\*.Doc" "&Acq"
-NCP:"C:\*.Docx" "&Acq"
+Sig:dbx=cfad12fec5fd746f
+Sig:email=46726F6D3A
+Sig:EML=46726f6d
+Sig:EML=46726f6d203f3f3f403f3f3f20
+Sig:EML=46726f6d3a20
+Sig:EML=52657475726e2d50
+Sig:EML=582d
+Sig:idx=4a4d4639
+Sig:mail=414f4c564d
+Sig:mbx=4a4d4636
+Sig:ost=2142444e
+Sig:PST=2142444e
+Sig:pst=21424ea56fb5a6
 SAY:
-SAY: 1b. Now Extracting All ODF files...  This may take a while...
-NCP:"C:\*.Odf" "&Acq"
+SAY: Step 3. Searching for Document and Email Files...
 SAY:
-ACQ:\XLS
-SAY:
-SAY: 2. Now Extracting All XLS files...  This may take a while...
-NCP:"C:\*.Xls" "&Acq"
-NCP:"C:\*.Xlsx" "&Acq"
-SAY:
-SAY: 2a. Now Extracting All ODT files...  This may take a while...
-NCP:"C:\*.Odt" "&Acq"
-SAY:
-ACQ:\PPT
-SAY:
-SAY: 3. Now Extracting All PPT files...  This may take a while...
-NCP:"C:\*.Ppt" "&Acq"
-NCP:"C:\*.Pptx" "&Acq"
-SAY:
-SAY: 3a. Now Extracting All ODS files...  This may take a while...
-NCP:"C:\*.Ods" "&Acq"
-SAY:
-ACQ:\PDF
-SAY:
-SAY: 4. Now Extracting All PDF files...  This may take a while...
-NCP:"C:\*.Pdf" "&Acq"
-SAY:
-SAY: 5. Now Extracting All PST files...  This may take a while...
-NCP:"C:\*.Pst" "&Acq"
-SAY:
-SAY: 5a. Now Extractinging All OST & NK2 files...  This may take a while...
-NCP:"C:\*.Ost" "&Acq"
-NCP:"C:\*.NK2" "&Acq"
-SAY:
-SAY: 6. Now Extractinging All EML files...  This may take a while...
-NCP:"C:\*.Eml" "&Acq"
-SAY:
-SAY: 7. Now Extracting All MBOX files...  This may take a while...
-NCP:"C:\*.mbox" "&Acq"
-SAY:
-SAY: 8. Now Extracting All DBX files...  This may take a while...
-NCP:"C:\*.Dbx" "&Acq"
-SAY:
-SAY: 7i. Now Extracting All MSF files...  This may take a while...
-NCP:"C:\*.Msf" "&Acq"
-SAY:
-PZZ: All Done!  Press Any Key to Finish.
+ACQ:\Doc-EMail
+NCS:"C:\*" "&Acq"

@@ -4,16 +4,9 @@
 * - Created by D0n Quix0te/OMENScan (May 2015)    *
 ***************************************************
 SAY:
-SAY: * * *   Please MAKE SURE you are running this as an Administrator  * * * 
-SAY: * * * Administrator right are required for many of these utilities * * * 
+SAY: Loading Video File Signatures...
 SAY:
-SAY: AChoir will scan the Hard drive and pull Media Files based on 
-SAY:  File Type AND/OR File Signature
-SAY:
-PZZ: Press Any Key to Continue, or q to QUIT
-SAY:
-SAY: Step 1. Loading Video File Signatures...
-SAY:
+ACQ:\
 Sig:Clear
 Sig:ASF=3026b2758e66cf11
 Sig:AVI=41564920
@@ -51,35 +44,7 @@ Sig:WMA=3026b2758e66cf11
 Sig:WMF=d7cdc69a
 Sig:WMV=3026b2758e66cf11
 SAY:
-SAY: Step 2. Loading Image File Signatures...
+SAY: Searching for Video Files for all User Profiles...
 SAY:
-Sig:Clear
-Sig:BMP=424d
-Sig:GIF=47494638
-Sig:JFIF=ffd8ffffd9
-Sig:JP2=0000000c6a502020
-Sig:JPE=ffd8ffffd9
-Sig:JPEG=ffd8ffffd9
-Sig:JPG=ffd8ffe0
-Sig:JPG=ffd8ffe1
-Sig:JPG=ffd8ffffd9
-Sig:PCX=0a020101
-Sig:PCX=0a030101
-Sig:PCX=0a050101
-Sig:PCX=0a050108
-Sig:PNG=889a0d12
-Sig:PNG=89504e470d0a1a0a
-Sig:TIF=492049
-Sig:TIF=49492a00
-Sig:tif=4D4D002A
-Sig:TIF=4d4d002b
-Sig:TIF=4d4d2a
-Sig:TIFF=492049
-Sig:TIFF=49492a00
-Sig:TIFF=4d4d002b
-Sig:TIFF=4d4d2a
-SAY:
-SAY: Step 3. Searching for Image And Video Files...
-SAY:
-ACQ:\Img-Vid
-NCS:"C:\*" "&Acq"
+ACQ:\Vids
+NCS:"C:\Users\*" "&Acq"

@@ -1,0 +1,29 @@
+***************************************************
+* Live Document Acquisition Script (2.0)          *
+* - Pulls Common Media File Types from disk       *
+* - Created by D0n Quix0te/OMENScan (May 2015)    *
+***************************************************
+SAY:
+SAY: Loading Executables File Signatures...
+SAY:
+ACQ:\
+Sig:Clear
+Sig:COM=4d5a
+Sig:DLL=4d5a
+Sig:DRV=4d5a
+Sig:EXE=4d5a
+Sig:PIF=4d5a
+Sig:QTS=4d5a
+Sig:QTX=4d5a
+Sig:SYS=4d5a
+Sig:COM=e8
+Sig:SYS=e8
+Sig:COM=e9
+Sig:SYS=e9
+Sig:COM=eb
+Sig:SYS=eb
+SAY:
+SAY: Searching for Executable Files for all User Profiles...
+SAY:
+ACQ:\Exes
+NCS:"C:\Users\*" "&Acq"

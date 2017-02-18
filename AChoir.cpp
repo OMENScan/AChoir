@@ -84,6 +84,7 @@
 /*              - NOTE: v0.95 will be slower than previous      */
 /*                Versions. I opted for slower and safer code   */
 /*                with a smaller memory footprint.              */
+/* AChoir v0.96 - Clean Up some of the code, improve output.    */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -104,7 +105,9 @@
 /****************************************************************/
 
 #include "stdafx.h"
-#include "VLD.h"
+
+//Visual Leak Detector (In Debug)
+//#include "VLD.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -152,7 +155,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.95\0";
+char Version[10] = "v0.96\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -226,10 +229,13 @@ char Str_Temp[1024] = "\0";
 CHAR driveLetter[] = "C\0\0\0\0";
 CHAR rootDrive[] = "C:\\\0\0\0";
 
+char SidString[256];
+ULONGLONG File_CreDate, File_AccDate, File_ModDate;
 int gotOwner = 0;
 
 // Static Security Descriptor Buffer
 PSECURITY_DESCRIPTOR SecDesc[255];
+
 // Dynamic Security Descriptor Buffer
 //PSECURITY_DESCRIPTOR SecDesc = NULL;
 
@@ -504,12 +510,6 @@ int main(int argc, char *argv[])
   /****************************************************************/
   /* Set Defaults                                                 */
   /****************************************************************/
-  // These are TEST SQLite Optimizations - I may pull them out later.
-  // Set SQLite to Single Threading - It's faster, and more reliable
-  // Sometimes the program bombs on exit with Mutex error - Disable it.
-  //sqlite3_config(SQLITE_CONFIG_SINGLETHREAD);
-  //sqlite3_config(SQLITE_CONFIG_MEMSTATUS, 0);
-
   iIsAdmin = 0;
   iXitCmd = 0;
   iLogOpen = 0;
@@ -1640,7 +1640,6 @@ int main(int argc, char *argv[])
             do
             {
               bufT  = (UCHAR *) malloc(maxMemBytes)  ;
-              //bufT = new (std::nothrow) UCHAR[maxMemBytes];
 
               if(bufT == NULL)
                maxMemBytes -= 26214400; // Subtract 25M
@@ -1654,7 +1653,6 @@ int main(int argc, char *argv[])
 
 
             // Allocation Worked - Delete the buffer and continue...
-            //delete[] bufT;
             free (bufT);
 
             /****************************************************************/
@@ -2298,7 +2296,7 @@ int main(int argc, char *argv[])
               fprintf(LogHndl, "\nYou have requested Achoir to Quit.\n");
               printf("\nYou have requested Achoir to Quit.\n");
               cleanUp_Exit(0);
-              exit;
+              exit(0);
             }
           }
           else
@@ -2839,7 +2837,7 @@ int main(int argc, char *argv[])
   }
 
   cleanUp_Exit(0);
-  exit;
+  exit(0);
 
 }
 
@@ -3676,7 +3674,6 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   char tmpTooFile[4096];
   int iFileCount = 0;
   int TimeNotGood = 0;
-  int gotOwner = 0;
   int setOwner = 0;
 
   FILE* FrmHndl;
@@ -3687,7 +3684,6 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   DWORD SecLen, LenSec;
   PSID pSidOwner = NULL;
   BOOL pFlag = FALSE;
-  char SidString[256];
   
   /****************************************************************/
   /* Make Sure the File is Not There - Don't Overwrite!           */
@@ -3878,13 +3874,13 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         {
           printf("Inf: File Owner Set (%s)\n", SidString);
           if (binLog == 1)
-            fprintf(LogHndl, "Inf: File Owner Set (%s)\n", SidString);
+           fprintf(LogHndl, "Inf: File Owner Set (%s)\n", SidString);
         }
         else
         {
           printf("Wrn: Can NOT Set Target File Owner(%s)\n", SidString);
           if (binLog == 1)
-            fprintf(LogHndl, "Wrn: Can NOT Set Target File Owner (%s)\n", SidString);
+           fprintf(LogHndl, "Wrn: Can NOT Set Target File Owner (%s)\n", SidString);
         }
 
       }
@@ -3995,7 +3991,6 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   int  SQL_MFT = 0;
   int  i;
 
-  ULONGLONG File_CreDate, File_AccDate, File_ModDate;
   FILETIME File_Create, File_Access, File_Modify;
   char Text_FNCreDate[30] = "\0";
   char Text_FNAccDate[30] = "\0";
@@ -4009,7 +4004,6 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   DWORD SecLen, LenSec;
   PSID pSidOwner = NULL;
   BOOL pFlag = FALSE;
-  char SidString[256];
 
   int PrivSet = 0;
   int PrivOwn = 0;
@@ -4322,14 +4316,10 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         }
 
         printf("\nInf: Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
-        printf("    %s\n", Full_Fname);
-        printf("     (In)SID: %s\n", SidString);
-        printf("     (In)Time: %llu - %llu - %llu\n", File_CreDate, File_AccDate, File_ModDate);
+        printf("     %s\n", Full_Fname);
 
         fprintf(LogHndl, "\nInf: Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
         fprintf(LogHndl, "    %s\n", Full_Fname);
-        fprintf(LogHndl, "     (In)SID: %s\n", SidString);
-        fprintf(LogHndl, "     (In)Time: %llu - %llu - %llu\n", File_CreDate, File_AccDate, File_ModDate);
 
 
         // Set initial Variables - Maximum File Size, Btyes Left and Recursion Depth
@@ -4787,7 +4777,7 @@ void USB_Protect(DWORD USBOnOff)
         fprintf(LogHndl, "\nYou have requested Achoir to Exit.\n");
         printf("\nYou have requested Achoir to Exit.\n");
         cleanUp_Exit(0);
-        exit ;
+        exit(0) ;
       }
     }
   }
@@ -5730,14 +5720,12 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   CHAR Tooo_Fname[2048] = "\0";
   int setOwner = 0;
   int iFileCount = 0;
-  //long iFileSize = 0;
   long iDataSize = 0;
 
   PNONRESIDENT_ATTRIBUTE nonresattr = NULL;
   PATTRIBUTE_LIST attrdatax = NULL;
   ULONG MaxOffset, MaxDataSize;
   USHORT LastOffset;
-  //USHORT LastDataSize;
   long pointData;
   ULONG attrLen, dataLen;
   int gotData, i, DDRetcd;
@@ -5943,18 +5931,6 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     {
       maxMemExceed = 1 ;
       useDiskOrMem = 1 ;
-
-      printf("     (In)Size: %lu\n", dataLen);
-      printf("\nInf: File Exceeds Max Memory Size...  Disk Caching Sectors...\n");
-
-      if (binLog == 1)
-      {
-        fprintf(LogHndl, "     (In)Size: %lu\n", dataLen);
-        fprintf(LogHndl, "\nInf: File Exceeds Max Memory Size...  Disk Caching Sectors...\n");
-      }
-
-      //return 1;
-
     }
 
     
@@ -6006,9 +5982,9 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         if((strnicmp(tmpSig, SigTabl+(i*iSigSize), SizTabl[i]) == 0) && (strlen(SigTabl+(i*iSigSize)) > 0))
         {
           iNCSFound = 1;
-
           printf("     (Sig)Header Signature Match Found in File (%s)\n", tmpSig);
           fprintf(LogHndl, "     (Sig)Header Signature Match Found in File (%s)\n", tmpSig);
+          break;
         }
 
         if((strnicmp(filetype, TypTabl+(i*iTypSize), iTypSize) == 0) && (strlen(filetype) > 0))
@@ -6016,6 +5992,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
           iNCSFound = 1;
           printf("     (Sig)File Extention Match Found (%s)\n", filetype);
           fprintf(LogHndl, "     (Sig)File Extention Match Found (%s)\n", filetype);
+          break;
         }
       }
 
@@ -6029,15 +6006,39 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       }
     }
 
-    // Complete the copy if we are dng an NCP: - or if the NCS: Signature was found
+    // Complete the copy if we are doing an NCP: - or if the NCS: Signature was found
     if (iNCSFound == 1)
     {
+      // Print Information about file for Verification
+      if(gotOwner != 1)
+       sprintf(SidString, "Could Not Get SID\0");
+
+      printf("     (In)SID: %s\n", SidString);
+      fprintf(LogHndl, "     (In)SID: %s\n", SidString);
+
+      printf("     (In)Time: %llu - %llu - %llu\n", File_CreDate, File_AccDate, File_ModDate);
+      fprintf(LogHndl, "     (In)Time: %llu - %llu - %llu\n", File_CreDate, File_AccDate, File_ModDate);
+
 
       if(maxMemExceed == 0)
-       bufD  = (UCHAR *) malloc(attrLen)  ;
+      {
+        // Fit the Whole File in a buffer
+        bufD  = (UCHAR *) malloc(attrLen)  ;
+      }
       else
-       bufD  = (UCHAR *) malloc(bootb.BytesPerSector * bootb.SectorsPerCluster)  ;
+      {
+        // MaxMem Exceeded! Just Use a Cluster at a Time - Also Show us the size.
+        bufD  = (UCHAR *) malloc(bootb.BytesPerSector * bootb.SectorsPerCluster)  ;
 
+        printf("     (In)Size: %lu\n", dataLen);
+        printf("\nInf: File Exceeds Max Memory Size...  Disk Caching Sectors...\n");
+
+        if (binLog == 1)
+        {
+          fprintf(LogHndl, "     (In)Size: %lu\n", dataLen);
+          fprintf(LogHndl, "\nInf: File Exceeds Max Memory Size...  Disk Caching Sectors...\n");
+        }
+      }
 
       // Did we allocate our Data Buffer OK?
       if(bufD == NULL) 
@@ -6052,11 +6053,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
        totdata = maxDataSize;
 
 
-      //Only show Size if we didn't already
+      //Now show the iData Size since we didn't show the dataLen
       if(maxMemExceed != 1)
       {
         printf("     (In)Size: %ld                         \n", iDataSize);
-
+      
         if (binLog == 1)
           fprintf(LogHndl, "     (In)Size: %ld                         \n", iDataSize);
       }
