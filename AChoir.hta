@@ -1,6 +1,6 @@
 <html>
 <head>
-  <title>AChoir GUI 0.07</title>
+  <title>AChoir GUI 0.10</title>
   <HTA:APPLICATION ID="AChoirGUI" 
     APPLICATIONNAME="AChoir GUI" 
     BORDER="Yes"
@@ -34,43 +34,54 @@ function panel(tab)
 }
 
 // Run AChoir Local. Save Artifacts Local
-function RunAChoir()
+function RunAChoir(Bits)
 {
   var rbutns = document.getElementsByName("rbtn");
   var ScrName = "/ini:AChoir.acq" ;
+  var ScrBits = "A-AChoir.exe";
   var RunMe = 1 ;
- 
+  
+  if (Bits == 32) 
+  {
+    ScrBits = "A-AChoir.exe" ;
+  } 
+  else if (Bits == 64) 
+  {
+    ScrBits = "A-AChoir64.exe" ;
+  } 
+
+
   if (rbutns[0].checked == true) 
   {
-    ScrName = "A-AChoir.exe /ini:AChoir.acq" ;
+    ScrName = ScrBits + " /ini:AChoir.acq" ;
   } 
   else if (rbutns[1].checked == true) 
   {
-    ScrName = "A-AChoir.exe /ini:NoMem.acq" ;
+    ScrName = ScrBits + " /ini:NoMem.acq" ;
   }
   else if (rbutns[2].checked == true)
   {
-    ScrName = "A-AChoir.exe /ini:AChoirZ.acq" ;
+    ScrName = ScrBits + " /ini:AChoirZ.acq" ;
   }
   else if (rbutns[3].checked == true)
   {
-    ScrName = "A-AChoir.exe /ini:DocDump.acq" ;
+    ScrName = ScrBits + " /ini:DocDump.acq" ;
   }
   else if (rbutns[4].checked == true)
   {
-    ScrName = "A-AChoir.exe /ini:MediaDump.acq" ;
+    ScrName = ScrBits + " /ini:MediaDump.acq" ;
   }
   else if (rbutns[5].checked == true)
   {
-    ScrName = "A-AChoir.exe /ini:USBOff.acq" ;
+    ScrName = ScrBits + " /ini:USBOff.acq" ;
   }
   else if (rbutns[6].checked == true)
   {
-    ScrName = "A-AChoir.exe /ini:USBOn.acq" ;
+    ScrName = ScrBits + " /ini:USBOn.acq" ;
   }
   else if (rbutns[7].checked == true)
   {
-    ScrName = "A-AChoir.exe /ini:Build.acq" ;
+    ScrName = ScrBits + " /ini:Build.acq" ;
   }
   else
   {
@@ -136,11 +147,21 @@ function WriteBat()
 }
 
 // Run AChoir Local - Save Artifacts to Remote Server
-function RunLRACh()
+function RunLRACh(Bits)
 {
   var ScrName = "/ini:AChoir.acq" ;
+  var ScrBits = "A-AChoir.exe";
+  
+  if (Bits == 32) 
+  {
+    ScrBits = "A-AChoir.exe" ;
+  } 
+  else if (Bits == 64) 
+  {
+    ScrBits = "A-AChoir64.exe" ;
+  } 
 
-  ScrName = "A-AChoir.exe /ini:Remoted.Acq /Usr:" + ServUsr.value + " /Pwd:" + ServPwd.value + " /Map:" + Server1Name.value ;  
+  ScrName = ScrBits + " /ini:Remoted.Acq /Usr:" + ServUsr.value + " /Pwd:" + ServPwd.value + " /Map:" + Server1Name.value ;  
 
   WshShell = new ActiveXObject("WScript.Shell");
   WshShell.Run(ScrName, 1, false);
@@ -221,7 +242,7 @@ function ExitMe()
 <table align="center" border="0" cellpadding="0" cellspacing="0" width="1000">
 <tr valign="top">
   <td align="right" colspan="2">
-    <span class="head">AChoir GUI 0.07</span> &nbsp; &nbsp;
+    <span class="head">AChoir GUI 0.10</span> &nbsp; &nbsp;
     <br>
   </td>
 </tr>
@@ -296,14 +317,18 @@ function ExitMe()
             </p>
 
             <p>
-            <input type="button" value="Run AChoir" onclick="RunAChoir();"/> OR 
+            <input type="button" value="AChoir-32" onclick="RunAChoir(32);"/> - 
+            <input type="button" value="AChoir-64" onclick="RunAChoir(64);"/> - 
             <input type="button" value="Exit GUI" onclick="ExitMe();"/>
             </p>
 
             </TD></TR></TABLE>
 
             <p>
-            <b><i>Important Note: </b></i>This GUI will call the 32Bit AChoir Program as Admin.
+            <Font Size = small>
+            <b><i>Note 1: </b></i>If you're not sure if the OS is 32 or 64 Bit, run AChoir 32 Bit<br>
+            <b><i>Note 2: </b></i>This GUI will call AChoir as an Admin.
+            </Font>
             </p>
 
           </td>
@@ -354,15 +379,19 @@ function ExitMe()
             </p><br>
 
             <p>
-            <input type="button" value="Run AChoir" onclick="RunLRACh();"/> OR 
-            <input type="button" value="Exit GUI" onclick="ExitMe();"/>
+            <input type="button" value="AChoir-32" onclick="RunLRACh(32);"/> - 
+            <input type="button" value="AChoir-64" onclick="RunLRACh(64);"/> - 
+            <input type="button" value="Exit GUI" onclick="ExitMe();"/> 
             </p>
 
             </TD></TR></TABLE>
 
             <br><br><br><br><br>
             <p>
-            <b><i>Important Note: </b></i>This GUI will call the 32Bit AChoir Program as Admin.
+            <Font Size = small>
+            <b><i>Note 1: </b></i>If you're not sure if the OS is 32 or 64 Bit, run AChoir 32 Bit<br>
+            <b><i>Note 2: </b></i>This GUI will call AChoir as an Admin
+            </Font>
             </p>
           </td>
         </tr>
@@ -421,7 +450,7 @@ function ExitMe()
 
             <br><br><br><br><br>
             <p>
-            <b><i>Important Note: </b></i>This GUI will call the 32Bit AChoir Program as Admin.
+            <b><i>Important Note: </b></i>This GUI will call the 32Bit AChoir Program Remotely as Admin.
             </p>
           </td>
         </tr>

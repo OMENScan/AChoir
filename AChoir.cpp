@@ -85,6 +85,7 @@
 /*                Versions. I opted for slower and safer code   */
 /*                with a smaller memory footprint.              */
 /* AChoir v0.96 - Clean Up some of the code, improve output.    */
+/* AChoir v0.96a- Cosmetic changes to Index.htm                 */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -3645,7 +3646,7 @@ int PreIndex()
     fprintf(HtmHndl, "<p>\n");
     fprintf(HtmHndl, "Below is an Index of the Artifacts gathered for Acquisition: <b>%s</b>\n\n", ACQName);
     fprintf(HtmHndl, "</p>\n\n");
-    fprintf(HtmHndl, "<table width=900>\n");
+    fprintf(HtmHndl, "<Center><table width=98%%>\n");
     fprintf(HtmHndl, "<tr><td align=left>\n");
     fprintf(HtmHndl, "<button onclick=\"window.history.back()\">&lt;&lt;</button>\n");
     fprintf(HtmHndl, "</td><td align=center>\n");
@@ -4798,8 +4799,8 @@ void cleanUp_Exit(int exitRC)
   {
     fprintf(HtmHndl, "</td><td align=right>\n");
     fprintf(HtmHndl, "<button onclick=\"window.history.forward()\">&gt;&gt;</button>\n");
-    fprintf(HtmHndl, "</td></tr></table>\n<p>\n");
-    fprintf(HtmHndl, "<iframe name=AFrame height=400 width=900 scrolling=auto src=file:./></iframe>\n");
+    fprintf(HtmHndl, "</td></tr></table></Center>\n<p>\n");
+    fprintf(HtmHndl, "<iframe name=AFrame style=\"padding:2px;border:3px Lavender solid;\"  height=75%% width=98%% scrolling=auto src=file:./></iframe>\n");
     fprintf(HtmHndl, "</p>\n</body></html>\n");
 
     fclose(HtmHndl);
