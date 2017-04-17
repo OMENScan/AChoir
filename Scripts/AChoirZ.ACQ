@@ -110,7 +110,9 @@ CMD:\SYS\PSList.exe /accepteula -x > &Acq\PSList.dat
 SAY:
 SAY: 11. Gathering Connection Information...
 SAY:
-CMD:NetStat -abno > &Acq\NetStat.dat
+***:Replaced NETSTAT with CPORTS (Gives Full Path of Process)
+***:NetStat -abno > &Acq\NetStat.dat
+EXE:\SYS\cports.exe /scomma &Acq\CPorts.csv
 SAY:
 SAY: 12. Gathering IP Config Information...
 SAY:
@@ -151,11 +153,11 @@ CMD:Tasklist /SVC > &Acq\Services-3.dat
 SAY:
 SAY: 19. Gathering Last Activity Information...
 SAY:
-EXE:\SYS\LastActivityView.exe /scomma &Acq\LastActivity.dat
+EXE:\SYS\LastActivityView.exe /scomma &Acq\LastActivity.csv
 SAY:
 SAY: 20. Gathering User Assist Information...
 SAY:
-EXE:\SYS\UserAssistView.exe /scomma &Acq\UserAssist.dat
+EXE:\SYS\UserAssistView.exe /scomma &Acq\UserAssist.csv
 SAY:
 SAY: 21. Gathering AutoRun Information...
 SAY:

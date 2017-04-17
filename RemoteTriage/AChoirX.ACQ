@@ -1,5 +1,5 @@
 ***************************************************
-* Live Acquisition Script (1.0)                   *
+* Live Acquisition Script (2.0)                   *
 * - Pulls Forensics artifacts for analysis        *
 * - Created by D0n Quix0te/OMENScan (May 2015)    *
 * - Inspired by many other tools                  *
@@ -39,23 +39,20 @@ SAY:
 ACQ:\MemDump
 EXE:\MEM\WinPmem.exe &Acq\WinPmemDump.Raw
 SAY:
-SAY: 2. Parsing Prefetch Directory...
+SAY: 2. Extracting Prefetch Directory...
 SAY:
-ACQ:\SYS
-For:&Win\prefetch\*.*
-CPY:"&For" "&Acq\&Fnm"
-CMD:Dir &Win\prefetch /a /q /r > &Acq\Prefetch.dat
-EXE:\SYS\WinPrefetchView.exe /scomma &Acq\WinPrefetchview.dat
+ACQ:\Prf
+NCP:"&Win\prefetch\*" "&Acq"
 SAY:
-SAY: 3a. Copy Raw $MFT and $LogFile...
+SAY: 3a. Copy Raw $MFT...
 SAY:
 ACQ:\RawData
-EXE:\DSK\RawCopy.exe /FileNamePath:c:0 /OutputPath:&Acq
-EXE:\DSK\RawCopy.exe /FileNamePath:c:2 /OutputPath:&Acq
+NCP:"C:\$MFT" "&Acq"
 SAY:
-SAY: 3b. Now Parsing $MFT...
+SAY: 3b. Copy Raw $LogFile...
 SAY:
-EXE:\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT 
+NCP:"C:\$LogFile" "&Acq"
+SAY:
 SAY:
 SAY: 3c. Now Extracting USNJrnl...
 SAY:
@@ -79,54 +76,35 @@ SAY: 4c. Gathering Group Policy Information...
 SAY:
 CMD:GPResult /R /Z > &Acq\GPResult.txt
 SAY:
-SAY: 5a. Saving Registry Hives...
+SAY: 5. Raw Copy Registry Hives...
 SAY:
 ACQ:\Reg
-CMD:reg save HKLM\SECURITY &Acq\Security.RegSave
-CMD:reg save HKLM\SOFTWARE &Acq\Software.RegSave
-CMD:reg save HKLM\SAM &Acq\SAM.RegSave
-CMD:reg save HKLM\SYSTEM &Acq\System.RegSave
-CMD:reg save HKLM\HARDWARE &Acq\Hardware.RegSave
+NCP:"&Win\System32\Config\SECURITY" "&Acq"
+NCP:"&Win\System32\Config\SOFTWARE" "&Acq"
+NCP:"&Win\System32\Config\SAM" "&Acq"
+NCP:"&Win\System32\Config\SYSTEM" "&Acq"
 SAY:
-SAY: 5b. Parsing (Exporting) Registry Hives...
-SAY:
-CMD:Reg Export HKLM &Acq\RegHKLM.dat
-CMD:Reg Export HKCU &Acq\RegHKCU.dat
-CMD:Reg Export HKCR &Acq\RegHKCR.dat
-CMD:Reg Export HKCC &Acq\RegHKCC.dat
-CMD:Reg Export HKU  &Acq\RegHKU.dat
-SAY:
-SAY: 6a. Parsing EventViewer Logs...
+SAY: 6. Copying (System32) EventViewer Logs...
 SAY:
 ACQ:\Evt
-CMD:\SYS\PSLogList.exe /accepteula -s Security > &Acq\EvtSec.dat
-CMD:\SYS\PSLogList.exe /accepteula -s Application > &Acq\EvtApp.dat
-CMD:\SYS\PSLogList.exe /accepteula -s System > &Acq\EvtSys.dat
-SAY:
-SAY: 6b. Copying (System32) Bit EventViewer Logs...
-SAY:
 ACQ:\Evt\Sys32
-For:&Win\System32\winevt\Logs\*.*
-CPY:"&For" "&Acq\&Fnm"
+NCP:"&Win\System32\winevt\Logs\*" "&Acq"
 SAY:
-SAY: 6c. Copying (Sysnative) Bit EventViewer Logs...
+SAY: 6a. Copying (Sysnative) EventViewer Logs...
 SAY:
 ACQ:\Evt\Nativ
-For:&Win\sysnative\winevt\Logs\*.*
-CPY:"&For" "&Acq\&Fnm"
+NCP:"&Win\sysnative\winevt\Logs\*" "&Acq"
 SAY:
 SAY: 7. Parsing (System32) Hosts And Services Directory...
 SAY:
 ACQ:\SYS
 ACQ:\SYS\Sys32
-For:&Win\System32\Drivers\Etc\*.*
-CPY:"&For" "&Acq\&Fnm"
+NCP:"&Win\System32\Drivers\Etc\*" "&Acq"
 SAY:
 SAY: 7a. Parsing (Sysnative) Hosts And Services Directory...
 SAY:
 ACQ:\SYS\Nativ
-For:&Win\sysnative\Drivers\Etc\*.*
-CPY:"&For" "&Acq\&Fnm"
+NCP:"&Win\sysnative\Drivers\Etc\*" "&Acq"
 SAY:
 SAY: 8. Parsing Environment Variables...
 SAY:
@@ -145,7 +123,9 @@ CMD:\SYS\PSList.exe /accepteula -x > &Acq\PSList.dat
 SAY:
 SAY: 11. Gathering Connection Information...
 SAY:
-CMD:NetStat -abno > &Acq\NetStat.dat
+***:Replaced NETSTAT with CPORTS (Gives Full Path of Process)
+***:NetStat -abno > &Acq\NetStat.dat
+EXE:\SYS\cports.exe /scomma &Acq\CPorts.csv
 SAY:
 SAY: 12. Gathering IP Config Information...
 SAY:
@@ -187,11 +167,11 @@ CMD:Tasklist /SVC > &Acq\Services-3.dat
 SAY:
 SAY: 19. Gathering Last Activity Information...
 SAY:
-EXE:\SYS\LastActivityView.exe /scomma &Acq\LastActivity.dat
+EXE:\SYS\LastActivityView.exe /scomma &Acq\LastActivity.csv
 SAY:
 SAY: 20. Gathering User Assist Information...
 SAY:
-EXE:\SYS\UserAssistView.exe /scomma &Acq\UserAssist.dat
+EXE:\SYS\UserAssistView.exe /scomma &Acq\UserAssist.csv
 SAY:
 SAY: 21. Gathering AutoRun Information...
 SAY:
@@ -207,9 +187,7 @@ CMD:Reg Save HKCU &Acq\NTUSER.DAT
 SAY:
 SAY: 22b. Gathering All User Registries...
 SAY:
-FOR:C:\Users\NTUSER.DAT
-EXE:\SYS\RegfileExport.exe "&For" &Acq\NTUSER(&Num).EXP
-CPY:"&For" "&Acq\&Fnm(&Num)"
+NCP:"C:\Users\*\NTUSER.DAT" "&Acq"
 SAY:
 SAY: 23. Now Extracting Browser History...
 SAY:

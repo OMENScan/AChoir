@@ -166,6 +166,15 @@ SAY:
 END:
 END:
 SAY:
+SAY: --- Getting CurrPorts (From NirSoft) ---
+SAY:
+FIL:CPorts.zip
+EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\CPorts.txt http://www.nirsoft.net/utils/cports.zip
+SAY:
+SAY: --- Unzipping CurrPorts ---
+SAY:
+EXE:unzip.exe -o &Dir\&Fil -d &Dir
+SAY:
 SAY: --- Getting LastActivityView (From NirSoft) ---
 SAY:
 FIL:LastActivity.zip
@@ -211,9 +220,19 @@ SAY:
 FIL:Winaudit.exe
 EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\Winaudit.txt https://github.com/OMENScan/AChoir/blob/master/Tools/WinAudit.exe?raw=true
 SAY:
+DIR:\SYS\64Bit
+SAY:
+SAY: --- Getting CurrPorts (From NirSoft) ---
+SAY:
+FIL:CPorts-x64.zip
+EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\CPorts-64.txt http://www.nirsoft.net/utils/cports-x64.zip
+SAY:
+SAY: --- Unzipping CurrPorts ---
+SAY:
+EXE:unzip.exe -o &Dir\&Fil -d &Dir
+SAY:
 SAY: --- Getting BrowsingHistoryView (From NirSoft) ---
 SAY:
-DIR:\SYS\64Bit
 FIL:BrowseHist64.zip
 EXE:cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\BrowseHist64.txt http://nirsoft.net/utils/browsinghistoryview-x64.zip
 SAY:
