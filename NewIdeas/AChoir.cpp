@@ -2380,8 +2380,8 @@ int main(int argc, char *argv[])
             }
             else
             {
-              fprintf(LogHndl, "[!] Required File Found: %s\n", Inrec + 4);
-              consPrefix("[!] ", consRed);
+              fprintf(LogHndl, "[+] Required File Found: %s\n", Inrec + 4);
+              consPrefix("[+] ", consGre);
               printf("Required File Found: %s\n", Inrec + 4);
             }
           }
