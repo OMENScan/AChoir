@@ -1,4 +1,4 @@
-AChoir - Beta v0.97
+AChoir - Beta v0.98
 
 AChoir
 ======
@@ -172,6 +172,8 @@ LST:<FileName>
          be run iteratively replacing the &For variable with each
          entry in the <FileName>. 
 CPY:     Copy Files (CPY:<FromFile> <ToFile>) - Supports Quotes
+CPS:     Copy Files (CPS:<FromFile> <ToFile>) by Signature 
+          (Loaded by the Sig: command) - Use FOR: and &FOR for wildcards
 NCP:     NTFS Raw File Copy - Supports Wildcards (* and ?)
          NCP:<File(s) to Copy>  <Destination Directory>
 Sig:Clear Clears out the AChoir Signature Table 
@@ -217,6 +219,7 @@ LBL:<LabelName>
          Define a Label that can be Jumped to (JMP:<LabelName>)
 JMP:<LabelName>
          Jump to a defined Label (LBL:<LabelName>)
+BYE:     Exit AChoir (usually used in Console Mode or Conditional section 
 XIT:<Exit Command> 
          Run Command or Program on Exit
 MAX:nnnnnnnnn 
@@ -256,6 +259,8 @@ Here are the Command Line Options:
         This option WILL Create a Base Acquisition Directory
 /MNU  - Run the Menu.ACQ Script (AChoir Menu)
         Note: This is a simple Menu Script for selecting an AChoir script to run.
+/CON  - Run In Interactive Mode (Same as /Ini:Console)
+/INI:Console - Run In Interactive Mode (Console Input)
 /INI:<File Name>  - Run the <File Name> script instead of AChoir.ACQ
         This Option WILL NOT Create a Base Acquisition Directory
         Use the ACQ: action to create the Base Acquisition Directory if you want one. 

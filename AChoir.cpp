@@ -87,6 +87,11 @@
 /* AChoir v0.96 - Clean Up some of the code, improve output.    */
 /* AChoir v0.96a- Cosmetic changes to Index.htm                 */
 /* AChoir v0.97 - Add Colors, Minor Bug Fixes                   */
+/* AChoir v0.98 - CPS: Copy by Signature (Standard Win32 API)   */
+/*                (Used with SIG: to copy Files by Signature)   */
+/*                 - Not Recommended for Locked/System Files    */
+/*              - Tighten Application Data recursion to 2 lvls  */
+/*              - /Con or /ini:Console - Console as Input File  */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -157,7 +162,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.97\0";
+char Version[10] = "v0.98\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -448,7 +453,13 @@ char tmpSig[255];
 int  tmpSize;
 int  iNCS = 0;
 int  iNCSFound = 0; // 0==Found, 1==Not
+int  iCPS = 0;
+int  iCPSFound = 0; // 0==Found, 1==Not
+
 PUCHAR ClustZero; // First Cluster buffer
+
+// Console Input instead of File
+int consOrFile = 0;
 
 // Console Coloring
 void consPrefix(char *consText, int consColor);
@@ -633,6 +644,7 @@ int main(int argc, char *argv[])
       printf(" /PWD:<Password> - Password to Map to Remote Server\n");
       printf(" /MAP:<Server\\Share> - Map to a Remote Server\n");
       printf(" /INI:<File Name> - Run the <File Name> script instead of AChoir.ACQ\n");
+      printf(" /CON  - Run with Console Input (Same as /Ini:Console\n");
       SetConsoleTextAttribute(hConsole, consWhi);
       
       exit(0);
@@ -675,8 +687,25 @@ int main(int argc, char *argv[])
       }
     }
     else
+    if (strnicmp(argv[i], "/CON", 4) == 0)
+    {
+      consOrFile = 1;
+      strncpy(RunMode, "Con\0", 4);
+      strncpy(inFnam, "Console\0", 8);
+      iRunMode = 1;
+    }
+    else
     if ((strnicmp(argv[i], "/INI:", 5) == 0) && (strlen(argv[i]) > 5))
     {
+      //Check if Input is Console
+      if (strnicmp(argv[i], "/INI:Console", 12) == 0)
+      {
+        consOrFile = 1;
+        strncpy(RunMode, "Con\0", 4);
+        strncpy(inFnam, argv[i] + 5, 254);
+        iRunMode = 1;
+      }
+      else
       if (strlen(argv[i]) < 254)
       {
         strncpy(RunMode, "Ini\0", 4);
@@ -914,7 +943,18 @@ int main(int argc, char *argv[])
   memset(Inrec, 0, 4096);
   memset(Tmprec, 0, 2048);
 
-  IniHndl = fopen(IniFile, "r");
+  if(consOrFile == 1)
+  {
+    consPrefix("[+] ", consGre);
+    printf("Switching to Console Input.\n");
+    consPrefix(">>> ", consGre);
+
+    fprintf(LogHndl, "[+] Switching to Console Input.\n");
+
+    IniHndl = stdin;
+  }
+  else
+   IniHndl = fopen(IniFile, "r");
 
   if (IniHndl != NULL)
   {
@@ -1675,11 +1715,16 @@ int main(int argc, char *argv[])
             USB_Protect(0);
           }
           else
-          if (strnicmp(Inrec, "CPY:", 4) == 0)
+          if ((strnicmp(Inrec, "CPY:", 4) == 0) || (strnicmp(Inrec, "CPS:", 4) == 0))
           {
             /****************************************************************/
             /* Binary Copy From => To                                       */
             /****************************************************************/
+            if (strnicmp(Inrec, "CPS:", 4) == 0)
+             iCPS = 1;
+            else
+             iCPS = 0;
+
             strtok(Inrec, "\n");
             strtok(Inrec, "\r");
 
@@ -2514,7 +2559,7 @@ int main(int argc, char *argv[])
             if (access(ForFile, 0) == 0)
               unlink(ForFile);
             
-            fclose(LogHndl);
+            //fclose(LogHndl);
             cleanUp_Exit(LastRC);
             exit (LastRC);
           }
@@ -2955,10 +3000,6 @@ int main(int argc, char *argv[])
 
           }
           
-          /****************************************************************/
-          /* End Of Script Processing Code                                */
-          /****************************************************************/
-
         }
 
         if ((ForMe == 1) && (ForHndl != NULL))
@@ -2969,8 +3010,14 @@ int main(int argc, char *argv[])
 
       }
 
+      if(consOrFile == 1)
+       consPrefix(">>> ", consGre);
+
     }
 
+    /****************************************************************/
+    /* End Of Script Processing Code                                */
+    /****************************************************************/
     fclose(IniHndl);
 
   }
@@ -3705,7 +3752,8 @@ int ListDir(char *DirName, char *LisType)
         return 0;
       }
 
-      if (stristr(RootDir, "Application Data\\Application Data\\Application Data\0") > 0)
+      //if (stristr(RootDir, "Application Data\\Application Data\\Application Data\0") > 0)
+      if (stristr(RootDir, "\\Application Data\\Application Data\\\0") > 0)
       {
         fprintf(LogHndl, "[!] Directory Recursion Error: %s%s\n", RootDir, inName);
 
@@ -3853,6 +3901,12 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   PSID pSidOwner = NULL;
   BOOL pFlag = FALSE;
   
+  // Signature Checking Variables
+  int i;
+  CHAR filetype[11] = "\0";
+  char *dotPos;
+
+
   /****************************************************************/
   /* Make Sure the File is Not There - Don't Overwrite!           */
   /****************************************************************/
@@ -3919,249 +3973,335 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
 
 
     /****************************************************************/
+    /* Open Input File - Make sure we can read it!                  */
+    /****************************************************************/
+    FrmHndl = fopen(FrmFile, "rb"); // Open From File
+    if (FrmHndl == NULL)
+    {
+      consPrefix("[!] ", consRed);
+      printf("Could Not Open File for Reading - File Copy Bypassed.\n");
+      fprintf(LogHndl, "[!] Could Not Open File for Reading - File copy Bypassed.\n");
+
+      return 1;
+    }
+
+
+    /****************************************************************/
     /* Copy File Code                                               */
     /****************************************************************/
-    FrmHndl = fopen(FrmFile, "rb");
-    TooHndl = fopen(tmpTooFile, "wb");
+    iCPSFound = 0;                  // Default to NOT Found
 
-    if ((FrmHndl != NULL) && (TooHndl != NULL))
+    // For CPY: it's ALWAYS found, for CPS: do the compare
+    if(iCPS == 0)
+     iCPSFound = 1;
+    else
+    if(iCPS == 1)
     {
-      while ((inSize = fread(Cpybuf, 1, sizeof Cpybuf, FrmHndl)) > 0)
+      /****************************************************************/
+      /* If we are doing an CPS - Read the first 32 Bytes and compare */
+      /*  to the Signature Table entries                              */
+      /****************************************************************/
+      // Start with a clean slate
+      memset(Cpybuf, 0, iSigSize);
+      memset(tmpSig, 0, iSigSize);
+
+      // Read in signature bytes
+      inSize = fread(Cpybuf, 1, iSigSize, FrmHndl);
+
+      // Convert n Bytes into n*2 Hex Chars
+      for (i=0; i < (iSigSize-1)/2; i++)
       {
-        consPrefix("[+] ", consGre);
-        printf("8K Block: %d\r", NBlox++);
+        sprintf(tmpSig+(i*2), "%02x", Cpybuf[i]);
+      }
 
-        outSize = fwrite(Cpybuf, 1, inSize, TooHndl);
-        if (outSize < inSize)
+      // Parse Out the FileType for Signature Checking
+      memset(filetype, 0, 11);
+      dotPos = strrchr(FrmFile, '.') ;
+
+      if(dotPos !=NULL)
+       strncpy(filetype, dotPos + 1, 10);
+
+
+      // Compare with the Signature and FileType Tables
+      for (i=0; i < iSigCount; i++)
+      {
+        if((strnicmp(tmpSig, SigTabl+(i*iSigSize), SizTabl[i]) == 0) && (strlen(SigTabl+(i*iSigSize)) > 0))
         {
-          /****************************************************************/
-          /* Somethingwent wrong - Show an error and quit                 */
-          /****************************************************************/
-          if (ferror(TooHndl))
-          {
-            if (binLog == 1)
-              fprintf(LogHndl, "[!] Error Copying File (Output Error)\n");
+          iCPSFound = 1;
 
-            consPrefix("[!] ", consRed);
-            printf("Error Copying File (Output Error)\n");
-          }
-          else
-          {
-            if (binLog == 1)
-              fprintf(LogHndl, "[!] Error Copying File (Disk Full)\n");
+          consPrefix("     (Sig) ", consGre);
+          printf("Header Signature Match Found in File (%s)\n", tmpSig);
+          fprintf(LogHndl, "     (Sig)Header Signature Match Found in File (%s)\n", tmpSig);
+          break;
+        }
 
-            consPrefix("[!] ", consRed);
-            printf("Error Copying File (Disk full)\n");
-          }
+        if((strnicmp(filetype, TypTabl+(i*iTypSize), iTypSize) == 0) && (strlen(filetype) > 0))
+        {
+          iCPSFound = 1;
+          consPrefix("     (Sig) ", consGre);
+          printf("File Extention Match Found (%s)\n", filetype);
+          fprintf(LogHndl, "     (Sig)File Extention Match Found (%s)\n", filetype);
           break;
         }
       }
 
-      fclose(FrmHndl);
-      fclose(TooHndl);
-
-      /****************************************************************/
-      /* Re-Set the original TimeStamps on copied file                */
-      /****************************************************************/
-      Time_tToFileTime(Frmstat.st_atime, 1);
-      Time_tToFileTime(Frmstat.st_mtime, 2);
-      Time_tToFileTime(Frmstat.st_ctime, 3);
-
-
-      HndlToo = CreateFile(tmpTooFile, FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-
-      SetFileTime(HndlToo, &ToCTime, &ToATime, &ToMTime);
-      CloseHandle(HndlToo);
-      
-
-      /****************************************************************/
-      /* Check to see if Windows converted it correctly               */
-      /*   This code should not even be neccesary.  Alas, it is.      */
-      /****************************************************************/
-      _stat(tmpTooFile, &Toostat);
-      TimeNotGood = 0;
-
-      // Check Create Time for wierd TZ Anomoly
-      if (Frmstat.st_ctime == (Toostat.st_ctime + 3600))
+      if(iCPSFound == 0)
       {
-        TimeNotGood = 1;
-        Time_tToFileTime(Frmstat.st_ctime + 3600, 3);
+        consPrefix("     (Sig) ", consRed);
+        printf("No Signature Match in File - File Copy Bypassed.\n");
+        fprintf(LogHndl, "     (Sig)No Signature Match in File - File copy Bypassed.\n");
+
+        fclose(FrmHndl);
+        return 1;
       }
-      else
-      if (Frmstat.st_ctime == (Toostat.st_ctime - 3600))
-      {
-        TimeNotGood = 1;
-        Time_tToFileTime(Frmstat.st_ctime - 3600, 3);
-      }
+    }
 
-      // Check Modify Time for wierd TZ Anomoly
-      if (Frmstat.st_mtime == (Toostat.st_mtime + 3600))
-      {
-        TimeNotGood = 1;
-        Time_tToFileTime(Frmstat.st_mtime + 3600, 2);
-      }
-      else
-      if (Frmstat.st_mtime == (Toostat.st_mtime - 3600))
-      {
-        TimeNotGood = 1;
-        Time_tToFileTime(Frmstat.st_mtime - 3600, 2);
-      }
+    // Complete the copy if we are doing an NCP: - or if the NCS: Signature was found
+    if (iCPSFound == 1)
+    {
+      rewind(FrmHndl); // Make sure we start at the top
 
-      // Check Access Time for wierd TZ Anomoly
-      if (Frmstat.st_atime == (Toostat.st_atime + 3600))
-      {
-        TimeNotGood = 1;
-        Time_tToFileTime(Frmstat.st_atime + 3600, 1);
-      }
-      else
-      if (Frmstat.st_atime == (Toostat.st_atime - 3600))
-      {
-        TimeNotGood = 1;
-        Time_tToFileTime(Frmstat.st_atime - 3600, 1);
-      }
+      //FrmHndl = fopen(FrmFile, "rb");
+      TooHndl = fopen(tmpTooFile, "wb");
 
-      if (TimeNotGood == 1)
+      if ((FrmHndl != NULL) && (TooHndl != NULL))
       {
-        consPrefix("[+] ", consGre);
-        printf("Converging Mismatched TimeStamp(s)\n");
+        while ((inSize = fread(Cpybuf, 1, sizeof Cpybuf, FrmHndl)) > 0)
+        {
+          consPrefix("[+] ", consGre);
+          printf("8K Block: %d\r", NBlox++);
 
-        if (binLog == 1)
-          fprintf(LogHndl, "[+] Converging Mismatched TimeStamp(s)\n");
+          outSize = fwrite(Cpybuf, 1, inSize, TooHndl);
+          if (outSize < inSize)
+          {
+            /****************************************************************/
+            /* Somethingwent wrong - Show an error and quit                 */
+            /****************************************************************/
+            if (ferror(TooHndl))
+            {
+              if (binLog == 1)
+                fprintf(LogHndl, "[!] Error Copying File (Output Error)\n");
+
+              consPrefix("[!] ", consRed);
+              printf("Error Copying File (Output Error)\n");
+            }
+            else
+            {
+              if (binLog == 1)
+                fprintf(LogHndl, "[!] Error Copying File (Disk Full)\n");
+
+              consPrefix("[!] ", consRed);
+              printf("Error Copying File (Disk full)\n");
+            }
+            break;
+          }
+        }
+
+        fclose(FrmHndl);
+        fclose(TooHndl);
+
+        /****************************************************************/
+        /* Re-Set the original TimeStamps on copied file                */
+        /****************************************************************/
+        Time_tToFileTime(Frmstat.st_atime, 1);
+        Time_tToFileTime(Frmstat.st_mtime, 2);
+        Time_tToFileTime(Frmstat.st_ctime, 3);
+
 
         HndlToo = CreateFile(tmpTooFile, FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
         SetFileTime(HndlToo, &ToCTime, &ToATime, &ToMTime);
         CloseHandle(HndlToo);
-      }
       
 
-      /****************************************************************/
-      /* Set the SID (Owner) of the new file same as the old file     */
-      /****************************************************************/
-      if (gotOwner == 1)
-      {
-        setOwner = SetFileSecurity(TooFile, OWNER_SECURITY_INFORMATION, SecDesc);
-                
-        if (setOwner)
+        /****************************************************************/
+        /* Check to see if Windows converted it correctly               */
+        /*   This code should not even be neccesary.  Alas, it is.      */
+        /****************************************************************/
+        _stat(tmpTooFile, &Toostat);
+        TimeNotGood = 0;
+
+        // Check Create Time for wierd TZ Anomoly
+        if (Frmstat.st_ctime == (Toostat.st_ctime + 3600))
+        {
+          TimeNotGood = 1;
+          Time_tToFileTime(Frmstat.st_ctime + 3600, 3);
+        }
+        else
+        if (Frmstat.st_ctime == (Toostat.st_ctime - 3600))
+        {
+          TimeNotGood = 1;
+          Time_tToFileTime(Frmstat.st_ctime - 3600, 3);
+        }
+
+        // Check Modify Time for wierd TZ Anomoly
+        if (Frmstat.st_mtime == (Toostat.st_mtime + 3600))
+        {
+          TimeNotGood = 1;
+          Time_tToFileTime(Frmstat.st_mtime + 3600, 2);
+        }
+        else
+        if (Frmstat.st_mtime == (Toostat.st_mtime - 3600))
+        {
+          TimeNotGood = 1;
+          Time_tToFileTime(Frmstat.st_mtime - 3600, 2);
+        }
+
+        // Check Access Time for wierd TZ Anomoly
+        if (Frmstat.st_atime == (Toostat.st_atime + 3600))
+        {
+          TimeNotGood = 1;
+          Time_tToFileTime(Frmstat.st_atime + 3600, 1);
+        }
+        else
+        if (Frmstat.st_atime == (Toostat.st_atime - 3600))
+        {
+          TimeNotGood = 1;
+          Time_tToFileTime(Frmstat.st_atime - 3600, 1);
+        }
+
+        if (TimeNotGood == 1)
         {
           consPrefix("[+] ", consGre);
-          printf("File Owner Set (%s)\n", SidString);
+          printf("Converging Mismatched TimeStamp(s)\n");
 
           if (binLog == 1)
-           fprintf(LogHndl, "[+] File Owner Set (%s)\n", SidString);
+            fprintf(LogHndl, "[+] Converging Mismatched TimeStamp(s)\n");
+
+          HndlToo = CreateFile(tmpTooFile, FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+          SetFileTime(HndlToo, &ToCTime, &ToATime, &ToMTime);
+          CloseHandle(HndlToo);
+        }
+      
+
+        /****************************************************************/
+        /* Set the SID (Owner) of the new file same as the old file     */
+        /****************************************************************/
+        if (gotOwner == 1)
+        {
+          setOwner = SetFileSecurity(TooFile, OWNER_SECURITY_INFORMATION, SecDesc);
+                
+          if (setOwner)
+          {
+            consPrefix("[+] ", consGre);
+            printf("File Owner Set (%s)\n", SidString);
+
+            if (binLog == 1)
+             fprintf(LogHndl, "[+] File Owner Set (%s)\n", SidString);
+          }
+          else
+          {
+            consPrefix("[*] ", consYel);
+            printf("Can NOT Set Target File Owner(%s)\n", SidString);
+            if (binLog == 1)
+             fprintf(LogHndl, "[*] Can NOT Set Target File Owner (%s)\n", SidString);
+          }
+
         }
         else
         {
           consPrefix("[*] ", consYel);
-          printf("Can NOT Set Target File Owner(%s)\n", SidString);
+          printf("Could NOT Determine Source File Owner(Unknown)\n");
+
           if (binLog == 1)
-           fprintf(LogHndl, "[*] Can NOT Set Target File Owner (%s)\n", SidString);
+            fprintf(LogHndl, "[*] Could NOT Determine Source File Owner (Unknown)\n");
         }
 
+
+        /****************************************************************/
+        /* MD5 The Files                                                */
+        /****************************************************************/
+        memset(MD5Tmp, 0, 255);
+        FileMD5(FrmFile);
+        strncpy(MD5Tmp, MD5Out, 255);
+      
+        if (binLog == 1)
+        {
+          fprintf(LogHndl, "[+] Source File MD5.....: %s\n", MD5Out);
+          fprintf(LogHndl, "[+] Source MetaData.....: %ld-%lld-%lld-%lld\n", Frmstat.st_size, Frmstat.st_ctime, Frmstat.st_atime, Frmstat.st_mtime);
+        }
+        consPrefix("[+] ", consGre);
+        printf("Source File MD5.....: %s\n", MD5Out);
+
+        consPrefix("[+] ", consGre);
+        printf("Source MetaData.....: %ld-%lld-%lld-%lld\n", Frmstat.st_size, Frmstat.st_ctime, Frmstat.st_atime, Frmstat.st_mtime);
+
+        _stat(tmpTooFile, &Toostat);
+        FileMD5(tmpTooFile);
+        if (binLog == 1)
+        {
+          fprintf(LogHndl, "[+] Destination File MD5: %s\n", MD5Out);
+          fprintf(LogHndl, "[+] Destination MetaData: %ld-%lld-%lld-%lld\n", Toostat.st_size, Toostat.st_ctime, Toostat.st_atime, Toostat.st_mtime);
+        }
+        consPrefix("[+] ", consGre);
+        printf("Destination File MD5: %s\n", MD5Out);
+
+        consPrefix("[+] ", consGre);
+        printf("Destination MetaData: %ld-%lld-%lld-%lld\n", Toostat.st_size, Toostat.st_ctime, Toostat.st_atime, Toostat.st_mtime);
+
+        if (strnicmp(MD5Tmp, MD5Out, 255) != 0)
+        {
+          consPrefix("[!] ", consRed);
+          printf("MD5 MisMatch!\n");
+          if (binLog == 1)
+           fprintf(LogHndl, "[!] MD5 MisMatch!\n");
+        }
+
+        if (Frmstat.st_size != Toostat.st_size)
+        {
+          consPrefix("[!] ", consRed);
+          printf("Size Mismatch!\n");
+          if (binLog == 1)
+           fprintf(LogHndl, "[!] Size MisMatch!\n");
+        }
+
+        if (Frmstat.st_ctime != Toostat.st_ctime)
+        {
+          Old_CTime = localtime(&Frmstat.st_ctime);
+          strftime(OldDate, 25, "%m/%d/%y@%H:%M:%S\0", Old_CTime);
+
+          consPrefix("[!] ", consRed);
+          printf("Create Time Mismatch! Actual Create Time: %s\n", OldDate);
+
+          if (binLog == 1)
+            fprintf(LogHndl, "[!] Create Time MisMatch! Actual Create Time: %s\n", OldDate);
+        }
+
+        if (Frmstat.st_mtime != Toostat.st_mtime)
+        {
+          Old_MTime = localtime(&Frmstat.st_mtime);
+          strftime(OldDate, 25, "%m/%d/%y@%H:%M:%S\0", Old_MTime);
+
+          consPrefix("[!] ", consRed);
+          printf("Modify Time Mismatch! Actual Modify Time: %s\n", OldDate);
+
+          if (binLog == 1)
+            fprintf(LogHndl, "[!] Modify MisMatch! Actual Modify Time: %s\n", OldDate);
+        }
+
+        if (Frmstat.st_atime != Toostat.st_atime)
+        {
+          Old_ATime = localtime(&Frmstat.st_atime);
+          strftime(OldDate, 25, "%m/%d/%y@%H:%M:%S\0", Old_ATime);
+
+          consPrefix("[!] ", consRed);
+          printf("Access Time Mismatch! Actual Access Time: %s\n", OldDate);
+
+          if (binLog == 1)
+            fprintf(LogHndl, "[!] Access MisMatch! Actual Access Time: %s\n", OldDate);
+        }
       }
       else
       {
-        consPrefix("[*] ", consYel);
-        printf("Could NOT Determine Source File Owner(Unknown)\n");
-
         if (binLog == 1)
-          fprintf(LogHndl, "[*] Could NOT Determine Source File Owner (Unknown)\n");
-      }
-
-
-
-      /****************************************************************/
-      /* MD5 The Files                                                */
-      /****************************************************************/
-      memset(MD5Tmp, 0, 255);
-      FileMD5(FrmFile);
-      strncpy(MD5Tmp, MD5Out, 255);
-      
-      if (binLog == 1)
-      {
-        fprintf(LogHndl, "[+] Source File MD5.....: %s\n", MD5Out);
-        fprintf(LogHndl, "[+] Source MetaData.....: %ld-%lld-%lld-%lld\n", Frmstat.st_size, Frmstat.st_ctime, Frmstat.st_atime, Frmstat.st_mtime);
-      }
-      consPrefix("[+] ", consGre);
-      printf("Source File MD5.....: %s\n", MD5Out);
-
-      consPrefix("[+] ", consGre);
-      printf("Source MetaData.....: %ld-%lld-%lld-%lld\n", Frmstat.st_size, Frmstat.st_ctime, Frmstat.st_atime, Frmstat.st_mtime);
-
-      _stat(tmpTooFile, &Toostat);
-      FileMD5(tmpTooFile);
-      if (binLog == 1)
-      {
-        fprintf(LogHndl, "[+] Destination File MD5: %s\n", MD5Out);
-        fprintf(LogHndl, "[+] Destination MetaData: %ld-%lld-%lld-%lld\n", Toostat.st_size, Toostat.st_ctime, Toostat.st_atime, Toostat.st_mtime);
-      }
-      consPrefix("[+] ", consGre);
-      printf("Destination File MD5: %s\n", MD5Out);
-
-      consPrefix("[+] ", consGre);
-      printf("Destination MetaData: %ld-%lld-%lld-%lld\n", Toostat.st_size, Toostat.st_ctime, Toostat.st_atime, Toostat.st_mtime);
-
-      if (strnicmp(MD5Tmp, MD5Out, 255) != 0)
-      {
-        consPrefix("[!] ", consRed);
-        printf("MD5 MisMatch!\n");
-        if (binLog == 1)
-         fprintf(LogHndl, "[!] MD5 MisMatch!\n");
-      }
-
-      if (Frmstat.st_size != Toostat.st_size)
-      {
-        consPrefix("[!] ", consRed);
-        printf("Size Mismatch!\n");
-        if (binLog == 1)
-         fprintf(LogHndl, "[!] Size MisMatch!\n");
-      }
-
-      if (Frmstat.st_ctime != Toostat.st_ctime)
-      {
-        Old_CTime = localtime(&Frmstat.st_ctime);
-        strftime(OldDate, 25, "%m/%d/%y@%H:%M:%S\0", Old_CTime);
+          fprintf(LogHndl, "[!] Could Not Open File(s) for Copy\n");
 
         consPrefix("[!] ", consRed);
-        printf("Create Time Mismatch! Actual Create Time: %s\n", OldDate);
-
-        if (binLog == 1)
-          fprintf(LogHndl, "[!] Create Time MisMatch! Actual Create Time: %s\n", OldDate);
+        printf("Could Not Open File(s) for Copy\n");
       }
-
-      if (Frmstat.st_mtime != Toostat.st_mtime)
-      {
-        Old_MTime = localtime(&Frmstat.st_mtime);
-        strftime(OldDate, 25, "%m/%d/%y@%H:%M:%S\0", Old_MTime);
-
-        consPrefix("[!] ", consRed);
-        printf("Modify Time Mismatch! Actual Modify Time: %s\n", OldDate);
-
-        if (binLog == 1)
-          fprintf(LogHndl, "[!] Modify MisMatch! Actual Modify Time: %s\n", OldDate);
-      }
-
-      if (Frmstat.st_atime != Toostat.st_atime)
-      {
-        Old_ATime = localtime(&Frmstat.st_atime);
-        strftime(OldDate, 25, "%m/%d/%y@%H:%M:%S\0", Old_ATime);
-
-        consPrefix("[!] ", consRed);
-        printf("Access Time Mismatch! Actual Access Time: %s\n", OldDate);
-
-        if (binLog == 1)
-          fprintf(LogHndl, "[!] Access MisMatch! Actual Access Time: %s\n", OldDate);
-      }
-    }
-    else
-    {
-      if (binLog == 1)
-        fprintf(LogHndl, "[!] Could Not Open File(s) for Copy\n");
-
-      consPrefix("[!] ", consRed);
-      printf("Could Not Open File(s) for Copy\n");
     }
   }
 
@@ -5062,6 +5202,8 @@ void cleanUp_Exit(int exitRC)
   /****************************************************************/
   if (access(BACQDir, 0) == 0)
   {
+    iCPS = 0; //ALWAYS Copy LogFile
+
     fprintf(LogHndl, "\n[+] Copying Log File...\n");
 
     consPrefix("\n[+] ", consGre);
