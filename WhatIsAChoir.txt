@@ -1,4 +1,4 @@
-AChoir - Beta v0.98
+AChoir - Beta v0.98a
 
 AChoir
 ======
@@ -144,6 +144,7 @@ INP:     Input from console. (INP:<Display This Text>)
          IMPORTANT NOTE: Longer input is TRUNCATED to 250 chars
 INI:     SWITCH to another Script File (INI:F:\NewScript.Acq)
          Note: This WILL NOT RETURN to the calling script.
+INI:Console - Switch to Interactive Console Mode
 GET:     Get a file using HTTP
 EXE:     Run a Program
 SYS:     Execute a System Command using the OS Shell
@@ -227,6 +228,7 @@ MAX:nnnnnnnnn
          - Default is 999999999 (1GB)
 
 
+
 Objects:
 ========
 &Dir     The Current Directory Object
@@ -274,8 +276,17 @@ Here are the Command Line Options:
       Acquisition 
 
 
+A note about Conditonal Logic (CKY:, 64B:, 32B:, CKN:, RC=:, RC!:, RC>:, RC<:, END:, LBL:, JMP:)
+----------
+Conditional Logic doesn't make much sense in Interactive Mode (/CON), but you may want to know 
+these various conditions.  AChoir is coded to give the results of these comparisons in 
+Interactive Mode, and to take Conditional Action in regular Scripted Mode.  In Interactive Mode
+Achoir WILL NOT take conditional action.
+
+
 
 Artifacts that AChoir itself generates:
+----------
 Achoir itself will generate a few files.  These are meant to increase non-repudiation
 and make the artifacts easier to use.
 

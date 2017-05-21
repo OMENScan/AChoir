@@ -92,6 +92,11 @@
 /*                 - Not Recommended for Locked/System Files    */
 /*              - Tighten Application Data recursion to 2 lvls  */
 /*              - /Con or /ini:Console - Console as Input File  */
+/* AChoir v0.98a- Various improvements to Interactive Mode      */
+/*                - Replace conditional statements with messages*/
+/*                - add INI:Console to Scripting                */
+/*                - Improve switching between Script and        */
+/*                   Interactive Modes                          */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -162,7 +167,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.98\0";
+char Version[10] = "v0.98a\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -710,6 +715,9 @@ int main(int argc, char *argv[])
       {
         strncpy(RunMode, "Ini\0", 4);
         strncpy(inFnam, argv[i] + 5, 254);
+
+        // Initially Set iRunmode to 2 (in case we are running remote)
+        // Avoids Creating a Local BACQDIR
         iRunMode = 2;
       }
       else
@@ -1353,20 +1361,29 @@ int main(int argc, char *argv[])
           else
           if (strnicmp(Inrec, "Jmp:", 4) == 0)
           {
-            // Jump to a Label (LBL:)
-            RunMe = 0;
-            rewind(IniHndl);
-
-            memset(JmpLbl, 0, 255);
-            sprintf(JmpLbl, "Lbl:%.200s", Inrec + 4);
-            strtok(JmpLbl, "\n"); strtok(JmpLbl, "\r");
-
-            while (fgets(Tmprec, 1000, IniHndl))
+            if(consOrFile == 1)
             {
-              strtok(Tmprec, "\n"); strtok(Tmprec, "\r");
+              consPrefix("[*] ", consYel);
+              fprintf(LogHndl, "[*] Jumping Does not make sense in Interactive Mode.  Ignoring...\n");
+              printf("Jumping Does not make sense in Interactive Mode.  Ignoring...\n");
+            }
+            else
+            {
+              // Jump to a Label (LBL:)
+              RunMe = 0;
+              rewind(IniHndl);
 
-              if (strnicmp(Tmprec, JmpLbl, 200) == 0)
-                break;
+              memset(JmpLbl, 0, 255);
+              sprintf(JmpLbl, "Lbl:%.200s", Inrec + 4);
+              strtok(JmpLbl, "\n"); strtok(JmpLbl, "\r");
+
+              while (fgets(Tmprec, 1000, IniHndl))
+              {
+                strtok(Tmprec, "\n"); strtok(Tmprec, "\r");
+
+                if (strnicmp(Tmprec, JmpLbl, 200) == 0)
+                  break;
+              }
             }
           }
           else
@@ -1381,6 +1398,10 @@ int main(int argc, char *argv[])
             // Have we created the Base Acquisition Directory Yet?
             if (access(BACQDir, 0) != 0)
             {
+              // Set iRunMode=1 to be sure we post-process the Acquired Artifacts
+              // (In case we had not set it originally due to remote BACQDIR)
+              iRunMode = 1;
+
               mkdir(BACQDir);
               mkdir(CachDir);
               PreIndex();
@@ -1606,6 +1627,28 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\r");
 
             sprintf(IniFile, "%s\0", Inrec + 4);
+
+            if(strnicmp(IniFile, "Console", 7) == 0)
+            {
+              // If we are not ALREADY in Interactive Mode, Switch
+              if(consOrFile == 0)
+              {
+                strncpy(RunMode, "Con\0", 4);
+                strncpy(inFnam, "Console\0", 8);
+
+                iRunMode = 1;
+                consOrFile = 1;
+                strncpy(inFnam, "Console\0", 8);
+
+                consPrefix("[+] ", consGre);
+                printf("Switching to Console (Interactive) Mode\n");
+                fprintf(LogHndl, "[+] Switching to Console (Interactive) Mode.\n");
+
+                fclose(IniHndl);
+                IniHndl = stdin;
+              }
+            }
+            else
             if (access(IniFile, 0) != 0)
             {
               fprintf(LogHndl, "[!] Requested INI File Not Found: %s - Ignored.\n", Inrec + 4);
@@ -1620,7 +1663,12 @@ int main(int argc, char *argv[])
               consPrefix("[+] ", consGre);
               printf("Switching to INI File: %s\n", Inrec + 4);
 
-              fclose(IniHndl);
+              // Only close the handle if its not Console. If it is Console Set it back to File
+              if(consOrFile == 0)
+               fclose(IniHndl);
+              else
+               consOrFile = 0;
+
               IniHndl = fopen(IniFile, "r");
 
               if (IniHndl != NULL)
@@ -2307,6 +2355,21 @@ int main(int argc, char *argv[])
 
             ChkRC = atoi(Inrec + 4);
 
+            if(consOrFile == 1)
+            {
+              consPrefix("[*] ", consYel);
+              if (LastRC != ChkRC)
+              {
+                fprintf(LogHndl, "[*] Last Return Code was not: %d - It was: %d\n", ChkRC, LastRC);
+                printf("Last Return Code was not: %d - It was: %d\n", ChkRC, LastRC);
+              }
+              else
+              {
+                fprintf(LogHndl, "[*] Last Return was: %d\n", LastRC);
+                printf("Last Return Code was: %d\n", LastRC);
+              }
+            }         
+            else
             if (LastRC != ChkRC)
               RunMe++;
           }
@@ -2321,6 +2384,21 @@ int main(int argc, char *argv[])
 
             ChkRC = atoi(Inrec + 4);
 
+            if(consOrFile == 1)
+            {
+              consPrefix("[*] ", consYel);
+              if (LastRC == ChkRC)
+              {
+                fprintf(LogHndl, "[*] Last Return was (not not): %d\n", LastRC);
+                printf("Last Return Code was (not not): %d\n", LastRC);
+              }
+              else
+              {
+                fprintf(LogHndl, "[*] Last Return Code was not: %d - It was: %d\n", ChkRC, LastRC);
+                printf("Last Return Code was not: %d - It was: %d\n", ChkRC, LastRC);
+              }
+            }         
+            else
             if (LastRC == ChkRC)
               RunMe++;
           }
@@ -2335,6 +2413,21 @@ int main(int argc, char *argv[])
             
             ChkRC = atoi(Inrec + 4);
 
+            if(consOrFile == 1)
+            {
+              consPrefix("[*] ", consYel);
+              if (LastRC >= ChkRC)
+              {
+                fprintf(LogHndl, "[*] Last Return Code was not Less Than: %d - It was: %d\n", ChkRC, LastRC);
+                printf("Last Return Code was not Less Than: %d - It was: %d\n", ChkRC, LastRC);
+              }
+              else
+              {
+                fprintf(LogHndl, "[*] Last Return was Less Than: %d - It was: %d\n", ChkRC, LastRC);
+                printf("Last Return Code was Less Than: %d - It was: %d\n", ChkRC, LastRC);
+              }
+            }         
+            else
             if (LastRC >= ChkRC)
               RunMe++;
           }
@@ -2342,13 +2435,28 @@ int main(int argc, char *argv[])
           if (strnicmp(Inrec, "RC>:", 4) == 0)
           {
             /****************************************************************/
-            /* Check Last Return Code = n                                   */
+            /* Check Last Return Code > n                                   */
             /****************************************************************/
             strtok(Inrec, "\n");
             strtok(Inrec, "\r");
 
             ChkRC = atoi(Inrec + 4);
 
+            if(consOrFile == 1)
+            {
+              consPrefix("[*] ", consYel);
+              if (LastRC <= ChkRC)
+              {
+                fprintf(LogHndl, "[*] Last Return Code was not Greate Than: %d - It was: %d\n", ChkRC, LastRC);
+                printf("Last Return Code was not Greater Than: %d - It was: %d\n", ChkRC, LastRC);
+              }
+              else
+              {
+                fprintf(LogHndl, "[*] Last Return was Greater Than: %d - It was: %d\n", ChkRC, LastRC);
+                printf("Last Return Code was Greater Than: %d - It was: %d\n", ChkRC, LastRC);
+              }
+            }         
+            else
             if (LastRC <= ChkRC)
               RunMe++;
           }
@@ -2364,6 +2472,21 @@ int main(int argc, char *argv[])
             memset(ChkFile, 0, 1024);
             strncpy(ChkFile, Inrec + 4, 1000);
 
+            if(consOrFile == 1)
+            {
+              consPrefix("[*] ", consYel);
+              if (access(ChkFile, 0) != 0)
+              {
+                fprintf(LogHndl, "[*] File Does Not Exist: %s\n", ChkFile);
+                printf("File Does Not Exist: %s\n", ChkFile);
+              }
+              else
+              {
+                fprintf(LogHndl, "File Exists: %s\n", ChkFile);
+                printf("File Exists: %s\n", ChkFile);
+              }
+            }         
+            else
             if (access(ChkFile, 0) != 0)
               RunMe++;
           }
@@ -2376,6 +2499,21 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\n");
             strtok(Inrec, "\r");
 
+            if(consOrFile == 1)
+            {
+              consPrefix("[*] ", consYel);
+              if (strnicmp(Procesr, "AMD64", 5) != 0)
+              {
+                fprintf(LogHndl, "[*] Not running in 64Bit. Processor: %s\n", Procesr);
+                printf("Not running in 64Bit. Processor: %s\n", Procesr);
+              }
+              else
+              {
+                fprintf(LogHndl, "Running in 64Bit. Processor: %s\n", Procesr);
+                printf("Running in 64Bit. Processor: %s\n", Procesr);
+              }
+            }         
+            else
             if (strnicmp(Procesr, "AMD64", 5) != 0)
               RunMe++;
           }
@@ -2388,6 +2526,21 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\n");
             strtok(Inrec, "\r");
             
+            if(consOrFile == 1)
+            {
+              consPrefix("[*] ", consYel);
+              if (strnicmp(Procesr, "X86", 3) != 0)
+              {
+                fprintf(LogHndl, "[*] Not running in 32Bit. Processor: %s\n", Procesr);
+                printf("Not running in 32Bit. Processor: %s\n", Procesr);
+              }
+              else
+              {
+                fprintf(LogHndl, "Running in 32Bit. Processor: %s\n", Procesr);
+                printf("Running in 32Bit. Processor: %s\n", Procesr);
+              }
+            }         
+            else
             if (strnicmp(Procesr, "X86", 3) != 0)
               RunMe++;
           }
@@ -2403,6 +2556,21 @@ int main(int argc, char *argv[])
             memset(ChkFile, 0, 1024);
             strncpy(ChkFile, Inrec + 4, 1000);
 
+            if(consOrFile == 1)
+            {
+              consPrefix("[*] ", consYel);
+              if (access(ChkFile, 0) == 0)
+              {
+                fprintf(LogHndl, "[*] File Does (not not) Exist: %s\n", ChkFile);
+                printf("File Does (not not) Exist: %s\n", ChkFile);
+              }
+              else
+              {
+                fprintf(LogHndl, "File Does Not Exist: %s\n", ChkFile);
+                printf("File Does Not Exist: %s\n", ChkFile);
+              }
+            }         
+            else
             if (access(ChkFile, 0) == 0)
               RunMe++;
           }
@@ -3018,7 +3186,8 @@ int main(int argc, char *argv[])
     /****************************************************************/
     /* End Of Script Processing Code                                */
     /****************************************************************/
-    fclose(IniHndl);
+    if(consOrFile == 0)
+     fclose(IniHndl);
 
   }
   else
