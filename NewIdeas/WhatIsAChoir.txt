@@ -1,0 +1,366 @@
+AChoir - v1.0
+
+AChoir
+======
+AChoir continues to mature.  My goals are to make it a flexible scripting language designed
+to gathering windows forensic artifacts locally or remotely, and to limit its footprint by 
+using techniques that limit what AChoir itself leaves behind as artifacts.
+
+
+What is AChoir:
+===============
+Every Incident Responder eventually comes to the conclusion that they need to script their 
+favorite Live Acquisition utilities.  For some reason (or many reasons) many of those Live 
+Acquisition scripts are often shared only among trusted parties.
+
+I have seen these scripts written in numerous scripting languages - but oddly enough, all of 
+these scripts tend to use many of the same freely available utilities - To do mostly the 
+same things.
+
+It often takes a Responder several years, along with lots of trial and error to settle on a 
+set of utilities (and options) that both work, and that provide relevant information on useful 
+forensic artifacts.
+
+And even though Responders often use the same utilities and are scripting them in largely 
+the same way, each Responder has to go through the same pain of building their own script in 
+their (not so) favorite scripting language - figuring out how to quickly and consistently 
+gather the artifacts of most value and limit the scripting footprint. 
+
+I believe that this process of re-inventing the wheel over and over again is just silly. 
+
+That's why I wrote AChoir.
+
+
+
+So How is AChoir different?
+===========================
+AChoir has several goals:
+
+1. Identify the best free forensic utilities
+2. Make it easy to get these utilities and...
+3. Automate the building of Acquisition toolkits with them
+4. Self Document
+5. Build a Framework for Live Acquisition Scripts/Toolkits
+6. Minimize the impact of the scripting function on artifacts
+7. Move towards a repository model for Acquisition utilities
+8. Make remote acquisition as easy as local acquisition
+
+
+Achoir itself is architected with two primary functional concepts:
+
+1. To download the Acquisition utilities and organize them into a Acquisition Toolkit
+2. To Run those utilities (Toolkit) in an organized way.
+
+
+An AChoir script can download, and unzip these utilities in order to create a Live 
+Acquisition Toolkit.  We have provided our version of a "Build" script, but you can 
+make your own.
+
+The idea is to make it easily repeatable to download and organize these utilities.  
+That is: with just AChoir and a builder script, anyone can build an Acquisition 
+Scripting Toolkit.
+
+This has the additional benefit of documenting where everything came from.
+
+The second functional concept of running the Acquisition Script to gather artifacts is 
+obvious.  But what AChoir tries to do is make that experience consistent and repeatable.  
+Achoir creates unique directories for every Acquisition run, and has built in functions 
+like hashing and Raw NTFS File Copy.  In this way we are creating both a consistent 
+framework and a scripting language that is targeted specifically at Live Acquisition.
+
+
+
+So Isn't This Just another Scripting Language?  I can do that already.
+======================================================================
+I would say, you could almost everything Achoir does with any scripting language - If that 
+is what you want to do.  In fact, that is how AChoir started life.  But Achoir's goals 
+are to make Live Acquisition scripting consistent and to eventually create a respository 
+for Live Acquisition utilities to make the whole process easier for Responders.
+
+We are also very sensitive to the "Observer Effect" problem when Acquiring artifacts, 
+and Achoir will continue to be coded in a way to minimize disturbing the artifacts.  This 
+takes some work when writing your own Live Acquisition scripting programs.
+
+
+
+OK. I'm Sold.  How does it work?
+================================
+The Achoir scripting language has two primary concepts:
+
+1. Objects
+2. Actions
+
+
+Actions are the thing you want to do.  Objects are the thing(s) you want to do the Actions 
+against.  Actions always start in column 1, they are three letters folowed by a colon(:).
+
+  Note:As of AChoir v0.99 Actions can be indented using tabs or spaces.
+
+Objects Can go anywhere and start with an ampersand(&) followed by three letters.
+
+
+Here is a simple example:
+Dir:\Test
+Say:The Current Directory is: &Dir
+
+
+In this example, a lot of things are going on.  First the &Dir object is being set by the DIR: 
+action.  In addition, if that directory does not exist it will be created.  All directories are 
+created RELATIVE to the directory Achoir was run from. doing this ensures consistency every 
+time Achoir is run, and prevents one set of artifacts from stepping on another set.
+
+The next statement (SAY:) then prints the text and &Dir object to both the screen, and a unique 
+LogFile for each run. 
+
+
+Here is another Example:
+
+ACQ:\Reg
+NCP:"C:\Users\*\NTUSER.DAT" "&Acq"
+
+
+In this example our goal is to Copy all User NTUSER.DAT Registry files under the C:\USERS Directory.
+We want to do this using AChoir's built-in NTFS Raw Copy Action.  Using AChoir's NTFS Raw Copy
+allows us to copy open and locked files, and bypasses the NTFS file system to avoid modifying any
+Time Stamps.  We do this to make the footprint as small as possible to make the File Copy more
+"forensically sound" by preventing unwanted modifications to the file system (Accessed) TimeStamps.
+
+First we set the Acquisition Sub-Directory (ACQ:) object (&Acq) to "\Reg"  This is a path directly 
+under the unique generated Acquisition Directory.
+
+Next, the NCP: action copies any/all NTUSER.DAT files found in any NTFS subdirectory under 
+C:\Users (Note: wildcards are also valid) into the &Acq directory.
+
+
+Here is a list of all the Actions and Objects:
+
+
+Actions:
+========
+SAY:     Echo Text and Objects to the Screen and Logfile
+ADM:Check Check if AChoir is running as an Administrator,
+           and warn if it is not
+ADM:Force  Check if AChoir is running as an Administrator,
+           and EXIT OUT if it is not
+INP:     Input from console. (INP:<Display This Text>)
+         Display text and get input into variable &Inp 
+         IMPORTANT NOTE: Longer input is TRUNCATED to 250 chars
+EQU:<string1> <string2> - Is <string1> equal to <string2>
+               if True run the statements until an END:
+               Note: Use "" to use strings with spaces in them
+NEQ:<string1> <string2> - Is <string1> NOT Equal to <string2>
+               if True run the statements until an END:
+               Note: Use "" to use strings with spaces in them
+INI:     SWITCH to another Script File (INI:F:\NewScript.Acq)
+         Note: This WILL NOT RETURN to the calling script.
+INI:Console - Switch to Interactive Console Mode
+CSE:SAY  Display Optional Case Information ans write it to Log
+CSE:GET  Input Optional Case Information - ONLY allowed ONCE 
+          per session to avoid ambiguity.
+GET:     Get a file using HTTP into &Fil 
+         Note: &Fil (FIL:) MUST BE SET TO THE FULL PATH OF 
+               THE NEW FILE!
+EXE:     Run a Program
+SYS:     Execute a System Command using the OS Shell
+CMD:     Execute a System Command using AChoir's Command Shell
+USR:<UserId> 
+         UserId to use when mapping a drive (Optional)
+PWD:<Password> 
+         Password to use when mapping a drive (Optional)
+MAP:     Map to a remote drive share (\\<server>\<share>) and use 
+         it as the Acquisition Directory 
+ACQ:     Tell Achoir to create a unique Acquisition directory
+DIR:     Set the &Dir object and create the directory if needed
+FIL:     Set the &Fil object (File)
+DRV:     Set the &Drv object (Drive - ie. X:)
+VR0: - VR9:  
+         Set the &VR0 - &VR9 variables 
+HSH:ACQ  Hash everything in the &ACQ directory and subdirectories
+HSH:Dir  Hash everything in the &DIR directory and subdirectories
+FOR:     Set the &FOR object.  This is a Looping object based on 
+         Files - For instance "FOR:C:\Users\*.DAT" will define
+         All *.DAT Files under C:\Users. In this way a single 
+         command can be run iteratively against all of these files. 
+DSK:<typ>Set the &DSK object.  This is a Looping object based on 
+         all attached/mounted disks that match the <typ>
+         <typ> can be: Fixed, Remote, Remove, CDRom, RamDisk 
+LST:<FileName> 
+         Set the &LST object.  This is a Looping object based on 
+         Lines in the <FilName>. In this way a single command can
+         be run iteratively replacing the &For variable with each
+         entry in the <FileName>. 
+CPY:     Copy Files (CPY:<FromFile> <ToFile>) - Supports Quotes
+CPS:     Copy Files (CPS:<FromFile> <ToFile>) by Signature 
+          (Loaded by the Sig: command) - Use FOR: and &FOR for wildcards
+VCK:<x:> Check if the Volume <x:> is NTFS, FAT32, CDFS, Other, None
+         (Used for conditional execution if Vol is/not NTFS)
+NCP:     NTFS Raw File Copy - Supports Wildcards (* and ?)
+         NCP:<File(s) to Copy>  <Destination Directory>
+Sig:Clear Clears out the AChoir Signature Table 
+Sig:<Typ=xxxx> 
+         Loads a File Signature ino the Signature Table. The first 
+         variable is the File Type, the second is the Hex Signature
+         (must be in the form of XX).
+         Signature Type can be up to 10 bytes (i.e JPG, JPEG, MOV, etc)
+         Signatures can be up to 32 Chars (16 bytes)
+         There cane be up to 100 Active Signatures loaded.
+         (Sig:Clear - Clears the table back to 0)
+NCS:     NTFS RAW Copy Files by Signature (Loaded by the Sig: 
+         command - Supports Wildcards (* and ?)
+ARN:     Search Registry Run Key and copy the EXEs 
+         (possible malware persistence)
+ARN:<Offline Registry> 
+         By adding an Explicit Path to a SOFTWARE Offline Registry 
+         File, AChoir will try to find the Run Keys and copy the 
+         EXEs.  This is the DeadBox equivalent of ARN:
+USB:Protect  Sets the Windows USB WriteProtect Registry key to 1
+             (Enable USB Write Protection) - Newly attached USB 
+             devices will be write protected by Windows 
+USB:Enable   Sets the Windows USB WriteProtect Registry key to 0
+             (DISABLES USB Write Protection) 
+CKY:     Check if a File exists. If it does, run until an "END:" 
+         action
+64B:     Check if 64 Bit AChoir is Running - If so, run until an "END:" 
+         action
+32B:     Check if 32 Bit AChoir is Running - If so, run until an "END:" 
+         action
+CKN:     Check if a File does not exist. If it doesn't, run until 
+         an "END:" action
+RC=:     If the Last GET:, SYS: or EXE: command was this return code
+         run the statements until an END:
+RC!:     If the Last GET:, SYS: or EXE: command was NOT this return code
+         run the statements until an END:
+RC>:     If the Last GET:, SYS: or EXE: command return code was >
+         run the statements until an END:
+RC<:     If the Last GET:, SYS: or EXE: command return code was <
+         run the statements until an END:
+END:     End Conditional Statement execution.
+LBL:<LabelName>
+         Define a Label that can be Jumped to (JMP:<LabelName>)
+JMP:<LabelName>
+         Jump to a defined Label (LBL:<LabelName>)
+BYE:     Exit AChoir (usually used in Console Mode or Conditional section 
+XIT:<Exit Command> 
+         Run Command or Program on Exit
+MAX:nnnnnnnnn 
+         Maximum File Size (And Memory Allocation) For NTFS Raw Copy
+         - Default is 999999999 (1GB)
+
+
+
+Objects:
+========
+&Dir     The Current Directory Object
+&Inp     Input from console (INP: Action) 
+&Tim     The Local Time Set on the computer - Please Note: It may not be accurate.
+&Fil     The Current File Object
+&Acq     The Current Acquisition Directory
+&For     An array of File objects set by the FOR: action
+&Lst     An array of text objects set by the LST: action
+&DSK     An Array of Disk objects set by the DSK: action
+&Num     The array number of each &For Object
+&Win     The Windows Root Directory
+&CHK     The FileName that was Checked for (non) existence by the
+         CKN: and CKY: actions
+&RCD     The Last Return Code set by a SYS: or EXE: action
+&Drv     A variable used to hold a Drive Letter (C:, D:, etc...)
+&Map     A variable used to hold the last Mapped Drive Letter (Z:, Y:, etc...)
+&Tmp     The Window %Temp% variable
+&FNM     Each &FOR File Name (Without Path)
+&VR0 - &VR9  Variables set by the VR0: - VR9: Actions
+&VCK     Results of last Volume Check (VCK:<x:\>
+
+%<variable>% - AChoir can also expand the native DOS/Windows Environment Variables
+ Note: To use a native % (prevent expansion) in a script, use %% 
+
+
+Here are the Command Line Options:
+/HELP - Help
+/BLD  - Run the Build.ACQ Script (Build the AChoir Toolkit)
+        Note: This option WILL NOT Create an Acquisition Base Directory - BE AWARE!
+/RUN  - Run the AChoir.ACQ Script to do a Live Acquisition
+        This option WILL Create a Base Acquisition Directory
+/MNU  - Run the Menu.ACQ Script (AChoir Menu)
+        Note: This is a simple Menu Script for selecting an AChoir script to run.
+/CON  - Run In Interactive Mode (Same as /Ini:Console)
+/CSE  - Interactive/Console Query for Case Information
+/INI:Console - Run In Interactive Mode (Console Input)
+/INI:<File Name>  - Run the <File Name> script instead of AChoir.ACQ
+        This Option WILL NOT Create a Base Acquisition Directory
+        Use the ACQ: action to create the Base Acquisition Directory if you want one. 
+/DRV:<x:> - Set the &DRV parameter
+        This option is designed to allow you to build dead-box scripts,
+        and specify a drive variable (the drive letter that has been mounted).
+/USR:<UserId> - UserId to use when mapping a drive (Optional)
+/PWD:<Password> - Password to use when mapping a drive (Optional)
+/MAP:<\\Server\Share> - Map a network drive - THIS SETS THE ACQUISITION AND 
+      CURRENT DIRECTORIES TO THE MAPPED DRIVE - This is mostly used for REMOTE
+      Acquisition 
+
+
+A note about Conditonal Logic (CKY:, 64B:, 32B:, CKN:, RC=:, RC!:, RC>:, RC<:, END:, LBL:, JMP:)
+----------
+Conditional Logic doesn't make much sense in Interactive Mode (/CON), but you may want to know 
+these various conditions.  AChoir is coded to give the results of these comparisons in 
+Interactive Mode, and to take Conditional Action in regular Scripted Mode.  In Interactive Mode
+Achoir WILL NOT take conditional action.
+
+A note about Case Information (/CSE, CSE:GET, CSE:SAY)
+----------
+To avoid any accidental confusion about Case information (that may jeopardize non-repudiation),
+I have coded AChoir to disallow changing Case information after it has been displayed. Some may
+find this draconian, but it is important to avoid ambiguity when doing forensic analysis, so 
+I have chosen to disallow changing Case information even if the default settings are displayed.
+
+Also Note: Case Information is entirely optional - You can use AChoir without entering any 
+           Case Information, and this is the default (so AChoir can run fully unattended)
+
+
+Artifacts that AChoir itself generates:
+----------
+Achoir itself will generate a few files.  These are meant to increase non-repudiation
+and make the artifacts easier to use.
+
+Logfile (ACQ-IR-<name>-<date>-<time>.txt
+----------------------------------------
+Achoir will create a logfile for each acquisition in the /Logs directory.
+The log contains both the actions taken by AChoir and additional information
+such as the hash of each program that is run.
+
+DirHash.txt
+-----------
+When requested in the AChoir Script (HSH:DIR), Achoir will hash all files starting
+at the directory AChoir is run from (AChoir's root directory) and store the MD5 hashes 
+in this file.
+
+ACQHash.txt
+-----------
+When requested in the AChoir Script (HSH:ACQ), Achoir will hash all acquired 
+artifacts and store the MD5 hashes in this file.
+
+Index.htm
+---------
+Achoir will generate an Index.htm file for every acquisition.  This file can 
+be opened with your favorite web browser to browse and open the acquired
+artifacts.  This is an incredibly simple but useful feature.  
+
+x-MFT.db
+---------
+Achoir will generate an SQLite database when using NCP: Raw Copy.  This database is
+a subset of the $MFT for that volume - used to make searching for wildcards faster.
+
+
+Acknowledgement:
+IMPORTANT NOTE: I could not have implemented the NTFS Raw Copy Function without the Excellent NTFS tutorial at:
+
+http://www.installsetupconfig.com/win32programming/windowsvolumeapis1index.html<br>
+
+Much of the code in the Achoir NTFS Raw Copy function is directly from this tutorial.  And I want to publicly thank 
+them for making this example code available.
+
+
+
+Last Thoughts:
+The AChoir language is pretty simple.  And I will do my best to keep it that way.  To best 
+understand it, please take a look at the Build.ACQ and Achoir.ACQ scripts
+
