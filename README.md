@@ -86,6 +86,31 @@ Achoir is a Framework/Scripting Tool to standardize and simplify that process.
 * AChoir v0.93 - Refactored some SQLite Code to avoid random
 * ............   Heap Corruption issues
 * AChoir v0.95 - FINALLY Fix Abend Bug in Large File Support
+* AChoir v0.96 - Clean Up some of the code, improve output.
+* AChoir v0.96a- Cosmetic changes to Index.htm
+* AChoir v0.97 - Add Colors, Minor Bug Fixes
+* AChoir v0.98 - CPS: Copy by Signature (Standard Win32 API)
+* ............   (Used with SIG: to copy Files by Signature)
+* ............    - Not Recommended for Locked/System Files 
+* ............ - Tighten Application Data recursion to 2 lvls
+* ............ - /Con or /ini:Console - Console as Input File
+* AChoir v0.98a- Various improvements to Interactive Mode
+* ............   - Replace conditional statements with messages
+* ............   - add INI:Console to Scripting
+* ............   - Improve switching between Script and Interactive Modes
+* AChoir v1.0  - Cosmetic USB Message Changes
+* ............ - HTTP Get Bug Fixes, Fix &Acq dblSlash
+* ............ - Add Optional Case & Evidence Name/Number Input
+* ............ - CSE:GET and CSE:SAY
+* ............ - /CSE Argument to Get Case Information
+* ............ - VCK:<x:\>  NTFS, FAT32, CDFS, Other, None
+* ............ - &VCK - Contains Results of VCK:
+* ............ - EQU:<s1> <s2> - Are S1 and S2 Equal?
+* ............ - NEQ:<s1> <s2> - Are S1 and S2 NOT Equal?
+* ............ - Support Indenting (spaces or Tabs)
+* ............ - DSK:<type>  Set &DSK looping variable to
+* ............   - Types: Removable, Fixed, Remote, CDROM
+* ............ - &DSK - Looping Var Contains Disk that match 
 
 
 # Quick Start (tl;dr):
