@@ -97,6 +97,19 @@
 /*                - add INI:Console to Scripting                */
 /*                - Improve switching between Script and        */
 /*                   Interactive Modes                          */
+/* AChoir v1.0  - Cosmetic USB Message Changes                  */
+/*              - HTTP Get Bug Fixes, Fix &Acq dblSlash         */
+/*              - Add Optional Case & Evidence Name/Number Input*/
+/*              - CSE:GET and CSE:SAY                           */
+/*              - /CSE Argument to Get Case Information         */
+/*              - VCK:<x:\>  NTFS, FAT32, CDFS, Other, None     */
+/*              - &VCK - Contains Results of VCK:               */
+/*              - EQU:<s1> <s2> - Are S1 and S2 Equal?          */
+/*              - NEQ:<s1> <s2> - Are S1 and S2 NOT Equal?      */
+/*              - Support Indenting (spaces or Tabs)            */
+/*              - DSK:<type>  Set &DSK looping variable to      */
+/*                - Types: Removable, Fixed, Remote, CDROM      */
+/*              - &DSK - Looping Var Contains Disk that match   */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -167,7 +180,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v0.98a\0";
+char Version[10] = "v1.0\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -189,6 +202,7 @@ int DebugFlag = 0;
 
 int ListDir(char *DirName, char *LisType);
 size_t Squish(char *SqString);
+size_t unIndent(char *SqString);
 long twoSplit(char *SpString);
 char *stristr(const char *String, const char *Pattern);
 int  FileMD5(char *MD5FileName);
@@ -205,6 +219,8 @@ void USB_Protect(DWORD USBOnOff);
 void cleanUp_Exit(int exitRC);
 BOOL SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, BOOL bEnablePrivilege);
 char * convert_sid_to_string_sid(const PSID psid, char *sid_str);
+void getCaseInfo(int SayOrGet);
+
 
 // Routines For Raw NTFS Access
 ULONG RunLength(PUCHAR run);
@@ -271,6 +287,7 @@ FILE* LogHndl;
 FILE* CpyHndl;
 FILE* ForHndl;
 FILE* LstHndl;
+FILE* DskHndl;
 FILE* MD5Hndl;
 FILE* IniHndl;
 FILE* WGetHndl;
@@ -281,6 +298,7 @@ char CpyFile[1024] = "C:\\AChoir\\AChoir.exe\0";
 char ChkFile[1024] = "C:\\AChoir\\AChoir.exe\0";
 char MD5File[1024] = "C:\\AChoir\\Hashes.txt\0";
 char ForFile[1024] = "C:\\AChoir\\ForFiles\0";
+char ForDisk[1024] = "C:\\AChoir\\ForDisks\0";
 char LstFile[1024] = "C:\\AChoir\\LstFiles\0";
 char IniFile[1024] = "C:\\AChoir\\AChoir.ACQ\0";
 char HtmFile[1024] = "C:\\AChoir\\Index.html\0";
@@ -296,6 +314,7 @@ char *WinRoot = "C:\\Windows";
 char *Procesr = "AMD64";
 char *TempVar = "C:\\Windows\\Temp";
 char *ProgVar = "C:\\Program Files";
+char CrLf[3] = {0x0D, 0x0A, 0x00};
 
 int  iLogOpen = 0 ;
 
@@ -356,6 +375,7 @@ int  ChkRC = 0;
 char *ExePtr, *ParmPtr, *CopyPtr;
 
 
+char volType[10] = " \0";
 char RootDir[FILENAME_MAX] = " \0";
 char FullFName[FILENAME_MAX];
 char ForFName[FILENAME_MAX];
@@ -476,6 +496,25 @@ int     consRed = 12 ;
 int     consYel = 14 ;
 int     consWhi = 15 ;
 
+
+// Case Information (ONLY ONCE!)
+// 0 = Not Entered, 1 = Entered, 2 = /CSE Arg
+int  iCase = 0 ;
+char caseNumbr[255] ; 
+char evidNumbr[255] ; 
+char caseDescr[255] ; 
+char caseExmnr[255] ; 
+
+
+// DSK Variables
+int  dskNum ;
+int  dskTyp ;
+int  DskMe ;
+char dskNam[10] = "A:\\\0";
+char Dskrec[10] = "A:\\\0";
+char Alphabet[30] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
+
+
 // Template for padding
 template <class T1, class T2> inline T1* Padd(T1* p, T2 n)
 {
@@ -495,6 +534,7 @@ int main(int argc, char *argv[])
   char Lstrec[2048];
   char Cpyrec[4096];
   char Exerec[4096];
+  char Cmprec[4096];
   char Arnrec[2048];
 
   DWORD dwSize = 0;
@@ -623,6 +663,19 @@ int main(int argc, char *argv[])
   else
     sprintf(ACQName, "ACQ-IR-%04d%02d%02d-%02d%02d\0", iYYYY, iMonth, iDay, iHour, iMin);
 
+
+  /****************************************************************/
+  /* Default Case Settings                                        */
+  /****************************************************************/
+  memset(caseNumbr, 0, 255) ;
+  memset(evidNumbr, 0, 255) ;
+  memset(caseDescr, 0, 255) ;
+  memset(caseExmnr, 0, 255) ;
+  strncpy(caseNumbr, ACQName, 255) ;
+  strncpy(evidNumbr, "001", 3) ;
+  sprintf(caseDescr, "AChoir Live Acquisition: %s\0", ACQName) ;
+  strncpy(caseExmnr, "Unknown", 7) ;
+
   
   /****************************************************************/
   /* Get the Runmode: (Default == 1)                              */
@@ -637,22 +690,49 @@ int main(int argc, char *argv[])
   {
     if ((strnicmp(argv[i], "/Help", 5) == 0) && (strlen(argv[i]) < 255))
     {
-      printf("AChoir Arguments:\n\n");
+      printf("\nAChoir ver: %s, Argument/Options:\n", Version);
 
       SetConsoleTextAttribute(hConsole, consGre);
-      printf(" /HELP - This Description\n");
-      printf(" /BLD  - Run the Build.ACQ Script (Build the AChoir Toolkit)\n");
-      printf(" /MNU  - Run the Menu.ACQ Script (A Simple AChoir Menu)\n");
-      printf(" /RUN  - Run the AChoir.ACQ Script to do a Live Acquisition\n");
-      printf(" /DRV:<x:> - Set the &DRV parameter\n");
-      printf(" /USR:<UserID> - User to Map to Remote Server\n");
-      printf(" /PWD:<Password> - Password to Map to Remote Server\n");
-      printf(" /MAP:<Server\\Share> - Map to a Remote Server\n");
-      printf(" /INI:<File Name> - Run the <File Name> script instead of AChoir.ACQ\n");
-      printf(" /CON  - Run with Console Input (Same as /Ini:Console\n");
+      consPrefix(" /Help ", consGre);
+      printf("- This Description\n");
+
+      consPrefix(" /BLD ", consGre);
+      printf("- Run the Build.ACQ Script (Build the AChoir Toolkit)\n");
+
+      consPrefix(" /MNU ", consGre);
+      printf("- Run the Menu.ACQ Script (A Simple AChoir Menu)\n");
+
+      consPrefix(" /RUN ", consGre);
+      printf("- Run the AChoir.ACQ Script to do a Live Acquisition\n");
+
+      consPrefix(" /DRV:<x:> ", consGre);
+      printf("- Set the &DRV parameter\n");
+
+      consPrefix(" /USR:<UserID> ", consGre);
+      printf("- User to Map to Remote Server\n");
+
+      consPrefix(" /PWD:<Password> ", consGre);
+      printf("- Password to Map to Remote Server\n");
+
+      consPrefix(" /MAP:<Server\\Share> ", consGre);
+      printf("- Map to a Remote Server\n");
+
+      consPrefix(" /INI:<File Name> ", consGre);
+      printf("- Run the <File Name> script instead of AChoir.ACQ\n");
+
+      consPrefix(" /CSE ", consGre);
+      printf("- Ask For Case, Evidence, and Examiner Information\n");
+
+      consPrefix(" /CON ", consGre);
+      printf("- Run with Interactive Console Input (Same as /Ini:Console)\n");
       SetConsoleTextAttribute(hConsole, consWhi);
       
       exit(0);
+    }
+    else
+    if ((strnicmp(argv[i], "/CSE", 4) == 0) && (strlen(argv[i]) == 4))
+    {
+      iCase = 2;
     }
     else
     if ((strnicmp(argv[i], "/BLD", 4) == 0) && (strlen(argv[i]) == 4))
@@ -804,6 +884,7 @@ int main(int argc, char *argv[])
   sprintf(IniFile, "%s\\%s\0", BaseDir, inFnam);
   sprintf(WGetFile, "%s\\AChoir.Dat\0", BaseDir);
   sprintf(ForFile, "%s\\%s\\Cache\\ForFiles\0", BaseDir, ACQName);
+  sprintf(ForDisk, "%s\\%s\\Cache\\ForDisks\0", BaseDir, ACQName);
   sprintf(LstFile, "%s\\LstFiles\0", BaseDir);
   sprintf(ChkFile, "%s\\AChoir.exe\0", BaseDir);
   sprintf(BACQDir, "%s\\%s\0", BaseDir, ACQName);
@@ -944,6 +1025,10 @@ int main(int argc, char *argv[])
   }
 
 
+  // Should We Gather Case Information (/CSE)
+  if(iCase == 2)
+   getCaseInfo(1);
+
 
   /****************************************************************/
   /* Open The Input Script File                                   */
@@ -970,6 +1055,9 @@ int main(int argc, char *argv[])
 
     while (fgets(Tmprec, 1000, IniHndl))
     {
+      //Remove any preceding blanks
+      unIndent(Tmprec);
+
       /****************************************************************/
       /* Conditional Execution                                        */
       /****************************************************************/
@@ -985,6 +1073,12 @@ int main(int argc, char *argv[])
           RunMe++;
         else
         if (strnicmp(Tmprec, "CKN:", 4) == 0)
+          RunMe++;
+        else
+        if (strnicmp(Tmprec, "EQU:", 4) == 0)
+          RunMe++;
+        else
+        if (strnicmp(Tmprec, "NEQ:", 4) == 0)
           RunMe++;
         else
         if (strnicmp(Tmprec, "RC=:", 4) == 0)
@@ -1019,9 +1113,9 @@ int main(int argc, char *argv[])
           if (ForHndl == NULL)
           {
             consPrefix("[!] ", consRed);
-            printf("&FOR Directory has not been set.  Ignoring &FOR Loop...\n");
+            printf("&FOR Directory has not been set with the FOR: command.  Ignoring &FOR Loop...\n");
 
-            fprintf(LogHndl, "[!] &FOR Directory has not been set.  Ignoring &FOR Loop...\n");
+            fprintf(LogHndl, "[!] &FOR Directory has not been set with the FOR: command.  Ignoring &FOR Loop...\n");
             Looper = 0;
           }
         }
@@ -1042,14 +1136,37 @@ int main(int argc, char *argv[])
           if (LstHndl == NULL)
           {
             consPrefix("[!] ", consRed);
-            printf("&LST Directory not found: %s\n", LstFile);
+            printf("&LST File was not found (LST: not set): %s\n", LstFile);
 
-            fprintf(LogHndl, "[!] &LST Directory not found: %s\n", LstFile);
+            fprintf(LogHndl, "[!] &LST File not found (LST: not set): %s\n", LstFile);
             Looper = 0;
           }
         }
         else
           LstMe = 0;
+
+
+        /****************************************************************/
+        /* DskFiles Looper Setup                                        */
+        /****************************************************************/
+        if (stristr(Tmprec, "&DSK") > 0)
+        {
+          DskMe = 1;
+          memset(Dskrec, 0, 10);
+
+          DskHndl = fopen(ForDisk, "r");
+
+          if (DskHndl == NULL)
+          {
+            consPrefix("[!] ", consRed);
+            printf("&DSK Listing was not found (DSK: not set): %s\n", ForDisk);
+
+            fprintf(LogHndl, "[!] &DSK Listing not found (DSK: not set): %s\n", ForDisk);
+            Looper = 0;
+          }
+        }
+        else
+          DskMe = 0;
         
 
         /****************************************************************/
@@ -1058,10 +1175,10 @@ int main(int argc, char *argv[])
         LoopNum = 0;
         while (Looper == 1)
         {
-          if ((ForMe == 0) && (LstMe == 0))
+          if ((ForMe == 0) && (LstMe == 0) && (DskMe == 0))
             Looper = 0;
           else
-          if ((ForMe == 1) && (LstMe == 0))
+          if ((ForMe == 1) && (LstMe == 0) && (DskMe == 0))
           {
             if (fgets(Filrec, 1000, ForHndl))
             {
@@ -1089,15 +1206,29 @@ int main(int argc, char *argv[])
               break;
           }
           else
-          if ((ForMe == 0) && (LstMe == 1))
+          if ((ForMe == 0) && (LstMe == 1) && (DskMe == 0))
           {
             if (fgets(Lstrec, 1000, LstHndl))
             {
               Looper = 1;
               LoopNum++;
 
-              strtok(Filrec, "\n");
-              strtok(Filrec, "\r");
+              strtok(Lstrec, "\n");
+              strtok(Lstrec, "\r");
+            }
+            else
+              break;
+          }
+          else
+          if ((ForMe == 0) && (LstMe == 0) && (DskMe == 1))
+          {
+            if (fgets(Dskrec, 10, DskHndl))
+            {
+              Looper = 1;
+              LoopNum++;
+
+              strtok(Dskrec, "\n");
+              strtok(Dskrec, "\r");
             }
             else
               break;
@@ -1208,6 +1339,13 @@ int main(int argc, char *argv[])
               iPtr += 3;
             }
             else
+            if (strnicmp(o32VarRec + iPtr, "&Dsk", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%s", Dskrec);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
             if (strnicmp(o32VarRec + iPtr, "&Num", 4) == 0)
             {
               sprintf(Inrec + oPtr, "%d\0", LoopNum);
@@ -1253,6 +1391,13 @@ int main(int argc, char *argv[])
             if (strnicmp(o32VarRec + iPtr, "&Prc", 4) == 0)
             {
               sprintf(Inrec + oPtr, "%s\0", Procesr);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Vck", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%s", volType);
               oPtr = strlen(Inrec);
               iPtr += 3;
             }
@@ -1387,6 +1532,20 @@ int main(int argc, char *argv[])
             }
           }
           else
+          if (strnicmp(Inrec, "Cse:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Get Case Information                                         */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            if (strnicmp(Inrec+4, "Get", 3) == 0)
+             getCaseInfo(1);
+            else
+             getCaseInfo(0);
+          }
+          else
           if (strnicmp(Inrec, "Acq:", 4) == 0)
           {
             /****************************************************************/
@@ -1424,7 +1583,11 @@ int main(int argc, char *argv[])
             {
               if (strlen(Inrec) > 4)
               {
-                strcat(ACQDir, "\\\0");
+                //Check to see if it is an append or new &Acq
+                //Dont add // if it's new!
+                if(strlen(ACQDir) > 0)
+                 strcat(ACQDir, "\\\0");
+
                 strcat(ACQDir, Inrec + 4);
                 sprintf(TempDir, "%s\\%s\0", BACQDir, ACQDir);
               }
@@ -1761,6 +1924,62 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\r");
 
             USB_Protect(0);
+          }
+          else
+          if (strnicmp(Inrec, "Vck:", 4) == 0)
+          {
+            /****************************************************************/
+            /* See if it is on an NTFS Volume                               */
+            /****************************************************************/
+            memset(volType, 0, 10);
+            isNTFS = 0;
+
+            if (Inrec[5] == ':')
+            {
+              memset(rootDrive, 0, 5);
+              strncpy(rootDrive, Inrec+4, 2);
+              rootDrive[2] = '\\';
+
+              if (GetVolumeInformation(rootDrive, volumeName, ARRAYSIZE(volumeName), &serialNumber,
+                  &maxComponentLen, &fileSystemFlags, fileSystemName, ARRAYSIZE(fileSystemName)))
+              {
+
+                if(consOrFile == 1)
+                {
+                  consPrefix("[+] ", consGre);
+                  printf("Detected File System (%s): %s\n", rootDrive, fileSystemName);
+                  fprintf(LogHndl, "[+] Detected File System (%s): %s\n", rootDrive, fileSystemName);
+                }
+
+                //printf("Debug: FileSystem: %s\n", fileSystemName);
+                if (strnicmp(fileSystemName, "NTFS", 4) == 0)
+                {
+                  strncpy(volType, "NTFS", 4);
+                  isNTFS = 1;
+                }
+                else
+                if (strnicmp(fileSystemName, "FAT32", 5) == 0)
+                 strncpy(volType, "FAT32", 5);
+                else
+                if (strnicmp(fileSystemName, "CDFS", 4) == 0)
+                 strncpy(volType, "CDFS", 4);
+                else
+                 strncpy(volType, "OTHER", 5);
+              }
+              else
+              {
+                // Error Trying to get Volume Info
+                if(consOrFile == 1)
+                {
+                  consPrefix("[!] ", consRed);
+                  printf("Volume Not Detected on %s\n", rootDrive);
+                  fprintf(LogHndl, "[+] Volume Not Detected on %s\n", rootDrive);
+                }
+ 
+                strncpy(volType, "NONE", 4);
+
+              }
+            }
           }
           else
           if ((strnicmp(Inrec, "CPY:", 4) == 0) || (strnicmp(Inrec, "CPS:", 4) == 0))
@@ -2345,6 +2564,89 @@ int main(int argc, char *argv[])
             }
           }
           else
+          if (strnicmp(Inrec, "EQU:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Check Lasy Volume Type                                       */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            memset(Cmprec, 0, 4096);
+            strncpy(Cmprec, Inrec + 4, 4092);
+            twoSplit(Cmprec);
+
+            if (iPrm2 == 0)
+            {
+              fprintf(LogHndl, "[!] Comparing Requires TWO strings\n");
+
+              consPrefix("[!] ", consRed);
+              printf("Comparing Requires TWO Strings\n");
+            }
+            else
+            {
+              if(consOrFile == 1)
+              {
+                consPrefix("[*] ", consYel);
+
+                if(strnicmp(Cmprec + iPrm1, Cmprec + iPrm2, 255) != 0)
+                {
+                  fprintf(LogHndl, "[*] Strings Are NOT Equal: %s != %s\n", Cmprec + iPrm1, Cmprec + iPrm2);
+                  printf("Strings Are NOT Equal: %s != %s\n", Cmprec + iPrm1, Cmprec + iPrm2);
+                }
+                else
+                {
+                  fprintf(LogHndl, "[*] Strings ARE Equal: %s\n", Cmprec + iPrm1);
+                  printf("Strings ARE Equal: %s\n", Cmprec + iPrm1);
+                }
+              }
+              else
+              if(strnicmp(Cmprec + iPrm1, Cmprec + iPrm2, 255) != 0)
+               RunMe++;
+            }
+          }
+          else
+          if (strnicmp(Inrec, "NEQ:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Check Last Return Code = n                                   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            memset(Cmprec, 0, 4096);
+            strncpy(Cmprec, Inrec + 4, 4092);
+            twoSplit(Cmprec);
+
+            if (iPrm2 == 0)
+            {
+              fprintf(LogHndl, "[!] Comparing Requires TWO strings\n");
+
+              consPrefix("[!] ", consRed);
+              printf("Comparing Requires TWO Strings\n");
+            }
+            else
+            {
+              if(consOrFile == 1)
+              {
+                consPrefix("[*] ", consYel);
+                if(strnicmp(Cmprec + iPrm1, Cmprec + iPrm2, 255) == 0)
+                {
+                  fprintf(LogHndl, "[*] Strings are (not not) Equal: %s\n", Cmprec + iPrm1);
+                  printf("Strings are (not not) Equal: %s\n", Cmprec + iPrm1);
+                }
+                else
+                {
+                  fprintf(LogHndl, "[*] Strings are NOT Equal: %s != %s\n", Cmprec + iPrm1, Cmprec + iPrm2);
+                  printf("Strings are NOT Equal: %s != %s\n", Cmprec + iPrm1, Cmprec + iPrm2);
+                }
+              }         
+              else
+              if(strnicmp(Cmprec + iPrm1, Cmprec + iPrm2, 255) == 0)
+               RunMe++;
+            }
+          }
+          else
           if (strnicmp(Inrec, "RC=:", 4) == 0)
           {
             /****************************************************************/
@@ -2676,6 +2978,48 @@ int main(int argc, char *argv[])
             }
           }
           else
+          if (strnicmp(Inrec, "DSK:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Get the Attached Disk Drives for the &DSK variable (Loop)    */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            if(strnicmp(Inrec+4, "Remov", 5) == 0)
+             dskTyp = 2;
+            else
+            if(strnicmp(Inrec+4, "Fixed", 5) == 0)
+             dskTyp = 3;
+            else
+            if(strnicmp(Inrec+4, "Remot", 5) == 0)
+             dskTyp = 4;
+            else
+            if(strnicmp(Inrec+4, "Cdrom", 5) == 0)
+             dskTyp = 5;
+            else
+            if(strnicmp(Inrec+4, "Ramdi", 5) == 0)
+             dskTyp = 6;
+            else
+             dskTyp = 3;
+
+
+            //If Disk Type Matches, Write it Out
+            DskHndl = fopen(ForDisk, "w");
+            if(DskHndl != NULL)
+            {
+              for (dskNum = 0; dskNum < 26; dskNum++)
+              {
+                memset(dskNam, 0, 10);
+                sprintf(dskNam, "%c:\\", Alphabet[dskNum]);
+
+                if(GetDriveType(dskNam) == dskTyp)
+                 fprintf(DskHndl,"%c\n", Alphabet[dskNum]);
+              }
+              fclose(DskHndl);
+            }
+          }
+          else
           if (strnicmp(Inrec, "FOR:", 4) == 0)
           {
             /****************************************************************/
@@ -2726,6 +3070,9 @@ int main(int argc, char *argv[])
 
             if (access(ForFile, 0) == 0)
               unlink(ForFile);
+
+            if (access(ForDisk, 0) == 0)
+              unlink(ForDisk);
             
             //fclose(LogHndl);
             cleanUp_Exit(LastRC);
@@ -3046,7 +3393,14 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\n");
             strtok(Inrec, "\r");
 
-            sprintf(WGetFile, "%s\\%s%s\0", BaseDir, CurrDir, CurrFil);
+            /****************************************************************/
+            /* This code changed to be JUST CurrFil to allow HTTP Get into  */ 
+            /* both the &Dir or &Acq (or anywhere else).  This is to allow  */
+            /* HTTP Get for both Building the Toolkit and Acquisition       */
+            /* That means that CurrFil MUST BE A FULL PATH TO THE NEW FILE  */
+            /****************************************************************/
+            //sprintf(WGetFile, "%s\\%s%s\0", BaseDir, CurrDir, CurrFil);
+            sprintf(WGetFile, "%s\0", CurrFil);
             fprintf(LogHndl, "[+] Getting: %s\n", WGetFile);
             consPrefix("[+] ", consGre);
             printf("Getting: %s\n", WGetFile);
@@ -3599,6 +3953,35 @@ size_t Squish(char *SqString)
       SqString[Sqi] = '\0';
     else
       break;
+  }
+
+  SqLen = strlen(SqString);
+  return SqLen;
+}
+
+
+
+/****************************************************************/
+/* Remove Indented Spaces and Tabs                              */
+/****************************************************************/
+size_t unIndent(char *SqString)
+{
+  size_t Sqi, Sqx, SqLen;
+
+  //Zap any preceding spaces or tabs..
+  for (Sqi = 0; Sqi < strlen(SqString); Sqi++)
+  {
+    if ((SqString[Sqi] != ' ') && (SqString[Sqi] != 9))
+      break;
+  }
+
+  if (Sqi > 0)
+  {
+    for (Sqx = 0; Sqx < strlen(SqString)+Sqi; Sqx++)
+     SqString[Sqx] = SqString[Sqx+Sqi];
+
+    // Null Terminate the string
+    SqString[Sqx+1] = '\0';
   }
 
   SqLen = strlen(SqString);
@@ -4997,6 +5380,11 @@ long consInput(char *consString, int conLog)
   strtok(Conrec, "\n");
   strtok(Conrec, "\r");
 
+  //strtok doesnt work on a blank string - So Add this little gem
+  if((Conrec[0] == CrLf[0]) || (Conrec[0] == CrLf[1]))
+   Conrec[0] = CrLf[2];
+
+
   /****************************************************************/
   /* If our input is too long, clear the rest over 250 chars      */
   /****************************************************************/
@@ -5201,24 +5589,28 @@ void USB_Protect(DWORD USBOnOff)
     {
       if (numUSB == 0)
       {
-        fprintf(LogHndl, "USB WriteProtect Key: Off\n");
+        fprintf(LogHndl, "[+] USB WriteProtect Key: Off\n");
+        consPrefix("[+] ", consGre);
         printf("USB WriteProtect Key: Off\n");
       }
       else
       {
-        fprintf(LogHndl, "USB WriteProtect Key: On\n");
+        fprintf(LogHndl, "[+] USB WriteProtect Key: On\n");
+        consPrefix("[+] ", consGre);
         printf("USB WriteProtect Key: On\n");
       }
     }
     else
     if (ReadK == ERROR_FILE_NOT_FOUND)
     {
-      fprintf(LogHndl,"USB WriteProtect Key Is Empty (Off)\n");
+      fprintf(LogHndl,"[*] USB WriteProtect Key Is Empty (Off)\n");
+      consPrefix("[*] ", consYel);
       printf("USB WriteProtect Key Is Empty (Off)\n");
     }
     else
     {
-      fprintf(LogHndl, "Error Reading USB Write Protect Key!\n");
+      fprintf(LogHndl, "[!] Error Reading USB Write Protect Key!\n");
+      consPrefix("[!] ", consRed);
       printf("Error Reading USB Write Protect Key!\n");
     }
 
@@ -5229,12 +5621,14 @@ void USB_Protect(DWORD USBOnOff)
     {
       if (USBOnOff == 0)
       {
-        fprintf(LogHndl, "Resetting WriteProtect Key To: Off\n");
+        fprintf(LogHndl, "[+] Resetting WriteProtect Key To: Off\n");
+        consPrefix("[+] ", consGre);
         printf("Resetting WriteProtect Key To: Off\n");
       }
       else
       {
-        fprintf(LogHndl, "Resetting WriteProtect Key To: On\n");
+        fprintf(LogHndl, "[+] Resetting WriteProtect Key To: On\n");
+        consPrefix("[+] ", consGre);
         printf("Resetting WriteProtect Key To: On\n");
       }
 
@@ -5244,19 +5638,22 @@ void USB_Protect(DWORD USBOnOff)
       {
         gotSet = 1;
 
-        fprintf(LogHndl, "USB WriteProtect Key Set Succesfully\n");
+        fprintf(LogHndl, "[+] USB WriteProtect Key Set Succesfully\n");
+        consPrefix("[+] ", consGre);
         printf("USB WriteProtect Key Set Succesfully\n");
         
         if (USBOnOff == 1)
         {
-          fprintf(LogHndl, "\n Important Note: ONLY NEW ATTACHED DRIVES WILL BE WRITE PROTECTED.\n");
-          printf("\n Important Note: ONLY NEW ATTACHED DRIVES WILL BE WRITE PROTECTED.\n");
+          fprintf(LogHndl, "\n[+] Important Note: ONLY NEW ATTACHED DRIVES WILL BE WRITE PROTECTED.\n");
+          consPrefix("\n[+] ", consGre);
+          printf("Important Note: ONLY NEW ATTACHED DRIVES WILL BE WRITE PROTECTED.\n");
         }
       }
       else
       {
-        fprintf(LogHndl, "\n* * * USB WriteProtect Key WAS NOT Set Succesfully * * *\n");
-        printf("\n* * * USB WriteProtect Key WAS NOT Set Succesfully * * *\n");
+        fprintf(LogHndl, "\n[!] * * * USB WriteProtect Key WAS NOT Set Succesfully * * *\n");
+        consPrefix("\n[!] ", consRed);
+        printf("* * * USB WriteProtect Key WAS NOT Set Succesfully * * *\n");
       }
     }
   }
@@ -5327,6 +5724,9 @@ void cleanUp_Exit(int exitRC)
   /****************************************************************/
   if (access(ForFile, 0) == 0)
    unlink(ForFile);
+
+  if (access(ForDisk, 0) == 0)
+   unlink(ForDisk);
 
 
   if (iHtmMode == 1)
@@ -6865,4 +7265,77 @@ void consPrefix(char *consText, int consColor)
   SetConsoleTextAttribute(hConsole, consColor);
   printf("%s", consText);
   SetConsoleTextAttribute(hConsole, consWhi);
+}
+
+
+void getCaseInfo(int SayOrGet)
+{
+  // Say = 0, Get = 1
+  if (SayOrGet == 1)
+  {
+    // Enter New Case Information
+    if (iCase == 1)
+    {
+      // We ran this routine already once.
+      // Avoid confusing multiple Case Names by running only once!
+      consPrefix("\n[!] ", consRed);
+      fprintf(LogHndl, "\n[!] Case Information Can Only Be Entered Once.\n");
+      printf("Case Information Can Only Be Entered Once.\n");
+    }
+    else
+    {
+      consPrefix("\n[*] ", consBlu);
+      fprintf(LogHndl, "\n[*] Default Case Number: %s\n", caseNumbr);
+      printf("Default Case Number: %s\n", caseNumbr);
+      consInput("Enter New Case Number (Or Enter To Accept Default): ", 1);
+      if(strlen(Conrec) > 0)
+       strncpy(caseNumbr, Conrec, 251);
+
+      consPrefix("\n[*] ", consBlu);
+      fprintf(LogHndl, "\n[*] Default Case Description: %s\n", caseDescr);
+      printf("Default Case Description: %s\n", caseDescr);
+      consInput("Enter New Case Description (Or Enter to Accept Default: ", 1);
+      if(strlen(Conrec) > 0)
+       strncpy(caseDescr, Conrec, 251);
+
+      consPrefix("\n[*] ", consBlu);
+      fprintf(LogHndl, "\n[*] Default Evidence Number: %s\n", evidNumbr);
+      printf("Default Evidence Number: %s\n", evidNumbr);
+      consInput("Enter New Evidence Number (Or Enter to Accept Default): ", 1);
+      if(strlen(Conrec) > 0)
+       strncpy(evidNumbr, Conrec, 251);
+
+      consPrefix("\n[*] ", consBlu);
+      fprintf(LogHndl, "\n[*] Default Examiner: %s\n", caseExmnr);
+      printf("Default Examiner: %s\n", caseExmnr);
+      consInput("Enter New Examiner (Or Enter to Accept Default): ", 1);
+      if(strlen(Conrec) > 0)
+       strncpy(caseExmnr, Conrec, 251);
+    }
+  }
+
+  /****************************************************************/
+  /* Display Case Information                                     */
+  /****************************************************************/
+  strtok(Inrec, "\n");
+  strtok(Inrec, "\r");
+
+  consPrefix("\n[*] ", consBlu);
+  fprintf(LogHndl, "\n[*] Case Number: %s\n", caseNumbr);
+  printf("Case Number: %s\n", caseNumbr);
+
+  consPrefix("[*] ", consBlu);
+  fprintf(LogHndl, "[*] Case Description: %s\n", caseDescr);
+  printf("Case Description: %s\n", caseDescr);
+
+  consPrefix("[*] ", consBlu);
+  fprintf(LogHndl, "[*] Evidence Number: %s\n", evidNumbr);
+  printf("Evidence Number: %s\n", evidNumbr);
+
+  consPrefix("[*] ", consBlu);
+  fprintf(LogHndl, "[*] Examiner: %s\n\n", caseExmnr);
+  printf("Examiner: %s\n\n", caseExmnr);
+
+  // Run This Routine ONLY ONCE to avoid ambiguity
+  iCase = 1;
 }

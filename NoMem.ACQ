@@ -22,12 +22,13 @@ NCP:"&Win\prefetch\*" "&Acq"
 SAY:
 SAY: 3a. Copy Raw $MFT...
 SAY:
+DSK:Fixed
 ACQ:\RawData
-NCP:"C:\$MFT" "&Acq"
+NCP:"&Dsk:\$MFT" "&Acq"
 SAY:
 SAY: 3b. Copy Raw $LogFile...
 SAY:
-NCP:"C:\$LogFile" "&Acq"
+NCP:"&Dsk:\$LogFile" "&Acq"
 SAY:
 SAY:
 SAY: 3c. Now Extracting USNJrnl...

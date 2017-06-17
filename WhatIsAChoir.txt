@@ -1,4 +1,4 @@
-AChoir - Beta v0.98a
+AChoir - v1.0
 
 AChoir
 ======
@@ -92,7 +92,10 @@ The Achoir scripting language has two primary concepts:
 
 
 Actions are the thing you want to do.  Objects are the thing(s) you want to do the Actions 
-against.  Actions always start in column 1, they are three letters folowed by a colon(:).  
+against.  Actions always start in column 1, they are three letters folowed by a colon(:).
+
+  Note:As of AChoir v0.99 Actions can be indented using tabs or spaces.
+
 Objects Can go anywhere and start with an ampersand(&) followed by three letters.
 
 
@@ -142,10 +145,21 @@ ADM:Force  Check if AChoir is running as an Administrator,
 INP:     Input from console. (INP:<Display This Text>)
          Display text and get input into variable &Inp 
          IMPORTANT NOTE: Longer input is TRUNCATED to 250 chars
+EQU:<string1> <string2> - Is <string1> equal to <string2>
+               if True run the statements until an END:
+               Note: Use "" to use strings with spaces in them
+NEQ:<string1> <string2> - Is <string1> NOT Equal to <string2>
+               if True run the statements until an END:
+               Note: Use "" to use strings with spaces in them
 INI:     SWITCH to another Script File (INI:F:\NewScript.Acq)
          Note: This WILL NOT RETURN to the calling script.
 INI:Console - Switch to Interactive Console Mode
-GET:     Get a file using HTTP
+CSE:SAY  Display Optional Case Information ans write it to Log
+CSE:GET  Input Optional Case Information - ONLY allowed ONCE 
+          per session to avoid ambiguity.
+GET:     Get a file using HTTP into &Fil 
+         Note: &Fil (FIL:) MUST BE SET TO THE FULL PATH OF 
+               THE NEW FILE!
 EXE:     Run a Program
 SYS:     Execute a System Command using the OS Shell
 CMD:     Execute a System Command using AChoir's Command Shell
@@ -167,6 +181,9 @@ FOR:     Set the &FOR object.  This is a Looping object based on
          Files - For instance "FOR:C:\Users\*.DAT" will define
          All *.DAT Files under C:\Users. In this way a single 
          command can be run iteratively against all of these files. 
+DSK:<typ>Set the &DSK object.  This is a Looping object based on 
+         all attached/mounted disks that match the <typ>
+         <typ> can be: Fixed, Remote, Remove, CDRom, RamDisk 
 LST:<FileName> 
          Set the &LST object.  This is a Looping object based on 
          Lines in the <FilName>. In this way a single command can
@@ -175,6 +192,8 @@ LST:<FileName>
 CPY:     Copy Files (CPY:<FromFile> <ToFile>) - Supports Quotes
 CPS:     Copy Files (CPS:<FromFile> <ToFile>) by Signature 
           (Loaded by the Sig: command) - Use FOR: and &FOR for wildcards
+VCK:<x:> Check if the Volume <x:> is NTFS, FAT32, CDFS, Other, None
+         (Used for conditional execution if Vol is/not NTFS)
 NCP:     NTFS Raw File Copy - Supports Wildcards (* and ?)
          NCP:<File(s) to Copy>  <Destination Directory>
 Sig:Clear Clears out the AChoir Signature Table 
@@ -238,6 +257,7 @@ Objects:
 &Acq     The Current Acquisition Directory
 &For     An array of File objects set by the FOR: action
 &Lst     An array of text objects set by the LST: action
+&DSK     An Array of Disk objects set by the DSK: action
 &Num     The array number of each &For Object
 &Win     The Windows Root Directory
 &CHK     The FileName that was Checked for (non) existence by the
@@ -248,6 +268,7 @@ Objects:
 &Tmp     The Window %Temp% variable
 &FNM     Each &FOR File Name (Without Path)
 &VR0 - &VR9  Variables set by the VR0: - VR9: Actions
+&VCK     Results of last Volume Check (VCK:<x:\>
 
 %<variable>% - AChoir can also expand the native DOS/Windows Environment Variables
  Note: To use a native % (prevent expansion) in a script, use %% 
@@ -262,6 +283,7 @@ Here are the Command Line Options:
 /MNU  - Run the Menu.ACQ Script (AChoir Menu)
         Note: This is a simple Menu Script for selecting an AChoir script to run.
 /CON  - Run In Interactive Mode (Same as /Ini:Console)
+/CSE  - Interactive/Console Query for Case Information
 /INI:Console - Run In Interactive Mode (Console Input)
 /INI:<File Name>  - Run the <File Name> script instead of AChoir.ACQ
         This Option WILL NOT Create a Base Acquisition Directory
@@ -283,6 +305,15 @@ these various conditions.  AChoir is coded to give the results of these comparis
 Interactive Mode, and to take Conditional Action in regular Scripted Mode.  In Interactive Mode
 Achoir WILL NOT take conditional action.
 
+A note about Case Information (/CSE, CSE:GET, CSE:SAY)
+----------
+To avoid any accidental confusion about Case information (that may jeopardize non-repudiation),
+I have coded AChoir to disallow changing Case information after it has been displayed. Some may
+find this draconian, but it is important to avoid ambiguity when doing forensic analysis, so 
+I have chosen to disallow changing Case information even if the default settings are displayed.
+
+Also Note: Case Information is entirely optional - You can use AChoir without entering any 
+           Case Information, and this is the default (so AChoir can run fully unattended)
 
 
 Artifacts that AChoir itself generates:
