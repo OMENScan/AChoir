@@ -1227,8 +1227,8 @@ int main(int argc, char *argv[])
               Looper = 1;
               LoopNum++;
 
-              strtok(Lstrec, "\n");
-              strtok(Lstrec, "\r");
+              strtok(Dskrec, "\n");
+              strtok(Dskrec, "\r");
             }
             else
               break;
