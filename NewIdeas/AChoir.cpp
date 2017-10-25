@@ -112,6 +112,8 @@
 /*              - &DSK - Looping Var Contains Disk that match   */
 /* AChoir v1.1  - Peppered Flush STDOUT buffers for better      */
 /*                PSExec Display (Remote Acq)                   */
+/*              - SHR:<Path> <Name> - Create a Local Share      */
+/*              - SHD:<Name> - Delete a Local Share             */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -220,6 +222,7 @@ long varConvert(char *inVarRec);
 long consInput(char *consString, int conLog);
 long mapsDrive(char *mapString, int mapLog);
 long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int shrLog);
+long netShareDel(char *netShareName, int shrLog);
 int PreIndex();
 BOOL IsUserAdmin(VOID);
 void showTime(char *showText);
@@ -3187,7 +3190,17 @@ int main(int argc, char *argv[])
              netLocalShare(cName, Inrec + 4, "Ach-Rmt", 1);
             else
              netLocalShare(cName, Shrrec + iPrm1, Shrrec + iPrm2, 1);
+          }
+          else
+          if (strnicmp(Inrec, "SHD:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Delete a Local Share SHD:<Shr Name>                          */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
 
+            netShareDel(Inrec + 4, 1);
           }
           else
           if (strnicmp(Inrec, "XIT:", 4) == 0)
@@ -5600,68 +5613,79 @@ long mapsDrive(char *mapString, int mapLog)
 /****************************************************************/
 long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int shrLog)
 {
+  char xnetSharePath[255] ;
+  char xnetShareName[255] ;
+
   wchar_t w_netSharePath[520];
   wchar_t w_netShareName[520];
   wchar_t w_netServer[520];
+
   LPWSTR lpWnetSharePath = w_netSharePath;
   LPWSTR lpWnetShareName = w_netShareName;
   LPWSTR lpWnetServer = w_netServer;
 
+  
 
   //Generate a Random Password - Just to make sure 
   
 
+  memset(xnetSharePath, 0, 255);
+  memset(xnetShareName, 0, 255);
+  strncpy(xnetSharePath, netSharePath, 254);
+  strncpy(xnetShareName, netShareName, 254);
+
   memset(w_netSharePath, 0, 520);
   memset(w_netShareName, 0, 520);
-  memset(Conrec, 0, 255);
-  if (strlen(netSharePath) < 1)
+
+
+  if (strlen(xnetSharePath) < 1)
   {
+    memset(Conrec, 0, 255);
     consPrefix("[?] ", consYel);
-    consInput("Shr: Full Path Of Share>", shrLog);
+    consInput("Full Path Of Share>", shrLog);
+    strncpy(xnetSharePath, Conrec, 254);
   }
-  else
-    strncpy(Conrec, netSharePath, 254);
 
-  if (strlen(netShareName) < 1)
-    strncpy(netShareName, "ACh-Rmt\0\0\0", 10);
-
-  // convert to LPWSTR for the API...  Sigh...
-  MultiByteToWideChar(0, 0, netSharePath, 512, w_netSharePath, 254);
-  MultiByteToWideChar(0, 0, netShareName, 512, w_netShareName, 254);
+  if (strlen(xnetShareName) < 1)
+    strncpy(xnetShareName, "ACh-Rmt\0\0\0", 10);
 
 
   iGoodShr = 0;
   while (iGoodShr == 0)
   {
     if(shrLog == 1)
-      fprintf(LogHndl, "SHR: %s\n", Conrec);
+      fprintf(LogHndl, "SHR: %s -> %s\n", xnetSharePath, xnetShareName);
 
     consPrefix("SHR: ", consBlu);
-    printf("%s\n", Conrec);
+    printf("%s -> %s\n", xnetSharePath, xnetShareName);
 
-    netShr.shi2_netname = lpWnetSharePath;   
+    // convert to LPWSTR for the API...  Sigh...
+    MultiByteToWideChar(0, 0, xnetSharePath, 512, w_netSharePath, 254);
+    MultiByteToWideChar(0, 0, xnetShareName, 512, w_netShareName, 254);
+
+    netShr.shi2_netname = lpWnetShareName;
     netShr.shi2_type = STYPE_DISKTREE; // disk drive
     netShr.shi2_remark = L"Local Share Created By AChoir for Remote Acquisition";
-    netShr.shi2_permissions = ACCESS_ALL;   
+    netShr.shi2_permissions = ACCESS_ALL;  
     netShr.shi2_max_uses = 4;
     netShr.shi2_current_uses = 0;
-    netShr.shi2_path = lpWnetShareName;
+    netShr.shi2_path = lpWnetSharePath;
     netShr.shi2_passwd = NULL;
  
     // Call the NetShareAdd() function, specifying level 2. 
-    netShrRC = NetShareAdd(lpWnetServer, 2, (LPBYTE) &netShr, &netShrErr);
+    netShrRC = NetShareAdd(NULL, 2, (LPBYTE) &netShr, &netShrErr);
 
     if (netShrRC != 0)
     {
       consPrefix("[!] ", consRed);
-      printf("Error Creating Local Share: %s -> %s\n", netSharePath, netShareName);
+      printf("Error Creating Local Share on %s: %s -> %s\n", netServer,xnetSharePath, xnetShareName);
       consPrefix("[!] ", consRed);
-      printf("Error: %u\tparmerr=%u\n\n", netShrRC, netShrErr);
+      printf("Error: %u\tParmErr=%u\n\n", netShrRC, netShrErr);
 
       if (shrLog == 1)
       {
-        fprintf(LogHndl, "Error Creating Local Share: %s -> %s\n", netSharePath, netShareName);
-        fprintf(LogHndl, "Error: %u\tparmerr=%u\n\n", netShrRC, netShrErr);
+        fprintf(LogHndl, "Error Creating Local Share on %s: %s -> %s\n", netServer, xnetSharePath, xnetShareName);
+        fprintf(LogHndl, "Error: %u\tParmErr=%u\n\n", netShrRC, netShrErr);
       }
 
       consPrefix("[?] ", consYel);
@@ -5670,7 +5694,8 @@ long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int 
       memset(Conrec, 0, 255);
       consPrefix("[?] ", consYel);
       consPrefix("SHR: ", consBlu);
-      consInput("Shr: Full Path Of Share>", shrLog);
+      consInput("Full Path Of Share>", shrLog);
+      strncpy(xnetSharePath, Conrec, 254);
 
       if (strnicmp(Conrec, "quit", 4) == 0)
       {
@@ -5692,14 +5717,56 @@ long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int 
     {
       iGoodShr = 1;
       consPrefix("[+] ", consGre);
-      printf("Successfully Created Share %s -> %s\n", netSharePath, netShareName);
+      printf("Successfully Created Share on %s: %s -> %s\n", netServer, xnetSharePath, xnetShareName);
 
       if (shrLog == 1)
-        fprintf(LogHndl, "[+] Successfully Created Share %s -> %s\n", netSharePath, netShareName);
+        fprintf(LogHndl, "[+] Successfully Created Share on %s: %s -> %s\n", netServer, xnetSharePath, xnetShareName);
 
       fflush(stdout); //More PSExec Friendly
       return 0;
     }
+  }
+
+  fflush(stdout); //More PSExec Friendly
+  return 0;
+
+}
+
+
+/****************************************************************/
+/* Create a Local Share (For Remote Acq)                        */
+/****************************************************************/
+long netShareDel(char *netShareName, int shrLog)
+{
+  wchar_t w_netShareName[520];
+  LPWSTR lpWnetShareName = w_netShareName;
+
+  if (strlen(netShareName) < 1)
+    strncpy(netShareName, "ACh-Rmt\0\0\0", 10);
+
+  MultiByteToWideChar(0, 0, netShareName, 512, w_netShareName, 254);
+
+  // Call the NetShareDel() function
+  netShrRC = NetShareDel(NULL, w_netShareName, 0);
+
+  if (netShrRC != NERR_Success)
+  {
+    consPrefix("[!] ", consRed);
+    printf("Error (%d) Deleting Local Share: %s\n", netShrRC, netShareName);
+
+    if (shrLog == 1)
+     fprintf(LogHndl, "Error (%d) Deleting Local Shares: %s\n", netShrRC, netShareName);
+  }
+  else
+  {
+    consPrefix("[+] ", consGre);
+    printf("Successfully Deleted Share: %s\n", netShareName);
+
+    if (shrLog == 1)
+      fprintf(LogHndl, "[+] Successfully Deleted Share: %s\n", netShareName);
+
+    fflush(stdout); //More PSExec Friendly
+    return 0;
   }
 
   fflush(stdout); //More PSExec Friendly
