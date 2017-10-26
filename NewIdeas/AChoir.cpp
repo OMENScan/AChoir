@@ -5615,28 +5615,41 @@ long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int 
 {
   char xnetSharePath[255] ;
   char xnetShareName[255] ;
+  char xnetSharePass[255] ;
 
   wchar_t w_netSharePath[520];
   wchar_t w_netShareName[520];
+  wchar_t w_netSharePass[50];
   wchar_t w_netServer[520];
 
   LPWSTR lpWnetSharePath = w_netSharePath;
   LPWSTR lpWnetShareName = w_netShareName;
+  LPWSTR lpWnetSharePass = w_netSharePass;
   LPWSTR lpWnetServer = w_netServer;
 
+  int  pwdCtr = 0;
   
 
   //Generate a Random Password - Just to make sure 
-  
+  memset(xnetSharePass, 0, 20);
+  srand((unsigned)time(NULL));
+
+  for(pwdCtr = 0; pwdCtr < 14; pwdCtr++)
+   xnetSharePass[pwdCtr] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"[rand() % 62];
+ 
+  //Shhhh...  Don't tell anyone the Share Password.
+  //printf("Password: %s\n", xnetSharePass);
+
 
   memset(xnetSharePath, 0, 255);
   memset(xnetShareName, 0, 255);
+
   strncpy(xnetSharePath, netSharePath, 254);
   strncpy(xnetShareName, netShareName, 254);
 
   memset(w_netSharePath, 0, 520);
   memset(w_netShareName, 0, 520);
-
+  memset(w_netSharePass, 0, 50);
 
   if (strlen(xnetSharePath) < 1)
   {
@@ -5662,6 +5675,7 @@ long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int 
     // convert to LPWSTR for the API...  Sigh...
     MultiByteToWideChar(0, 0, xnetSharePath, 512, w_netSharePath, 254);
     MultiByteToWideChar(0, 0, xnetShareName, 512, w_netShareName, 254);
+    MultiByteToWideChar(0, 0, xnetSharePass, 40, w_netSharePass, 20);
 
     netShr.shi2_netname = lpWnetShareName;
     netShr.shi2_type = STYPE_DISKTREE; // disk drive
@@ -5670,7 +5684,8 @@ long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int 
     netShr.shi2_max_uses = 4;
     netShr.shi2_current_uses = 0;
     netShr.shi2_path = lpWnetSharePath;
-    netShr.shi2_passwd = NULL;
+    //netShr.shi2_passwd = NULL;
+    netShr.shi2_passwd = lpWnetSharePass;
  
     // Call the NetShareAdd() function, specifying level 2. 
     netShrRC = NetShareAdd(NULL, 2, (LPBYTE) &netShr, &netShrErr);
