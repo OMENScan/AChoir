@@ -1,0 +1,22 @@
+*******************************************************************************************
+* Achoir - Remote Artifact Acquisistion                                                   *
+*                                                                                         *
+* IMPORTANT - When  using PSexec the -e parameter is REQUIRED for remote mapping to work! *
+* IMPORTANT - When using /MAP, /USR, /PWD - They MUST be in this order: /USR, /PWD, /MAP! *
+*******************************************************************************************
+Say:Please Enter the Name of the Remote Computer you wish to Acquire:
+Inp:Remote Computer>
+VR0:&Inp
+Say:Please Enter the UserId to Map back to this Computer:
+Inp:Admin UserId>
+VR1:&Inp
+Say:Please Enter the Password:
+Inp:Admin Password>
+VR2:&Inp
+Say:
+Say:Now Creating a Local Share to Run AChoir and Save Artifacts from: &VR0
+SHR:&Dir Ach-Remt
+Say:
+Say:Loading AChoir on Remote Computer
+EXE:\SYS\PSexec.exe \\&VR0 -h -e -c -f "Achoir.exe" /usr:&VR1 /pwd:&VR2 /map:\\%COMPUTERNAME%\Ach-Remt /ini:Scripts\AChoirX.Acq
+Shd:Ach-Remt
