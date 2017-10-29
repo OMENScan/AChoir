@@ -1,4 +1,4 @@
-AChoir - v1.0
+AChoir - v1.1
 
 AChoir
 ======
@@ -169,6 +169,9 @@ PWD:<Password>
          Password to use when mapping a drive (Optional)
 MAP:     Map to a remote drive share (\\<server>\<share>) and use 
          it as the Acquisition Directory 
+SHR:     Create a Share (SHR:<x:\ShareDirectory> <ShareName>)
+         Used for Remote Acq to map back to Achoir Directory
+SHD:     Delete a local Share (SHD:<ShareName>)
 ACQ:     Tell Achoir to create a unique Acquisition directory
 DIR:     Set the &Dir object and create the directory if needed
 FIL:     Set the &Fil object (File)
@@ -348,6 +351,18 @@ x-MFT.db
 ---------
 Achoir will generate an SQLite database when using NCP: Raw Copy.  This database is
 a subset of the $MFT for that volume - used to make searching for wildcards faster.
+
+ForFiles
+---------
+Achoir will create a temporary file in the Acquisition Cache Directory called "ForFiles"
+every time the FOR: Action is used.  ForFiles contains the results and is used when the 
+&FOR Looping object (variable) is used.
+
+ForDisks
+---------
+Achoir will create a temporary file in the Acquisition Cache Directory called "ForDisks"
+every time the DSK: Action is used.  ForDisks contains the results and is used when the 
+&DSK Looping object (variable) is used.
 
 
 Acknowledgement:

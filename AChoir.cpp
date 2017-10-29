@@ -110,6 +110,10 @@
 /*              - DSK:<type>  Set &DSK looping variable to      */
 /*                - Types: Removable, Fixed, Remote, CDROM      */
 /*              - &DSK - Looping Var Contains Disk that match   */
+/* AChoir v1.1  - Peppered Flush STDOUT buffers for better      */
+/*                PSExec Display (Remote Acq)                   */
+/*              - SHR:<Path> <Name> - Create a Local Share      */
+/*              - SHD:<Name> - Delete a Local Share             */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -176,11 +180,16 @@
 #include "aclapi.h"
 #include <sddl.h>
 
+// Required for Net Share creation
+#pragma comment(lib, "Netapi32.lib")
+#include <lm.h>
+
+
 #define NUL '\0'
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v1.0\0";
+char Version[10] = "v1.1\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -212,6 +221,8 @@ void Time_tToFileTime(time_t InTimeT, int whichTime);
 long varConvert(char *inVarRec);
 long consInput(char *consString, int conLog);
 long mapsDrive(char *mapString, int mapLog);
+long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int shrLog);
+long netShareDel(char *netShareName, int shrLog);
 int PreIndex();
 BOOL IsUserAdmin(VOID);
 void showTime(char *showText);
@@ -221,6 +232,11 @@ BOOL SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, BOOL bEnablePrivilege);
 char * convert_sid_to_string_sid(const PSID psid, char *sid_str);
 void getCaseInfo(int SayOrGet);
 
+// Variables to create a share
+int  iGoodShr = 0;
+NET_API_STATUS netShrRC;
+SHARE_INFO_2 netShr;
+DWORD netShrErr = 0;
 
 // Routines For Raw NTFS Access
 ULONG RunLength(PUCHAR run);
@@ -536,6 +552,7 @@ int main(int argc, char *argv[])
   char Exerec[4096];
   char Cmprec[4096];
   char Arnrec[2048];
+  char Shrrec[1024];
 
   DWORD dwSize = 0;
   DWORD dwDownloaded = 0;
@@ -726,7 +743,7 @@ int main(int argc, char *argv[])
       consPrefix(" /CON ", consGre);
       printf("- Run with Interactive Console Input (Same as /Ini:Console)\n");
       SetConsoleTextAttribute(hConsole, consWhi);
-      
+
       exit(0);
     }
     else
@@ -854,6 +871,9 @@ int main(int argc, char *argv[])
       consPrefix("[!] ", consRed);
       printf("Bad Argument: %s\n", argv[i]);
     }
+
+    fflush(stdout); //More PSExec Friendly
+
   }
 
 
@@ -919,6 +939,7 @@ int main(int argc, char *argv[])
   fprintf(LogHndl, "[+] AChoir ver: %s, Mode: %s\n", Version, RunMode);
 
   showTime("Start Acquisition");
+  fflush(stdout); //More PSExec Friendly
 
   /****************************************************************/
   /* Check If We are an Admin                                     */
@@ -938,6 +959,7 @@ int main(int argc, char *argv[])
     fprintf(LogHndl, "[+] Running As NON-Admin\n");
     iIsAdmin = 0;
   }
+  fflush(stdout); //More PSExec Friendly
 
 
   /****************************************************************/
@@ -1000,6 +1022,8 @@ int main(int argc, char *argv[])
 
   printf("\n\n");
   fprintf(LogHndl, "\n\n");
+  fflush(stdout); //More PSExec Friendly
+
 
   fprintf(LogHndl, "[+] Directory Has Been Set To: %s\\%s\n", BaseDir, CurrDir);
   fprintf(LogHndl, "[+] Input Script Set:\n     %s\n\n", IniFile);
@@ -1022,6 +1046,9 @@ int main(int argc, char *argv[])
       mkdir(CachDir);
       PreIndex();
     }
+
+    fflush(stdout); //More PSExec Friendly
+
   }
 
 
@@ -1048,6 +1075,8 @@ int main(int argc, char *argv[])
   }
   else
    IniHndl = fopen(IniFile, "r");
+
+  fflush(stdout); //More PSExec Friendly
 
   if (IniHndl != NULL)
   {
@@ -1117,6 +1146,8 @@ int main(int argc, char *argv[])
 
             fprintf(LogHndl, "[!] &FOR Directory has not been set with the FOR: command.  Ignoring &FOR Loop...\n");
             Looper = 0;
+
+            fflush(stdout); //More PSExec Friendly
           }
         }
         else
@@ -1141,6 +1172,9 @@ int main(int argc, char *argv[])
             fprintf(LogHndl, "[!] &LST File not found (LST: not set): %s\n", LstFile);
             Looper = 0;
           }
+
+          fflush(stdout); //More PSExec Friendly
+
         }
         else
           LstMe = 0;
@@ -1164,6 +1198,9 @@ int main(int argc, char *argv[])
             fprintf(LogHndl, "[!] &DSK Listing not found (DSK: not set): %s\n", ForDisk);
             Looper = 0;
           }
+
+          fflush(stdout); //More PSExec Friendly
+
         }
         else
           DskMe = 0;
@@ -1243,6 +1280,9 @@ int main(int argc, char *argv[])
             printf("AChoir does not yet support Nested Looping (&LST + &FOR)\n     > %s\n", Tmprec);
 
             strncpy(Tmprec, "***: Command Bypassed\0\0\0\0\0\0\0\0\0", 25);
+
+            fflush(stdout); //More PSExec Friendly
+
           }
           
           
@@ -1492,6 +1532,9 @@ int main(int argc, char *argv[])
               oPtr++;
               Inrec[oPtr] = '\0';
             }
+
+            fflush(stdout); //More PSExec Friendly
+
           }
 
 
@@ -1905,6 +1948,7 @@ int main(int argc, char *argv[])
             consInput(Inrec + 4, 1);
             strncpy(Inprec, Conrec, 254);
           }
+          else
           if (strnicmp(Inrec, "USB:Protect", 11) == 0)
           {
             /****************************************************************/
@@ -1915,6 +1959,7 @@ int main(int argc, char *argv[])
 
             USB_Protect(1);
           }
+          else
           if (strnicmp(Inrec, "USB:Enable", 10) == 0)
           {
             /****************************************************************/
@@ -3129,6 +3174,35 @@ int main(int argc, char *argv[])
             mapsDrive(Inrec + 4, 1);
           }
           else
+          if (strnicmp(Inrec, "SHR:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Create a Local Share SHR:<Path> <Shr Name>                   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            memset(Shrrec, 0, 1024);
+            strncpy(Shrrec, Inrec + 4, 1024);
+            twoSplit(Shrrec);
+
+            if (iPrm2 == 0)
+             netLocalShare(cName, Inrec + 4, "Ach-Rmt", 1);
+            else
+             netLocalShare(cName, Shrrec + iPrm1, Shrrec + iPrm2, 1);
+          }
+          else
+          if (strnicmp(Inrec, "SHD:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Delete a Local Share SHD:<Shr Name>                          */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            netShareDel(Inrec + 4, 1);
+          }
+          else
           if (strnicmp(Inrec, "XIT:", 4) == 0)
           {
             /****************************************************************/
@@ -3521,6 +3595,8 @@ int main(int argc, char *argv[])
             }
 
           }
+
+          fflush(stdout); //More PSExec Friendly
           
         }
 
@@ -3530,10 +3606,14 @@ int main(int argc, char *argv[])
         if ((LstMe == 1) && (LstHndl != NULL))
           fclose(LstHndl);
 
+        fflush(stdout); //More PSExec Friendly
+
       }
 
       if(consOrFile == 1)
        consPrefix(">>> ", consGre);
+
+      fflush(stdout); //More PSExec Friendly
 
     }
 
@@ -3542,6 +3622,8 @@ int main(int argc, char *argv[])
     /****************************************************************/
     if(consOrFile == 0)
      fclose(IniHndl);
+
+    fflush(stdout); //More PSExec Friendly
 
   }
   else
@@ -3553,6 +3635,8 @@ int main(int argc, char *argv[])
     cleanUp_Exit(1);
     exit (1);
   }
+
+  fflush(stdout); //More PSExec Friendly
 
 
   /****************************************************************/
@@ -3566,6 +3650,7 @@ int main(int argc, char *argv[])
     printf("You have and extra END: Hanging! Check your Logic.\n");
   }
 
+  fflush(stdout); //More PSExec Friendly
   cleanUp_Exit(0);
   exit(0);
 
@@ -3934,6 +4019,8 @@ int MemAllocErr(char *ErrType)
   consPrefix("[!] ", consRed);
   printf("Error Allocating Enough Memory For: %s\n\n", ErrType);
 
+  fflush(stdout); //More PSExec Friendly
+
   exit(3);
 }
 
@@ -4301,6 +4388,7 @@ int ListDir(char *DirName, char *LisType)
         consPrefix("[!] ", consRed);
         printf("Max Path Exceeded: %s%s\n", RootDir, inName);
 
+        fflush(stdout); //More PSExec Friendly
         return 0;
       }
 
@@ -4312,6 +4400,7 @@ int ListDir(char *DirName, char *LisType)
         consPrefix("[!] ", consRed);
         printf("Directory Recursion Error: %s%s\n", RootDir, inName);
 
+        fflush(stdout); //More PSExec Friendly
         return 0;
       }
       
@@ -4425,6 +4514,7 @@ int PreIndex()
     printf("Could not Create Artifact Index: %s\n", HtmFile);
   }
 
+  fflush(stdout); //More PSExec Friendly
   return 0;
 }
 
@@ -4534,6 +4624,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
       printf("Could Not Open File for Reading - File Copy Bypassed.\n");
       fprintf(LogHndl, "[!] Could Not Open File for Reading - File copy Bypassed.\n");
 
+      fflush(stdout); //More PSExec Friendly
       return 1;
     }
 
@@ -4604,6 +4695,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         fprintf(LogHndl, "     (Sig)No Signature Match in File - File copy Bypassed.\n");
 
         fclose(FrmHndl);
+        fflush(stdout); //More PSExec Friendly
         return 1;
       }
     }
@@ -4647,6 +4739,9 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
             }
             break;
           }
+
+          fflush(stdout); //More PSExec Friendly
+
         }
 
         fclose(FrmHndl);
@@ -4751,7 +4846,6 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
             if (binLog == 1)
              fprintf(LogHndl, "[*] Can NOT Set Target File Owner (%s)\n", SidString);
           }
-
         }
         else
         {
@@ -4854,9 +4948,16 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         consPrefix("[!] ", consRed);
         printf("Could Not Open File(s) for Copy\n");
       }
+
+      fflush(stdout); //More PSExec Friendly
+
     }
+
+    fflush(stdout); //More PSExec Friendly
+
   }
 
+  fflush(stdout); //More PSExec Friendly
   return 0;
 }
 
@@ -4908,6 +5009,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 
     consPrefix("[+] ", consGre);
     printf("Invalid From File Format: %s\n", FrmFile);
+    fflush(stdout); //More PSExec Friendly
     return 1;
   }
 
@@ -4919,6 +5021,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
     consPrefix("[!] ", consRed);
     printf("Could not open the Volume for Raw Access. Error: %u\n", GetLastError());
     fprintf(LogHndl, "[!] Could not open the Volume for Raw Access. Error: %u\n", GetLastError());
+    fflush(stdout); //More PSExec Friendly
     return 1;
   }
 
@@ -4929,12 +5032,14 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
     consPrefix("[!] ", consRed);
     printf("Could not read Volume for Raw Access. Error: %u\n", GetLastError());
     fprintf(LogHndl, "[!] Could not read the Volume for Raw Access. Error: %u\n", GetLastError());
+    fflush(stdout); //More PSExec Friendly
     return 1;
   }
 
 
   //Load MFT Info
   LoadMFT();
+  fflush(stdout); //More PSExec Friendly
 
   //Super Wierd Edge Case where the Drive is Encrypted with TrueCrypt and Mounted
   if (readRetcd == 0)
@@ -4956,6 +5061,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
     consPrefix("[!] ", consRed);
     printf("Could Not Open MFT Working Database : %s\n", MFTDBFile);
     fprintf(LogHndl, "[!] Could Not Open MFT Working Database: %s\n", MFTDBFile);
+    fflush(stdout); //More PSExec Friendly
     return 1;
   }
 
@@ -5066,6 +5172,9 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
     // The primary partition supplied else
     // default C:\ will be used
     FindActive();
+
+    fflush(stdout); //More PSExec Friendly
+
   }
 
 
@@ -5270,6 +5379,9 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         }
       }
     }
+
+    fflush(stdout); //More PSExec Friendly
+
   }
 
   sqlite3_finalize(dbMFTStmt);
@@ -5281,6 +5393,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   //UnLoad MFT Info - Disabled for now - Sometimes causes a crash
   //UnloadMFT();
 
+  fflush(stdout); //More PSExec Friendly
   return 0;
 }
 
@@ -5402,6 +5515,7 @@ long consInput(char *consString, int conLog)
   if(conLog == 1)
     fprintf(LogHndl, "%s\n", Conrec);
 
+  fflush(stdout); //More PSExec Friendly
   return 0;
 }
 
@@ -5464,6 +5578,7 @@ long mapsDrive(char *mapString, int mapLog)
           cleanUp_Exit(1);
         }
 
+        fflush(stdout); //More PSExec Friendly
         exit (1);
 
       }
@@ -5481,10 +5596,195 @@ long mapsDrive(char *mapString, int mapLog)
 
       sprintf(BACQDir, "%s\\%s\0", szConnection, ACQName);
       sprintf(CachDir, "%s\\%s\\Cache\0", szConnection, ACQName);
+
+      fflush(stdout); //More PSExec Friendly
       return 0;
     }
   }
 
+  fflush(stdout); //More PSExec Friendly
+  return 0;
+
+}
+
+
+/****************************************************************/
+/* Create a Local Share (For Remote Acq)                        */
+/****************************************************************/
+long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int shrLog)
+{
+  char xnetSharePath[255] ;
+  char xnetShareName[255] ;
+  char xnetSharePass[255] ;
+
+  wchar_t w_netSharePath[520];
+  wchar_t w_netShareName[520];
+  wchar_t w_netSharePass[50];
+  wchar_t w_netServer[520];
+
+  LPWSTR lpWnetSharePath = w_netSharePath;
+  LPWSTR lpWnetShareName = w_netShareName;
+  LPWSTR lpWnetSharePass = w_netSharePass;
+  LPWSTR lpWnetServer = w_netServer;
+
+  int  pwdCtr = 0;
+  
+
+  //Generate a Random Password - Just to make sure 
+  memset(xnetSharePass, 0, 20);
+  srand((unsigned)time(NULL));
+
+  for(pwdCtr = 0; pwdCtr < 14; pwdCtr++)
+   xnetSharePass[pwdCtr] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"[rand() % 62];
+ 
+  //Shhhh...  Don't tell anyone the Share Password.
+  //printf("Password: %s\n", xnetSharePass);
+
+
+  memset(xnetSharePath, 0, 255);
+  memset(xnetShareName, 0, 255);
+
+  strncpy(xnetSharePath, netSharePath, 254);
+  strncpy(xnetShareName, netShareName, 254);
+
+  memset(w_netSharePath, 0, 520);
+  memset(w_netShareName, 0, 520);
+  memset(w_netSharePass, 0, 50);
+
+  if (strlen(xnetSharePath) < 1)
+  {
+    memset(Conrec, 0, 255);
+    consPrefix("[?] ", consYel);
+    consInput("Full Path Of Share>", shrLog);
+    strncpy(xnetSharePath, Conrec, 254);
+  }
+
+  if (strlen(xnetShareName) < 1)
+    strncpy(xnetShareName, "ACh-Rmt\0\0\0", 10);
+
+
+  iGoodShr = 0;
+  while (iGoodShr == 0)
+  {
+    if(shrLog == 1)
+      fprintf(LogHndl, "SHR: %s -> %s\n", xnetSharePath, xnetShareName);
+
+    consPrefix("SHR: ", consBlu);
+    printf("%s -> %s\n", xnetSharePath, xnetShareName);
+
+    // convert to LPWSTR for the API...  Sigh...
+    MultiByteToWideChar(0, 0, xnetSharePath, 512, w_netSharePath, 254);
+    MultiByteToWideChar(0, 0, xnetShareName, 512, w_netShareName, 254);
+    MultiByteToWideChar(0, 0, xnetSharePass, 40, w_netSharePass, 20);
+
+    netShr.shi2_netname = lpWnetShareName;
+    netShr.shi2_type = STYPE_DISKTREE; // disk drive
+    netShr.shi2_remark = L"Local Share Created By AChoir for Remote Acquisition";
+    netShr.shi2_permissions = ACCESS_ALL;  
+    netShr.shi2_max_uses = 4;
+    netShr.shi2_current_uses = 0;
+    netShr.shi2_path = lpWnetSharePath;
+    //netShr.shi2_passwd = NULL;
+    netShr.shi2_passwd = lpWnetSharePass;
+ 
+    // Call the NetShareAdd() function, specifying level 2. 
+    netShrRC = NetShareAdd(NULL, 2, (LPBYTE) &netShr, &netShrErr);
+
+    if (netShrRC != 0)
+    {
+      consPrefix("[!] ", consRed);
+      printf("Error Creating Local Share on %s: %s -> %s\n", netServer,xnetSharePath, xnetShareName);
+      consPrefix("[!] ", consRed);
+      printf("Error: %u\tParmErr=%u\n\n", netShrRC, netShrErr);
+
+      if (shrLog == 1)
+      {
+        fprintf(LogHndl, "Error Creating Local Share on %s: %s -> %s\n", netServer, xnetSharePath, xnetShareName);
+        fprintf(LogHndl, "Error: %u\tParmErr=%u\n\n", netShrRC, netShrErr);
+      }
+
+      consPrefix("[?] ", consYel);
+      printf("Please Re-Enter Full Directory Path to Share or \"quit\".\n");
+
+      memset(Conrec, 0, 255);
+      consPrefix("[?] ", consYel);
+      consPrefix("SHR: ", consBlu);
+      consInput("Full Path Of Share>", shrLog);
+      strncpy(xnetSharePath, Conrec, 254);
+
+      if (strnicmp(Conrec, "quit", 4) == 0)
+      {
+        consPrefix("[!] ", consRed);
+        printf("Program Exit Requested.\n");
+ 
+        if (shrLog == 1)
+        {
+          fprintf(LogHndl, "[!] Program Exit Requested.\n");
+          cleanUp_Exit(1);
+        }
+
+        fflush(stdout); //More PSExec Friendly
+        exit (1);
+
+      }
+    }
+    else
+    {
+      iGoodShr = 1;
+      consPrefix("[+] ", consGre);
+      printf("Successfully Created Share on %s: %s -> %s\n", netServer, xnetSharePath, xnetShareName);
+
+      if (shrLog == 1)
+        fprintf(LogHndl, "[+] Successfully Created Share on %s: %s -> %s\n", netServer, xnetSharePath, xnetShareName);
+
+      fflush(stdout); //More PSExec Friendly
+      return 0;
+    }
+  }
+
+  fflush(stdout); //More PSExec Friendly
+  return 0;
+
+}
+
+
+/****************************************************************/
+/* Create a Local Share (For Remote Acq)                        */
+/****************************************************************/
+long netShareDel(char *netShareName, int shrLog)
+{
+  wchar_t w_netShareName[520];
+  LPWSTR lpWnetShareName = w_netShareName;
+
+  if (strlen(netShareName) < 1)
+    strncpy(netShareName, "ACh-Rmt\0\0\0", 10);
+
+  MultiByteToWideChar(0, 0, netShareName, 512, w_netShareName, 254);
+
+  // Call the NetShareDel() function
+  netShrRC = NetShareDel(NULL, w_netShareName, 0);
+
+  if (netShrRC != NERR_Success)
+  {
+    consPrefix("[!] ", consRed);
+    printf("Error (%d) Deleting Local Share: %s\n", netShrRC, netShareName);
+
+    if (shrLog == 1)
+     fprintf(LogHndl, "Error (%d) Deleting Local Shares: %s\n", netShrRC, netShareName);
+  }
+  else
+  {
+    consPrefix("[+] ", consGre);
+    printf("Successfully Deleted Share: %s\n", netShareName);
+
+    if (shrLog == 1)
+      fprintf(LogHndl, "[+] Successfully Deleted Share: %s\n", netShareName);
+
+    fflush(stdout); //More PSExec Friendly
+    return 0;
+  }
+
+  fflush(stdout); //More PSExec Friendly
   return 0;
 
 }
@@ -5565,6 +5865,9 @@ void showTime(char *showText)
         showlocal->tm_mon + 1, showlocal->tm_mday, (showlocal->tm_year + 1900),
         showlocal->tm_hour, showlocal->tm_min, showlocal->tm_sec);
   }
+
+  fflush(stdout); //More PSExec Friendly
+
 }
 
 
@@ -5658,12 +5961,12 @@ void USB_Protect(DWORD USBOnOff)
     }
   }
   else 
-    if (OpenK == ERROR_FILE_NOT_FOUND)
-    {
-      fprintf(LogHndl, "[!] Could Not Open/Create USB WriteProtect Key\n");
-      consPrefix("[!] ", consRed);
-      printf("Could Not Open/Create USB WriteProtect Key\n");
-    }
+  if (OpenK == ERROR_FILE_NOT_FOUND)
+  {
+    fprintf(LogHndl, "[!] Could Not Open/Create USB WriteProtect Key\n");
+    consPrefix("[!] ", consRed);
+    printf("Could Not Open/Create USB WriteProtect Key\n");
+  }
   else 
   if (OpenK == ERROR_ACCESS_DENIED)
   {
@@ -5708,11 +6011,22 @@ void USB_Protect(DWORD USBOnOff)
       {
         fprintf(LogHndl, "\nYou have requested Achoir to Exit.\n");
         printf("\nYou have requested Achoir to Exit.\n");
+
+        fflush(stdout); //More PSExec Friendly
         cleanUp_Exit(0);
         exit(0) ;
       }
+
+      fflush(stdout); //More PSExec Friendly
+
     }
+
+    fflush(stdout); //More PSExec Friendly
+
   }
+
+  fflush(stdout); //More PSExec Friendly
+
 }
 
 
@@ -5797,6 +6111,7 @@ void cleanUp_Exit(int exitRC)
   consPrefix("[+] ", consGre);
   printf("Exit Return Code: %d\n", exitRC);
 
+  fflush(stdout); //More PSExec Friendly
   //exit(exitRC) ;
 }
 
@@ -5978,6 +6293,9 @@ VOID ReadSectorX(ULONGLONG sector, PVOID buffer)
     consPrefix("\n[!] ", consRed);
     printf("Error Reading Sector!  Cannot Process This Volume in RAW Mode!\n");
   }
+
+  fflush(stdout); //More PSExec Friendly
+
 }
 
 
@@ -5998,6 +6316,9 @@ VOID ReadSectorToMem(ULONGLONG sector, ULONG count, PVOID buffer)
     consPrefix("[!] ", consRed);
     printf("Error Reading Sector To Memory!  Cannot Process This Volume in RAW Mode!\n");
   }
+
+  fflush(stdout); //More PSExec Friendly
+
 }
 
 
@@ -6060,6 +6381,9 @@ VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
     consPrefix("[!] ", consRed);
     printf("Error Creating Sector Cache File!\n");
   }
+
+  fflush(stdout); //More PSExec Friendly
+
 }
 
 
@@ -6194,7 +6518,11 @@ VOID ReadVCN(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, ULONGLONG vcn, ULONG
     printf("Dropping into Debug Break\n");
     DebugBreak();
   }
+
   ReadExternalAttribute(attr, vcn, count, buffer);
+
+  fflush(stdout); //More PSExec Friendly
+
 }
 
 
@@ -6246,7 +6574,8 @@ VOID LoadMFT()
     printf("Cannot Access NTFS Volume...  Bypassing...\n");
     fprintf(LogHndl, "[!] Cannot Access NTFS Volume...  Bypassing...\n");
     
-    return; // Don't do anything else - We cant Acccess this Volume!
+   fflush(stdout); //More PSExec Friendly
+   return; // Don't do anything else - We cant Acccess this Volume!
   }
   
   if (MFT->Ntfs.Type != 'ELIF')
@@ -6256,10 +6585,13 @@ VOID LoadMFT()
     fprintf(LogHndl, "[!] Not An NTFS Volume...  Bypassing...\n");
 
     readRetcd = 0;
+    fflush(stdout); //More PSExec Friendly
     return;
   }
   
   FixupUpdateSequenceArray(MFT);
+
+  fflush(stdout); //More PSExec Friendly
 }
 
 
@@ -6319,6 +6651,7 @@ int FindActive()
 
   consPrefix("MFT: ", consBlu);
   printf("Parsing Active Files from MFT...\n     ooooooooooo+oooooooooooo|oooooooooooo+ooooooooooo\r     ");
+  fflush(stdout); //More PSExec Friendly
 
   PFILE_RECORD_HEADER file = PFILE_RECORD_HEADER(new UCHAR[BytesPerFileRecord]);
   Progress = Max_Files = 0;
@@ -6331,6 +6664,7 @@ int FindActive()
       dbrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
 
       printf(".");
+      fflush(stdout); //More PSExec Friendly
       Progress = 0;
     }
 
@@ -6431,7 +6765,12 @@ int FindActive()
         sqlite3_free(dbMQuery);
 
       }
+
+      fflush(stdout); //More PSExec Friendly
     }
+
+    fflush(stdout); //More PSExec Friendly
+
   }
 
 
@@ -6456,6 +6795,7 @@ int FindActive()
     consPrefix("[!] ", consRed);
     printf("MFTErr: Could Not Read MFT Database: %s\n", MFTDBFile);
     MFT_Status = 2;
+    fflush(stdout); //More PSExec Friendly
     return 2;
   }
 
@@ -6473,6 +6813,7 @@ int FindActive()
       consPrefix("[!] ", consRed);
       printf("MFTErr: MFT Database Error: %s\n", sqlite3_errmsg(dbMFTHndl));
       MFT_Status = 2;
+      fflush(stdout); //More PSExec Friendly
       return 2;
     }
     else
@@ -6631,6 +6972,7 @@ int FindActive()
         dbrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
 
         printf(".");
+        fflush(stdout); //More PSExec Friendly
         Progress = 0;
       }
     }
@@ -6655,6 +6997,8 @@ int FindActive()
 
   delete[] bitmap;
   delete[] file;
+
+  fflush(stdout); //More PSExec Friendly
 
 }
 
@@ -6710,6 +7054,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     printf("Recursion Too Deep - Ignoring Additional Recursion...\n");
 
     delete[] file;
+    fflush(stdout); //More PSExec Friendly
     return 0; //The Data should still be OK
   }
 
@@ -6757,6 +7102,8 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     }
   }
 
+  fflush(stdout); //More PSExec Friendly
+
   LCNType = 0;
   useDiskOrMem = maxMemExceed = 0; //Reset Default to Memory
 
@@ -6769,6 +7116,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     fprintf(LogHndl, "[!] Not a Valid MFT Record...  Bypassing...\n");
 
     delete[] file;
+    fflush(stdout); //More PSExec Friendly
     return 1;
   }
 
@@ -6822,6 +7170,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
           free(bufA);
           delete[] file;
+          fflush(stdout); //More PSExec Friendly
           return 1 ;
         }
 
@@ -6873,6 +7222,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       fprintf(LogHndl, "[!] No MFT File Attribute Data Found...  Bypassing...\n");
     }
 
+    fflush(stdout); //More PSExec Friendly
     return 1;
 
   }
@@ -6971,6 +7321,9 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         }
       }
 
+      fflush(stdout); //More PSExec Friendly
+
+
       if(iNCSFound == 0)
       {
         consPrefix("     (Sig) ", consRed);
@@ -6978,6 +7331,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         fprintf(LogHndl, "     (Sig)No Signature Match in File - File copy Bypassed.\n");
 
         delete[] file;
+        fflush(stdout); //More PSExec Friendly
         return 1;
       }
     }
@@ -7017,6 +7371,8 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         }
       }
 
+      fflush(stdout); //More PSExec Friendly
+
       // Did we allocate our Data Buffer OK?
       if(bufD == NULL) 
        MemAllocErr("Data Buffer") ;
@@ -7044,7 +7400,9 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   
       if (binLog == 1)
         fprintf(LogHndl, "\n[+] Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
- 
+
+      fflush(stdout); //More PSExec Friendly
+
  
       if(Append == 1)
         hFile = CreateFile((LPCSTR)Tooo_Fname, FILE_APPEND_DATA, 0, 0, OPEN_ALWAYS, 0, 0);
@@ -7061,6 +7419,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
         free(bufD);
         delete[] file;
+        fflush(stdout); //More PSExec Friendly
         return 1;
       }
 
@@ -7077,6 +7436,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
           free(bufD);
           delete[] file;
+          fflush(stdout); //More PSExec Friendly
           return 1;
         }
       }  
@@ -7116,6 +7476,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
               free(bufD);
               delete[] file;
+              fflush(stdout); //More PSExec Friendly
               return 1;
             }
           }
@@ -7126,6 +7487,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         }
       }
 
+      fflush(stdout); //More PSExec Friendly
 
       //Set the File Times
       if(SetFileTime(hFile, &ToCreTime, &ToAccTime, &ToModTime) == 0)
@@ -7150,6 +7512,8 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         consPrefix("[!] ", consRed);
         printf("Error Closing File!\n");
       }
+
+      fflush(stdout); //More PSExec Friendly
 
       useDiskOrMem = maxMemExceed = 0; //Reset to Memory
 
@@ -7185,6 +7549,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         printf("Could NOT Determine Source File Owner(Unknown)\n");
       }
 
+      fflush(stdout); //More PSExec Friendly
 
       free(bufD);
 
@@ -7246,16 +7611,20 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
           fprintf(LogHndl, "[+] File Sizes Match\n");
       }
 
+      fflush(stdout); //More PSExec Friendly
+
     }
 
     useDiskOrMem = maxMemExceed = 0; //Reset Default to Memory
     delete[] file;
+    fflush(stdout); //More PSExec Friendly
     return 0;
 
   }
 
   useDiskOrMem = maxMemExceed = 0; //Reset Default to Memory
   delete[] file;
+  fflush(stdout); //More PSExec Friendly
   return 0;
 
 }
@@ -7265,6 +7634,7 @@ void consPrefix(char *consText, int consColor)
   SetConsoleTextAttribute(hConsole, consColor);
   printf("%s", consText);
   SetConsoleTextAttribute(hConsole, consWhi);
+  fflush(stdout); //More PSExec Friendly
 }
 
 
@@ -7312,6 +7682,9 @@ void getCaseInfo(int SayOrGet)
       if(strlen(Conrec) > 0)
        strncpy(caseExmnr, Conrec, 251);
     }
+
+    fflush(stdout); //More PSExec Friendly
+
   }
 
   /****************************************************************/
@@ -7337,5 +7710,6 @@ void getCaseInfo(int SayOrGet)
   printf("Examiner: %s\n\n", caseExmnr);
 
   // Run This Routine ONLY ONCE to avoid ambiguity
+  fflush(stdout); //More PSExec Friendly
   iCase = 1;
 }
