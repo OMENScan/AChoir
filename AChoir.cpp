@@ -114,6 +114,12 @@
 /*                PSExec Display (Remote Acq)                   */
 /*              - SHR:<Path> <Name> - Create a Local Share      */
 /*              - SHD:<Name> - Delete a Local Share             */
+/* AChoir v1.2  - Add /USR:? and /PWD:? - Query MAP USR and PWD */
+/*              - Replaced getch() with getchar().  This is     */
+/*                because PsExec does not work with getch().    */
+/*                PsExec also does not work with SetConsoleMode */
+/*                so there is no way to do hidden/masked        */
+/*                password input.                               */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -189,7 +195,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v1.1\0";
+char Version[10] = "v1.2\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -219,7 +225,7 @@ int  MemAllocErr(char *ErrType);
 int  binCopy(char *FrmFile, char *TooFile, int binLog);
 void Time_tToFileTime(time_t InTimeT, int whichTime);
 long varConvert(char *inVarRec);
-long consInput(char *consString, int conLog);
+long consInput(char *consString, int conLog, int conHide);
 long mapsDrive(char *mapString, int mapLog);
 long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int shrLog);
 long netShareDel(char *netShareName, int shrLog);
@@ -841,6 +847,14 @@ int main(int argc, char *argv[])
     else
     if (strnicmp(argv[i], "/USR:", 5) == 0)
     {
+      if (argv[i][5] =='?')
+      {
+        consPrefix("[?] ", consYel);
+        consInput("Enter Share Mapping UserId> ", 0, 0);
+        memset(inUser, 0, 255);
+        strncpy(inUser, Conrec, 254);
+      }
+      else
       if (strlen(argv[i]) < 254)
       {
         memset(inUser, 0, 255);
@@ -855,6 +869,14 @@ int main(int argc, char *argv[])
     else
     if (strnicmp(argv[i], "/PWD:", 5) == 0)
     {
+      if (argv[i][5] =='?')
+      {
+        consPrefix("[?] ", consYel);
+        consInput("Enter Share Mapping Password> ", 0, 1);
+        memset(inPass, 0, 255);
+        strncpy(inPass, Conrec, 254);
+      }
+      else
       if (strlen(argv[i]) < 254)
       {
         memset(inPass, 0, 255);
@@ -1945,7 +1967,7 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\n");
             strtok(Inrec, "\r");
 
-            consInput(Inrec + 4, 1);
+            consInput(Inrec + 4, 1, 0);
             strncpy(Inprec, Conrec, 254);
           }
           else
@@ -2966,7 +2988,7 @@ int main(int argc, char *argv[])
             
             fprintf(LogHndl, "%s\n", Inrec + 4);
             printf("%s\n", Inrec + 4);
-            getKey = getche();
+            getKey = getchar();
 
             if ((getKey == 81) || (getKey == 113))
             {
@@ -3129,11 +3151,21 @@ int main(int argc, char *argv[])
             /****************************************************************/
             /* Map to an External Drive & Set it to ACQ Directory           */
             /****************************************************************/
-            strtok(Inrec, "\n");
-            strtok(Inrec, "\r");
+            if (Inrec[4] =='?')
+            {
+              consPrefix("[?] ", consYel);
+              consInput("Enter Share Mapping UserId> ", 1, 0);
+              memset(inUser, 0, 255);
+              strncpy(inUser, Conrec, 254);
+            }
+            else
+            {
+              strtok(Inrec, "\n");
+              strtok(Inrec, "\r");
 
-            memset(inUser, 0, 255);
-            strncpy(inUser, Inrec + 4, 254);
+              memset(inUser, 0, 255);
+              strncpy(inUser, Inrec + 4, 254);
+            }
           }
           else
           if (strnicmp(Inrec, "PWD:", 4) == 0)
@@ -3141,11 +3173,21 @@ int main(int argc, char *argv[])
             /****************************************************************/
             /* Map to an External Drive & Set it to ACQ Directory           */
             /****************************************************************/
-            strtok(Inrec, "\n");
-            strtok(Inrec, "\r");
+            if (Inrec[4] =='?')
+            {
+              consPrefix("[?] ", consYel);
+              consInput("Share Mapping Password> ", 1, 1);
+              memset(inPass, 0, 255);
+              strncpy(inPass, Conrec, 254);
+            }
+            else
+            {
+              strtok(Inrec, "\n");
+              strtok(Inrec, "\r");
 
-            memset(inPass, 0, 255);
-            strncpy(inPass, Inrec + 4, 254);
+              memset(inPass, 0, 255);
+              strncpy(inPass, Inrec + 4, 254);
+            }
           }
           else
           if (strnicmp(Inrec, "MAX:", 4) == 0)
@@ -5480,13 +5522,16 @@ void Time_tToFileTime(time_t InTimeT, int whichTime)
 /****************************************************************/
 /* Console Input                                                */
 /****************************************************************/
-long consInput(char *consString, int conLog)
+long consInput(char *consString, int conLog, int conHide)
 {
+  int conLoop;
+
   if(conLog == 1)
     fprintf(LogHndl, "INP: [%s]", consString);
 
   consPrefix("INP: ", consBlu);
   printf("%s", consString);
+  fflush(stdout); //More PSExec Friendly
 
   memset(Conrec, 0, 255);
   fgets(Conrec, 251, stdin);
@@ -5530,7 +5575,7 @@ long mapsDrive(char *mapString, int mapLog)
   if (strlen(mapString) < 1)
   {
     consPrefix("[?] ", consYel);
-    consInput("Map: Server\\Share>", mapLog);
+    consInput("Map: Server\\Share> ", mapLog, 0);
   }
   else
     strncpy(Conrec, mapString, 254);
@@ -5565,7 +5610,7 @@ long mapsDrive(char *mapString, int mapLog)
       memset(Conrec, 0, 255);
       consPrefix("[?] ", consYel);
       consPrefix("MAP: ", consBlu);
-      consInput("Server\\Share>", mapLog);
+      consInput("Server\\Share> ", mapLog, 0);
 
       if (strnicmp(Conrec, "quit", 4) == 0)
       {
@@ -5655,7 +5700,7 @@ long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int 
   {
     memset(Conrec, 0, 255);
     consPrefix("[?] ", consYel);
-    consInput("Full Path Of Share>", shrLog);
+    consInput("Full Path Of Share> ", shrLog, 0);
     strncpy(xnetSharePath, Conrec, 254);
   }
 
@@ -5709,7 +5754,7 @@ long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int 
       memset(Conrec, 0, 255);
       consPrefix("[?] ", consYel);
       consPrefix("SHR: ", consBlu);
-      consInput("Full Path Of Share>", shrLog);
+      consInput("Full Path Of Share> ", shrLog, 0);
       strncpy(xnetSharePath, Conrec, 254);
 
       if (strnicmp(Conrec, "quit", 4) == 0)
@@ -5999,7 +6044,7 @@ void USB_Protect(DWORD USBOnOff)
 
     while (getLoop == 0)
     {
-      getKey = getche();
+      getKey = getchar();
       if ((getKey == 67) || (getKey == 99))
       {
         fprintf(LogHndl, "\nYou have requested Achoir to Continue.\n");
@@ -7657,28 +7702,28 @@ void getCaseInfo(int SayOrGet)
       consPrefix("\n[*] ", consBlu);
       fprintf(LogHndl, "\n[*] Default Case Number: %s\n", caseNumbr);
       printf("Default Case Number: %s\n", caseNumbr);
-      consInput("Enter New Case Number (Or Enter To Accept Default): ", 1);
+      consInput("Enter New Case Number (Or Enter To Accept Default): ", 1, 0);
       if(strlen(Conrec) > 0)
        strncpy(caseNumbr, Conrec, 251);
 
       consPrefix("\n[*] ", consBlu);
       fprintf(LogHndl, "\n[*] Default Case Description: %s\n", caseDescr);
       printf("Default Case Description: %s\n", caseDescr);
-      consInput("Enter New Case Description (Or Enter to Accept Default: ", 1);
+      consInput("Enter New Case Description (Or Enter to Accept Default: ", 1, 0);
       if(strlen(Conrec) > 0)
        strncpy(caseDescr, Conrec, 251);
 
       consPrefix("\n[*] ", consBlu);
       fprintf(LogHndl, "\n[*] Default Evidence Number: %s\n", evidNumbr);
       printf("Default Evidence Number: %s\n", evidNumbr);
-      consInput("Enter New Evidence Number (Or Enter to Accept Default): ", 1);
+      consInput("Enter New Evidence Number (Or Enter to Accept Default): ", 1, 0);
       if(strlen(Conrec) > 0)
        strncpy(evidNumbr, Conrec, 251);
 
       consPrefix("\n[*] ", consBlu);
       fprintf(LogHndl, "\n[*] Default Examiner: %s\n", caseExmnr);
       printf("Default Examiner: %s\n", caseExmnr);
-      consInput("Enter New Examiner (Or Enter to Accept Default): ", 1);
+      consInput("Enter New Examiner (Or Enter to Accept Default): ", 1, 0);
       if(strlen(Conrec) > 0)
        strncpy(caseExmnr, Conrec, 251);
     }

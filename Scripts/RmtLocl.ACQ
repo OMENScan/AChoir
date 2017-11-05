@@ -5,16 +5,8 @@
 * IMPORTANT - When using /MAP, /USR, /PWD - They MUST be in this order: /USR, /PWD, /MAP! *
 *******************************************************************************************
 Say:Please Enter the Name of the Remote Computer you wish to Acquire:
-Inp:Remote Computer>
+Inp:Remote Computer> 
 VR0:&Inp
-Say:
-Say:Please Enter the UserId to Map back to this Computer (ComputerName\UserID)>:
-Inp:Admin UserId>
-VR1:&Inp
-Say:
-Say:Please Enter the Password:
-Inp:Admin Password>
-VR2:&Inp
 Say:
 Say:Now Creating a Local Share to Run AChoir and Save Artifacts from: &VR0
 SHR:&Dir Ach-Remt
@@ -25,5 +17,5 @@ Say:Loading AChoir on Remote Computer
 *            ESPECIALLY IMPORTANT for the Map Back UserID when using the form:            *
 *            <ComputerName\UserID> - without quotes it WILL NOT WORK                      *
 *******************************************************************************************
-EXE:\SYS\PSexec.exe \\&VR0 -h -e -c -f "Achoir.exe" "/usr:&VR1" "/pwd:&VR2" "/map:\\%COMPUTERNAME%\Ach-Remt" "/ini:Scripts\AChoirX.Acq"
+EXE:\SYS\PSexec.exe \\&VR0 -h -e -c -f "Achoir.exe" "/usr:?" "/pwd:?" "/map:\\%COMPUTERNAME%\Ach-Remt" "/ini:Scripts\AChoirX.Acq"
 Shd:Ach-Remt

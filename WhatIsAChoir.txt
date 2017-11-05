@@ -1,4 +1,4 @@
-AChoir - v1.1
+AChoir - v1.2
 
 AChoir
 ======
@@ -165,8 +165,10 @@ SYS:     Execute a System Command using the OS Shell
 CMD:     Execute a System Command using AChoir's Command Shell
 USR:<UserId> 
          UserId to use when mapping a drive (Optional)
+USR:?    Will query for the UserId for Drive Mapping 
 PWD:<Password> 
          Password to use when mapping a drive (Optional)
+PWD:?    Will query for the Password for Drive Mapping 
 MAP:     Map to a remote drive share (\\<server>\<share>) and use 
          it as the Acquisition Directory 
 SHR:     Create a Share (SHR:<x:\ShareDirectory> <ShareName>)
@@ -295,7 +297,9 @@ Here are the Command Line Options:
         This option is designed to allow you to build dead-box scripts,
         and specify a drive variable (the drive letter that has been mounted).
 /USR:<UserId> - UserId to use when mapping a drive (Optional)
+/USR:?  Will query for the UserId for Drive Mapping 
 /PWD:<Password> - Password to use when mapping a drive (Optional)
+/PWD:?  Will query for the Password for Drive Mapping 
 /MAP:<\\Server\Share> - Map a network drive - THIS SETS THE ACQUISITION AND 
       CURRENT DIRECTORIES TO THE MAPPED DRIVE - This is mostly used for REMOTE
       Acquisition 
