@@ -120,6 +120,8 @@
 /*                PsExec also does not work with SetConsoleMode */
 /*                so there is no way to do hidden/masked        */
 /*                password input.                               */
+/* AChoir v1.3  - Implement NTP Client for Querying Time Drift  */
+/*              - Fix minor display bug when using &Tim         */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -190,12 +192,19 @@
 #pragma comment(lib, "Netapi32.lib")
 #include <lm.h>
 
+// Required for Winsock 
+#include <winsock.h>
+
+// NTP Client Integer Types 
+#include <stdint.h>
+#define NTP_TIMESTAMP_DELTA 2208988800ull
+
 
 #define NUL '\0'
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v1.2\0";
+char Version[10] = "v1.3\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -237,6 +246,7 @@ void cleanUp_Exit(int exitRC);
 BOOL SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, BOOL bEnablePrivilege);
 char * convert_sid_to_string_sid(const PSID psid, char *sid_str);
 void getCaseInfo(int SayOrGet);
+int ntpGetTime(char* ntpServer);
 
 // Variables to create a share
 int  iGoodShr = 0;
@@ -537,6 +547,11 @@ char Dskrec[10] = "A:\\\0";
 char Alphabet[30] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
 
 
+// NTP Variables
+char ntpFQDN[255] = "\0";
+char ntpDateTime[25] = "01/01/0001 - 01:01:01\0";
+
+
 // Template for padding
 template <class T1, class T2> inline T1* Padd(T1* p, T2 n)
 {
@@ -617,6 +632,7 @@ int main(int argc, char *argv[])
   memset(inMapp, 0, 255);
   memset(inUser, 0, 255);
   memset(inPass, 0, 255);
+  memset(ntpFQDN, 0, 255);
 
   memset(VarArray, 0, 2560);
 
@@ -984,6 +1000,7 @@ int main(int argc, char *argv[])
   fflush(stdout); //More PSExec Friendly
 
 
+
   /****************************************************************/
   /* Get Basic Security Priveleges we will need before starting   */
   /****************************************************************/
@@ -1341,6 +1358,27 @@ int main(int argc, char *argv[])
             {
               sprintf(Inrec + oPtr, "%s", CurrFil);
               oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Ntp", 4) == 0)
+            {
+              // Full Date and Time - mm/dd/yyyy - hh:mm:ss
+              if(strlen(ntpFQDN) > 0)
+              {
+                memset(ntpDateTime, 0, 25);
+                ntpGetTime(ntpFQDN);
+                
+                sprintf(Inrec + oPtr, "%s", ntpDateTime);
+                oPtr = strlen(Inrec);
+              }
+              else
+              {
+                consPrefix("\n[!] ", consRed);
+                fprintf(LogHndl, "[!] NTP Server FQDN has not been set, Bypassing NTP.\n");
+                printf( "NTP Server FQDN has not been set, Bypassing NTP..\n" );
+              }
+
               iPtr += 3;
             }
             else
@@ -1957,6 +1995,22 @@ int main(int argc, char *argv[])
               cleanUp_Exit(3);
               exit (3);
             }
+          }
+          else
+          if (strnicmp(Inrec, "Ntp:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Save NTP FQDN                                                */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+            
+            memset(ntpFQDN, 0, 255);
+            sprintf(ntpFQDN, "%s\0", Inrec + 4);
+
+            consPrefix("[+] ", consGre);
+            printf("NTP Server FQDN Set to: %s\n", ntpFQDN);
+            fprintf(LogHndl, "NTP Server FQDN Set to: %s\n", ntpFQDN);
           }
           else
           if (strnicmp(Inrec, "Inp:", 4) == 0)
@@ -5524,8 +5578,6 @@ void Time_tToFileTime(time_t InTimeT, int whichTime)
 /****************************************************************/
 long consInput(char *consString, int conLog, int conHide)
 {
-  int conLoop;
-
   if(conLog == 1)
     fprintf(LogHndl, "INP: [%s]", consString);
 
@@ -5893,7 +5945,7 @@ void showTime(char *showText)
 
   if (strnicmp(showText, "&Tim", 4) == 0)
   {
-    sprintf(FullDateTime, "%02d/%02d/%04d - %02d:%02d:%02d\n",
+    sprintf(FullDateTime, "%02d/%02d/%04d - %02d:%02d:%02d",
       showlocal->tm_mon + 1, showlocal->tm_mday, (showlocal->tm_year + 1900),
       showlocal->tm_hour, showlocal->tm_min, showlocal->tm_sec);
   }
@@ -7757,4 +7809,235 @@ void getCaseInfo(int SayOrGet)
   // Run This Routine ONLY ONCE to avoid ambiguity
   fflush(stdout); //More PSExec Friendly
   iCase = 1;
+}
+
+
+/************************************************************/
+/* Get NTP Time                                             */
+/* This code is  Mish-Mosh of code I grabbed from all over  */
+/*  the Internet - Including much of David Lettier's        */
+/*  NTP code at: github.com/lettier/ntpclient               */
+/*                                                          */
+/* +Copyright (c) 2014, David Lettier                       */
+/* +All rights reserved.                                    */
+/*                                                          */
+/* Much of it was trial and error, but it works!            */
+/************************************************************/
+int ntpGetTime(char* ntpServer)
+{
+  int  ntpPort=123;  //NTP is port 123
+  long ntpRC;
+  int  ntpRecvRC = -1;
+  int  i;
+
+  typedef struct
+  {
+    uint8_t flags;           // Eight bits. Flags (li = 2, vn = 3, and mode = 3)
+
+    uint8_t stratum;         // Eight bits. Stratum level of the local clock.
+    uint8_t poll;            // Eight bits. Maximum interval between successive messages.
+    uint8_t precision;       // Eight bits. Precision of the local clock.
+
+    uint32_t rootDelay;      // 32 bits. Total round trip delay time.
+    uint32_t rootDispersion; // 32 bits. Max error aloud from primary clock source.
+    uint32_t refId;          // 32 bits. Reference clock identifier.
+
+    uint32_t refTm_s;        // 32 bits. Reference time-stamp seconds.
+    uint32_t refTm_f;        // 32 bits. Reference time-stamp fraction of a second.
+
+    uint32_t origTm_s;       // 32 bits. Originate time-stamp seconds.
+    uint32_t origTm_f;       // 32 bits. Originate time-stamp fraction of a second.
+
+    uint32_t rxTm_s;         // 32 bits. Received time-stamp seconds.
+    uint32_t rxTm_f;         // 32 bits. Received time-stamp fraction of a second.
+
+    uint32_t txTm_s;         // 32 bits and the most important field the client cares about. Transmit time-stamp seconds.
+    uint32_t txTm_f;         // 32 bits. Transmit time-stamp fraction of a second.
+
+  } ntpPacket;              // Total: 384 bits or 48 bytes.
+
+  ntpPacket ntpOut = {0, 0, 0, 0, 0, 0, 0, 0, 0};  // the packet we send
+
+  char *ntpBuf = new char[1024];          // the buffer we get back
+
+  struct sockaddr_in server_addr;
+  struct hostent *ntpXServer;             // Server data structure.
+
+  struct in_addr ntpIPaddr;
+  SOCKET Sockit;
+  struct tm *ntpLocal;
+  int    ntpTimeVal = 1500;
+
+  char WhatZone[255] ;
+  TIME_ZONE_INFORMATION ltzinfo ;
+  DWORD retval ; 
+
+
+  //What is the Local Time Zone?
+  retval = GetTimeZoneInformation( &ltzinfo ) ;
+
+
+  //Parse Local Time Zone into WhatZone
+  //Not Currently in Use - But may be in the future
+  for(i=0;i<32;i++)
+  {
+    if(retval == TIME_ZONE_ID_STANDARD ) 
+     WhatZone[i] = (char) ltzinfo.StandardName[i] ;
+    else 
+     WhatZone[i] = (char) ltzinfo.DaylightName[i];
+  }
+
+  //Start Winsock
+  WSADATA wsaData;
+  BYTE wsMajorVersion = 1;
+  BYTE wsMinorVersion = 1;
+  WORD wVersionRequested = MAKEWORD(wsMinorVersion, wsMajorVersion);   
+ 
+  if (WSAStartup(wVersionRequested, &wsaData) != 0) 
+  {
+    consPrefix("\n[!] ", consRed);
+    printf("NTP ERROR - Winsock could not startup.\n");
+
+    if(iLogOpen == 1)
+     fprintf(LogHndl, "[!] NTP ERROR - Winsock could not startup.\n");
+
+    sprintf(ntpDateTime, "<Winsock Error>");
+    WSACleanup();
+    return(1);
+  }
+
+  if (LOBYTE(wsaData.wVersion) != wsMajorVersion || HIBYTE(wsaData.wVersion) != wsMinorVersion)
+  {
+    consPrefix("\n[!] ", consRed);
+    printf("NTP ERROR - Winsock 1.1 is not supported.\n");
+
+    if(iLogOpen == 1)
+     fprintf(LogHndl, "[!] NTP ERROR - Winsock 1.1 is not supported.\n");
+
+    sprintf(ntpDateTime, "<Winsock Error>");
+    WSACleanup();
+    return(2);
+  }
+
+
+  //Open a UDP Socket
+  Sockit = socket( AF_INET, SOCK_DGRAM, IPPROTO_UDP );
+
+  if (Sockit < 0)
+  {
+    consPrefix("\n[!] ", consRed);
+    printf( "NTP ERROR opening socket.\n" );
+
+    if(iLogOpen == 1)
+     fprintf(LogHndl, "[!] NTP ERROR opening socket.\n");
+
+    sprintf(ntpDateTime, "<Winsock Error>");
+    return(3);
+  }
+
+  //DNS Lookup to convert FQDN to IP
+  ntpXServer = gethostbyname(ntpServer);
+
+  if ( ntpXServer == NULL )
+  {
+    consPrefix("\n[!] ", consRed);
+    printf( "NTP ERROR, no such host.\n" );
+
+    if(iLogOpen == 1)
+     fprintf(LogHndl, "[!] NTP ERROR, no such host..\n");
+
+    sprintf(ntpDateTime, "<Unknown NTP Host>");
+    return(4);
+  }
+
+  //Pick First IP Address in the List - It's easier
+  ntpIPaddr.s_addr = *(u_long *) ntpXServer->h_addr_list[0];
+
+  //printf("FQDN: %s\n", ntpServer);
+  //printf("IPv4 Address: %s\n", inet_ntoa(ntpIPaddr));
+
+  memset(&server_addr, 0, sizeof(server_addr));
+  server_addr.sin_family=AF_INET;
+  server_addr.sin_addr.s_addr = ntpIPaddr.s_addr;
+  server_addr.sin_port=htons(ntpPort);
+
+
+  /***********************************************************************/
+  /* NTP Request Message - 48 Bytes in Length. Packet initialized to x00 */
+  /*  except first byte: 00,011,011 for li = 0, vn = 3, and mode = 3     */
+  /***********************************************************************/
+  //printf("Sending...\n");
+  memset(&ntpOut, 0, 48);
+  *(( char *) &ntpOut + 0) = 0x1b;
+
+  ntpRC = sendto(Sockit, (char *) &ntpOut, sizeof(ntpOut), 0, (struct sockaddr *)&server_addr, sizeof(server_addr));
+  if(ntpRC == SOCKET_ERROR)
+  {
+    consPrefix("\n[!] ", consRed);
+    printf("NTP Socket Error.\n");
+
+    if(iLogOpen == 1)
+     fprintf(LogHndl, "[!] NTP Socket Error.\n");
+
+    sprintf(ntpDateTime, "<Winsock Error>");
+    return(5);
+  }
+  //else
+  // printf("Bytes Sent (Should be 48):%ld\n", ntpRC);
+
+
+  //Set The Socket Timeout to 1/2 Second
+  if (setsockopt(Sockit, SOL_SOCKET, SO_RCVTIMEO, (char*)&ntpTimeVal, sizeof(int)) < 0) 
+  {
+    consPrefix("\n[!] ", consRed);
+    printf("NTP ERROR - Could not Set Socket TimeOut.\n");
+
+    if(iLogOpen == 1)
+     fprintf(LogHndl, "[!] NTP ERROR - Could not Set Socket TimeOut.\n");
+
+    sprintf(ntpDateTime, "<Winsock Error>");
+    return(6);
+  }
+
+
+  // Receive NTP data into buffer
+  //printf("Receiving...\n");
+  ntpRecvRC = -1;
+  ntpRecvRC = recv(Sockit, (char *) &ntpOut, 1024, 0);
+
+
+  if (ntpRecvRC > 0)
+  {
+    ntpOut.txTm_s = ntohl(ntpOut.txTm_s);   // Time-stamp seconds.
+    ntpOut.txTm_f = ntohl(ntpOut.txTm_f);   // Time-stamp fraction of a second.
+
+    time_t txTm = (time_t) (ntpOut.txTm_s - NTP_TIMESTAMP_DELTA );
+
+    //Convert into a format I like
+    ntpLocal = localtime((const time_t*) &txTm);
+    sprintf(ntpDateTime, "%02d/%02d/%04d - %02d:%02d:%02d",
+      ntpLocal->tm_mon + 1, ntpLocal->tm_mday, (ntpLocal->tm_year + 1900),
+      ntpLocal->tm_hour, ntpLocal->tm_min, ntpLocal->tm_sec);
+  }
+  else
+  if (ntpRecvRC == 0 )
+  {
+    //Connection Closed
+    return(7);
+  }
+  else
+  {
+    //The NTP Query had some type of Error
+    consPrefix("\n[!] ", consRed);
+    printf("NTP Query Failed: %d\n", WSAGetLastError());
+
+    if(iLogOpen == 1)
+     fprintf(LogHndl, "NTP Query Failed: %d\n", WSAGetLastError());
+
+    sprintf(ntpDateTime, "<NTP Failed>");
+    return(8);
+  }
+
+  return(0);
+
 }

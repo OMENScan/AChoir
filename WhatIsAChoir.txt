@@ -1,4 +1,4 @@
-AChoir - v1.2
+AChoir - v1.3
 
 AChoir
 ======
@@ -138,6 +138,9 @@ Here is a list of all the Actions and Objects:
 Actions:
 ========
 SAY:     Echo Text and Objects to the Screen and Logfile
+NTP:<FQDN> Set the FQDN of the NTP Server.
+           Note: This WILL NOT do an NTP request.  It ONLY 
+            sets the FQDN of the NTP Server to use.
 ADM:Check Check if AChoir is running as an Administrator,
            and warn if it is not
 ADM:Force  Check if AChoir is running as an Administrator,
@@ -258,6 +261,7 @@ Objects:
 &Dir     The Current Directory Object
 &Inp     Input from console (INP: Action) 
 &Tim     The Local Time Set on the computer - Please Note: It may not be accurate.
+&Ntp     Query the NTP Server and display the Time. Used for Time Drift.
 &Fil     The Current File Object
 &Acq     The Current Acquisition Directory
 &For     An array of File objects set by the FOR: action
@@ -312,6 +316,7 @@ these various conditions.  AChoir is coded to give the results of these comparis
 Interactive Mode, and to take Conditional Action in regular Scripted Mode.  In Interactive Mode
 Achoir WILL NOT take conditional action.
 
+
 A note about Case Information (/CSE, CSE:GET, CSE:SAY)
 ----------
 To avoid any accidental confusion about Case information (that may jeopardize non-repudiation),
@@ -321,6 +326,25 @@ I have chosen to disallow changing Case information even if the default settings
 
 Also Note: Case Information is entirely optional - You can use AChoir without entering any 
            Case Information, and this is the default (so AChoir can run fully unattended)
+
+
+A note about NTP (NTP: and &NTP)
+----------
+Achoir can query an NTP server to display the Accurate Time.  This is most useful when identifying
+Time Drift when gathering artifacts. For Example: 
+
+ NTP:windows.time.com
+ SAY:Local Time: &Tim - NTP Time: &Ntp
+
+BY DEFAULT NONE of the default/provided scripts use NTP.  This is for three reasons:
+ 1. It's bad form to put NTP servers in any default config files.
+ 2. It opens a UDP Port (123) and communicates with an NTP server, and that may be 
+    considered contamination.
+ 3. NTP is UDP and it may not work in situations where NAT is used and/or NTP is blocked
+    (Your Firewall may need to be configured to allow NTP)
+
+AChoir's NTP client may be useful in many situations to identify Time Drift, but please take
+into account the issues above before using this function.
 
 
 Artifacts that AChoir itself generates:
