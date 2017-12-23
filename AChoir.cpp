@@ -122,6 +122,9 @@
 /*                password input.                               */
 /* AChoir v1.3  - Implement NTP Client for Querying Time Drift  */
 /*              - Fix minor display bug when using &Tim         */
+/* AChoir v1.4  - New Actions to Hide and Reconnect the Console */
+/*              - CON:Hide and CON:Show                         */
+/*              - SLP:<Sec> Sleep for <Sec>Seconds              */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -204,7 +207,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v1.3\0";
+char Version[10] = "v1.4\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -277,6 +280,7 @@ VOID UnloadMFT();
 int FindActive();
 int rawCopy(char *FrmFile, char *TooFile, int binLog);
 int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime, int binLog, int Append);
+//int spinOnChange(char* SpinFileName);
 
 
 // Global Variables For Raw NTFS Access
@@ -402,6 +406,7 @@ char *recvData;
 char *recvTemp;
 int  recvSize = 25000;
 
+int  TermRC = 0;
 int  LastRC = 0;
 int  ChkRC = 0;
 char *ExePtr, *ParmPtr, *CopyPtr;
@@ -485,6 +490,7 @@ char JmpLbl[255];
 int  iGoodMap = 0;
 int  iArgsMap = 0;
 int  getKey;
+int  iSleep;
 
 int  iXitCmd = 0;
 char XitCmd[4096];
@@ -515,6 +521,10 @@ int  iCPSFound = 0; // 0==Found, 1==Not
 
 PUCHAR ClustZero; // First Cluster buffer
 
+// Console Hande for Hide, Show
+HWND conHndl;
+int  iConMode = 1 ;
+
 // Console Input instead of File
 int consOrFile = 0;
 
@@ -527,7 +537,6 @@ int     consGre = 10 ;
 int     consRed = 12 ;
 int     consYel = 14 ;
 int     consWhi = 15 ;
-
 
 // Case Information (ONLY ONCE!)
 // 0 = Not Entered, 1 = Entered, 2 = /CSE Arg
@@ -598,6 +607,11 @@ int main(int argc, char *argv[])
   iHour = lclTime->tm_hour;
   iMin = lclTime->tm_min;
   iSec = lclTime->tm_sec;
+
+  /****************************************************************/
+  /* Get the Consolewindow Handle - Since we have Focus           */
+  /****************************************************************/
+  conHndl = GetConsoleWindow();
 
 
   /****************************************************************/
@@ -2011,6 +2025,45 @@ int main(int argc, char *argv[])
             consPrefix("[+] ", consGre);
             printf("NTP Server FQDN Set to: %s\n", ntpFQDN);
             fprintf(LogHndl, "NTP Server FQDN Set to: %s\n", ntpFQDN);
+          }
+          else
+          if (strnicmp(Inrec, "Con:Hide", 8) == 0)
+          {
+            /****************************************************************/
+            /* Free The Console and Go Dark                                 */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            iConMode = 0;
+            ShowWindow(conHndl, SW_MINIMIZE);
+            ShowWindow(conHndl, SW_HIDE);
+
+          }
+          else
+          if (strnicmp(Inrec, "Con:Show", 8) == 0)
+          {
+            /****************************************************************/
+            /* Free The Console and Go Dark                                 */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            ShowWindow(conHndl, SW_SHOW);
+            ShowWindow(conHndl, SW_RESTORE);
+
+          }
+          else
+          if (strnicmp(Inrec, "Slp:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Sleep for number of Seconds                                  */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            iSleep = atoi(Inrec + 4);
+            Sleep(iSleep*1000);
           }
           else
           if (strnicmp(Inrec, "Inp:", 4) == 0)
@@ -3427,6 +3480,7 @@ int main(int argc, char *argv[])
                 fprintf(LogHndl, "MD5: %s\n", MD5Out);
                 consPrefix("MD5: ", consGre);
                 printf("%s\n", MD5Out);
+
                 LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, NULL);
               }
 

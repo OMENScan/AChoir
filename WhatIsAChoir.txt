@@ -1,4 +1,4 @@
-AChoir - v1.3
+AChoir - v1.4
 
 AChoir
 ======
@@ -138,6 +138,13 @@ Here is a list of all the Actions and Objects:
 Actions:
 ========
 SAY:     Echo Text and Objects to the Screen and Logfile
+CON:Hide Hide The Console Screen - For quiet Acquisition
+         DO NOT USE IF YOU HAVE SCREEN INPUT - For any 
+         Input be sure to Show any Hidden Screen
+CON:Show Show a Previously Hidden Console
+         Be Sure to Show any hidden screens before needed 
+         Input. 
+SLP:<Sec>  Sleep for <Sec> Seconds
 NTP:<FQDN> Set the FQDN of the NTP Server.
            Note: This WILL NOT do an NTP request.  It ONLY 
             sets the FQDN of the NTP Server to use.
