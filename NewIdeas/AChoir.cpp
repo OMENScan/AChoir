@@ -124,6 +124,9 @@
 /*              - Fix minor display bug when using &Tim         */
 /* AChoir v1.4  - New Actions to Hide and Reconnect the Console */
 /*              - CON:Hide and CON:Show                         */
+/*              - SLP:<Sec> Sleep for <Sec>Seconds              */
+/* AChoir v1.5  - Add /VR0: -/VR9: Command Line Parameters      */
+/*              - When BaseDir changes, change Windows CWD too  */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -206,7 +209,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v1.4\0";
+char Version[10] = "v1.5\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -279,6 +282,7 @@ VOID UnloadMFT();
 int FindActive();
 int rawCopy(char *FrmFile, char *TooFile, int binLog);
 int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime, int binLog, int Append);
+//int spinOnChange(char* SpinFileName);
 
 
 // Global Variables For Raw NTFS Access
@@ -341,6 +345,7 @@ char CmdHash[35] = "d05c529f0eebb6aaf10cbdecde14d310\0";
 char TempDir[1024] = "C:\\AChoir\0";
 char BaseDir[1024] = "C:\\AChoir\0";
 char CurrDir[1024] = "\0";
+char CurrWorkDir[1024] = "\0";
 char CurrFil[255] = "AChoir.dat\0";
 char DiskDrive[10] = "C:\0\0\0";
 char MapDrive[10] = "C:\0\0\0";
@@ -404,6 +409,7 @@ char *recvData;
 char *recvTemp;
 int  recvSize = 25000;
 
+int  TermRC = 0;
 int  LastRC = 0;
 int  ChkRC = 0;
 char *ExePtr, *ParmPtr, *CopyPtr;
@@ -487,6 +493,7 @@ char JmpLbl[255];
 int  iGoodMap = 0;
 int  iArgsMap = 0;
 int  getKey;
+int  iSleep;
 
 int  iXitCmd = 0;
 char XitCmd[4096];
@@ -517,6 +524,10 @@ int  iCPSFound = 0; // 0==Found, 1==Not
 
 PUCHAR ClustZero; // First Cluster buffer
 
+// Console Hande for Hide, Show
+HWND conHndl;
+int  iConMode = 1 ;
+
 // Console Input instead of File
 int consOrFile = 0;
 
@@ -529,7 +540,6 @@ int     consGre = 10 ;
 int     consRed = 12 ;
 int     consYel = 14 ;
 int     consWhi = 15 ;
-int     iConMode = 1 ;
 
 // Case Information (ONLY ONCE!)
 // 0 = Not Entered, 1 = Entered, 2 = /CSE Arg
@@ -601,6 +611,11 @@ int main(int argc, char *argv[])
   iMin = lclTime->tm_min;
   iSec = lclTime->tm_sec;
 
+  /****************************************************************/
+  /* Get the Consolewindow Handle - Since we have Focus           */
+  /****************************************************************/
+  conHndl = GetConsoleWindow();
+
 
   /****************************************************************/
   /* Volume Information Variables                                 */
@@ -624,6 +639,7 @@ int main(int argc, char *argv[])
   iLogOpen = 0;
 
   memset(CurrDir, 0, 1024);
+  memset(CurrWorkDir, 0, 1024);
   memset(TempDir, 0, 1024);
   memset(BaseDir, 0, 1024);
   memset(BACQDir, 0, 1024);
@@ -644,8 +660,8 @@ int main(int argc, char *argv[])
   /****************************************************************/
   /* What Directory are we in?                                    */
   /****************************************************************/
-  getcwd(BaseDir, 1000);
-
+  getcwd(BaseDir, 1000);      // Just The Drive
+  getcwd(CurrWorkDir, 1000);  // Working Directory
 
   /****************************************************************/
   /* Remove any Trailing Slashes.  This happens if CWD is a       */
@@ -907,6 +923,73 @@ int main(int argc, char *argv[])
       }
     }
     else
+    if ((strnicmp(argv[i], "/VR", 3) == 0) && (argv[i][4] == ':'))
+    {
+      /**********************************************************/
+      /* Allow Varibles VR0 - VR9 on Command Line. This should  */
+      /*  make seting up menus a little easier                  */
+      /**********************************************************/
+      switch (argv[i][3])
+      {
+        case '0':
+          iVar = 0;
+        break;
+
+        case '1':
+          iVar = 256;
+        break;
+
+        case '2':
+          iVar = 256 * 2;
+        break;
+
+        case '3':
+          iVar = 256 * 3;
+        break;
+
+        case '4':
+          iVar = 256 * 4;
+        break;
+
+        case '5':
+          iVar = 256 * 5;
+        break;
+
+        case '6':
+          iVar = 256 * 6;
+        break;
+
+        case '7':
+          iVar = 256 * 7;
+        break;
+
+        case '8':
+          iVar = 256 * 8;
+        break;
+
+        case '9':
+          iVar = 256 * 9;
+        break;
+              
+        /**********************************************************/
+        /* Bad Var Name                                           */
+        /**********************************************************/
+        default:
+          iVar = -1;
+        break;
+      }
+
+      if (iVar == -1)
+      {
+        consPrefix("[!] ", consRed);
+        printf("Invalid Variable: %.4s\n", argv[i]);
+      }
+      else
+      {
+        strncpy(VarArray+iVar, argv[i]+5, 255);
+      }
+    }
+    else
     {
       consPrefix("[!] ", consRed);
       printf("Bad Argument: %s\n", argv[i]);
@@ -925,6 +1008,10 @@ int main(int argc, char *argv[])
   {
     mapsDrive(inMapp, 0);
     strncpy(BaseDir, MapDrive, 4);
+
+    // Reset The WorkingDirectory to the Mapped Drive
+    sprintf(CurrWorkDir, "%s\\\0", BaseDir);
+    _chdir(CurrWorkDir); 
 
     memset(WDLLPath, 0, 256);
 
@@ -969,6 +1056,7 @@ int main(int argc, char *argv[])
   {
     consPrefix("[!] ", consRed);
     printf("Could not Open Log File.\n");
+    //printf("%s\n", LogFile);
     exit(3);
   }
 
@@ -1753,7 +1841,9 @@ int main(int argc, char *argv[])
             {
               if (strlen(Inrec) > 4)
               {
-                strcat(CurrDir, "\\\0");
+                if(strlen(CurrDir) > 0 )
+                 strcat(CurrDir, "\\\0"); // Only add backslash for appended Directories
+
                 strcat(CurrDir, Inrec + 4);
                 sprintf(TempDir, "%s\\%s\0", BaseDir, CurrDir);
               }
@@ -1772,6 +1862,9 @@ int main(int argc, char *argv[])
             consPrefix("SET: ", consBlu);
             printf("Directory Has Been Set To: %s\n", CurrDir);
 
+            // Reset The WorkingDirectory to the new Directory
+            sprintf(CurrWorkDir, "%s\\%s\0", BaseDir, CurrDir);
+            _chdir(CurrWorkDir); 
           }
           else
           if (strnicmp(Inrec, "Fil:", 4) == 0)
@@ -2024,7 +2117,9 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\r");
 
             iConMode = 0;
-            FreeConsole();
+            ShowWindow(conHndl, SW_MINIMIZE);
+            ShowWindow(conHndl, SW_HIDE);
+
           }
           else
           if (strnicmp(Inrec, "Con:Show", 8) == 0)
@@ -2035,14 +2130,21 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\n");
             strtok(Inrec, "\r");
 
-            //First try to attach back - Otherwise Create a new Console
-            if(!AttachConsole(ATTACH_PARENT_PROCESS))
-             AllocConsole();
+            ShowWindow(conHndl, SW_SHOW);
+            ShowWindow(conHndl, SW_RESTORE);
 
-            // Reconnect STDIN and STDOUT
-            freopen("CONIN$", "r", stdin);
-            freopen("CONOUT$", "w", stdout);
-            freopen("CONOUT$", "w", stderr);
+          }
+          else
+          if (strnicmp(Inrec, "Slp:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Sleep for number of Seconds                                  */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            iSleep = atoi(Inrec + 4);
+            Sleep(iSleep*1000);
           }
           else
           if (strnicmp(Inrec, "Inp:", 4) == 0)
@@ -3459,6 +3561,7 @@ int main(int argc, char *argv[])
                 fprintf(LogHndl, "MD5: %s\n", MD5Out);
                 consPrefix("MD5: ", consGre);
                 printf("%s\n", MD5Out);
+
                 LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, NULL);
               }
 
