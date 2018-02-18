@@ -14,7 +14,7 @@
 <script type="text/javascript">
 self.moveTo(10,10);
 self.resizeTo(1100,860);
-var panels = new Array("","panel1","panel2","panel3","panel4");
+var panels = new Array("","panel1","panel2","panel3","panel4","panel5");
 
 function panel(tab) 
 {
@@ -142,15 +142,46 @@ function RunRLACh(Bits)
   WshShell.Run(ScrName, 1, false);
 }
 
-// Use Batch File (ACQ-L.bat) to run AChoir on Remote System (ACQ-R.bat)
 // Saves the Artifacts to remote AChoir Server
-function RunRRACh()
+function RunRRACh(Bits)
 {
-  var ScrName = "/ini:AChoir.acq" ;
+  var ScrName = " /ini:RScripts\\" + Run4ACQ.value ;
+  var ScrBits = "A-AChoir.exe";
+  
+  if (Bits == 32) 
+  {
+    ScrBits = "A-AChoir.exe" ;
+  } 
+  else if (Bits == 64) 
+  {
+    ScrBits = "A-AChoir64.exe" ;
+  } 
 
-  ScrName = "/c ACQ-L.bat" ;  
-  var oShell = new ActiveXObject("Shell.Application");
-  oShell.ShellExecute("Cmd.exe", ScrName, "", "runas", "1");
+  ScrName = ScrBits + ScrName + " /VR0:" + Host4Name.value + " /VR1:" + Admin4Name.value + " /VR2:" + Admin4Pass.value + " /VR3:" + Server4Name.value ;  
+
+  WshShell = new ActiveXObject("WScript.Shell");
+  WshShell.Run(ScrName, 1, false);
+}
+
+// Saves the Artifacts to remote AChoir Server from Multiple Remote Machines
+function RunMRACh(Bits)
+{
+  var ScrName = " /ini:RScripts\\" + Run5ACQ.value ;
+  var ScrBits = "A-AChoir.exe";
+  
+  if (Bits == 32) 
+  {
+    ScrBits = "A-AChoir.exe" ;
+  } 
+  else if (Bits == 64) 
+  {
+    ScrBits = "A-AChoir64.exe" ;
+  } 
+
+  ScrName = ScrBits + ScrName + " /VR0:" + File5Name.value + " /VR1:" + Admin5Name.value + " /VR2:" + Admin5Pass.value + " /VR3:" + Server5Name.value ;  
+
+  WshShell = new ActiveXObject("WScript.Shell");
+  WshShell.Run(ScrName, 1, false);
 }
 
 // Exit HTA
@@ -158,6 +189,16 @@ function ExitMe()
 {
   self.close()
 }
+
+// Edit The List of Remote Hosts using Notepad
+function EditList()
+{
+  var ScrName = "NotePad.exe " + File5Name.value ;
+  
+  WshShell = new ActiveXObject("WScript.Shell");
+  WshShell.Run(ScrName, 1, false);
+}
+
 
 </script>
 
@@ -225,6 +266,7 @@ function ExitMe()
     &nbsp; <span class="tabs tabs0" id="tab2" onclick="panel(2)">Local->Remote</span>
     &nbsp; <span class="tabs tabs0" id="tab3" onclick="panel(3)">Remote->Local</span>
     &nbsp; <span class="tabs tabs0" id="tab4" onclick="panel(4)">Remote->Remote</span>
+    &nbsp; <span class="tabs tabs0" id="tab5" onclick="panel(5)">Multi-Remote</span>
 
     <div class="panel" id="panel1" style="display:block">
       <table border="0" width="100%">
@@ -498,8 +540,14 @@ function ExitMe()
             </p>
 
             <p>
+            Your Admin Password:
+            <input type="password" size="25" name="Admin4Pass" value="">&nbsp<br>
+            <i>This is your Domain Admin Password</i>
+            </p><br>
+
+            <p>
             AChoir Server Share:
-            <input type="text" size="25" name="Server$Name" value="\\Server\Share">&nbsp<br>
+            <input type="text" size="25" name="Server4Name" value="\\Server\Share">&nbsp<br>
             <i>This is the Remote Host and Share that AChoir resides on</i>
             </p><br>
 
@@ -511,7 +559,81 @@ function ExitMe()
 
             </TD></TR></TABLE>
 
-            <br><br><br><br><br>
+            <br><br>
+            <p>
+            <b><i>Important Note: </b></i>This GUI will call the 32Bit AChoir Program Remotely as Admin.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+
+    <div class="panel" id="panel5" style="display:none">
+      <table border="0" width="100%">
+        <tr valign="top">
+          <td>
+
+            <TABLE Width="100%" border="0" bgcolor="#FFFFEF"><TR><TD>
+            <p>
+            This Tab is meant to simplify running an AChoir Remote Script on a list of remote
+            computers using PSExec.  It will instruct multiple remote computers to map to the
+            AChoir Server Share to run AChoir from, and save the Artifacts to the same Share.
+            </p>
+            </TD></TR></TABLE>
+
+
+            <p>
+            <TABLE Width="100%" border="0"><TR><TD>
+            <font color="#000000"><i><fieldset><legend>Fill In All Fields</legend></i></font>
+
+            <p>
+            AChoir Script to Run (FROM AChoir Server Machine):
+            <select size="1" name="Run5ACQ">
+            <option value="MRAChoir.ACQ" selected>MRAChoir</option>
+            <option value="MRAChoir64.ACQ">MRAChoir64</option>
+            <option value="MRAChoirZ.ACQ">MRAChoirZ</option>
+            <option value="MRDocDump.ACQ">MRDocDump</option>
+            <option value="MRMediaDump.ACQ">MRMediaDump</option>
+            <option value="MRNoMem.ACQ">MRNoMem</option>
+            <option value="MRAchCon.ACQ">MRAchCon</option>
+            </select>
+            </p>
+
+            <p>
+            File List of Hosts to Triage:
+            <input type="text" size="25" name="File5Name" value="Targets.txt">&nbsp - &nbsp 
+            <input type="button" value="EditList" onclick="EditList();"/><br>
+            <i>This is the List of Remote Hosts you want to Triage</i>
+            </p>
+
+            <p>
+            Your Admin ID:
+            <input type="text" size="25" name="Admin5Name" value="Domain\AdminID">&nbsp<br>
+            <i>This is your Domain Admin ID (it MUST be in the Local Administrators Group)</i>
+            </p>
+
+            <p>
+            Your Admin Password:
+            <input type="password" size="25" name="Admin5Pass" value="">&nbsp<br>
+            <i>This is your Domain Admin Password</i>
+            </p><br>
+
+            <p>
+            AChoir Server Share:
+            <input type="text" size="25" name="Server5Name" value="\\Server\Share">&nbsp<br>
+            <i>This is the Remote Host and Share that AChoir resides on</i>
+            </p><br>
+
+            <p>
+            <input type="button" value="AChoir-32" onclick="RunMRACh(32);"/> - 
+            <input type="button" value="AChoir-64" onclick="RunMRACh(64);"/> - 
+            <input type="button" value="Exit GUI" onclick="ExitMe();"/> 
+            </p>
+
+            </TD></TR></TABLE>
+
+            <br><br>
             <p>
             <b><i>Important Note: </b></i>This GUI will call the 32Bit AChoir Program Remotely as Admin.
             </p>
