@@ -125,6 +125,9 @@
 /* AChoir v1.4  - New Actions to Hide and Reconnect the Console */
 /*              - CON:Hide and CON:Show                         */
 /*              - SLP:<Sec> Sleep for <Sec>Seconds              */
+/* AChoir v1.5  - Add /VR0: -/VR9: Command Line Parameters      */
+/*              - When BaseDir changes, change Windows CWD too  */
+/*              - New Redaction Routine for PWD: EXE: CMD:      */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -207,7 +210,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v1.4\0";
+char Version[10] = "v1.5\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -250,6 +253,8 @@ BOOL SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, BOOL bEnablePrivilege);
 char * convert_sid_to_string_sid(const PSID psid, char *sid_str);
 void getCaseInfo(int SayOrGet);
 int ntpGetTime(char* ntpServer);
+size_t Redactor(char *inRedact, char *outRedact);
+
 
 // Variables to create a share
 int  iGoodShr = 0;
@@ -343,6 +348,7 @@ char CmdHash[35] = "d05c529f0eebb6aaf10cbdecde14d310\0";
 char TempDir[1024] = "C:\\AChoir\0";
 char BaseDir[1024] = "C:\\AChoir\0";
 char CurrDir[1024] = "\0";
+char CurrWorkDir[1024] = "\0";
 char CurrFil[255] = "AChoir.dat\0";
 char DiskDrive[10] = "C:\0\0\0";
 char MapDrive[10] = "C:\0\0\0";
@@ -583,6 +589,7 @@ int main(int argc, char *argv[])
   char Cmprec[4096];
   char Arnrec[2048];
   char Shrrec[1024];
+  char Redrec[1024];
 
   DWORD dwSize = 0;
   DWORD dwDownloaded = 0;
@@ -636,6 +643,7 @@ int main(int argc, char *argv[])
   iLogOpen = 0;
 
   memset(CurrDir, 0, 1024);
+  memset(CurrWorkDir, 0, 1024);
   memset(TempDir, 0, 1024);
   memset(BaseDir, 0, 1024);
   memset(BACQDir, 0, 1024);
@@ -656,8 +664,8 @@ int main(int argc, char *argv[])
   /****************************************************************/
   /* What Directory are we in?                                    */
   /****************************************************************/
-  getcwd(BaseDir, 1000);
-
+  getcwd(BaseDir, 1000);      // Just The Drive
+  getcwd(CurrWorkDir, 1000);  // Working Directory
 
   /****************************************************************/
   /* Remove any Trailing Slashes.  This happens if CWD is a       */
@@ -919,6 +927,73 @@ int main(int argc, char *argv[])
       }
     }
     else
+    if ((strnicmp(argv[i], "/VR", 3) == 0) && (argv[i][4] == ':'))
+    {
+      /**********************************************************/
+      /* Allow Varibles VR0 - VR9 on Command Line. This should  */
+      /*  make seting up menus a little easier                  */
+      /**********************************************************/
+      switch (argv[i][3])
+      {
+        case '0':
+          iVar = 0;
+        break;
+
+        case '1':
+          iVar = 256;
+        break;
+
+        case '2':
+          iVar = 256 * 2;
+        break;
+
+        case '3':
+          iVar = 256 * 3;
+        break;
+
+        case '4':
+          iVar = 256 * 4;
+        break;
+
+        case '5':
+          iVar = 256 * 5;
+        break;
+
+        case '6':
+          iVar = 256 * 6;
+        break;
+
+        case '7':
+          iVar = 256 * 7;
+        break;
+
+        case '8':
+          iVar = 256 * 8;
+        break;
+
+        case '9':
+          iVar = 256 * 9;
+        break;
+              
+        /**********************************************************/
+        /* Bad Var Name                                           */
+        /**********************************************************/
+        default:
+          iVar = -1;
+        break;
+      }
+
+      if (iVar == -1)
+      {
+        consPrefix("[!] ", consRed);
+        printf("Invalid Variable: %.4s\n", argv[i]);
+      }
+      else
+      {
+        strncpy(VarArray+iVar, argv[i]+5, 255);
+      }
+    }
+    else
     {
       consPrefix("[!] ", consRed);
       printf("Bad Argument: %s\n", argv[i]);
@@ -937,6 +1012,10 @@ int main(int argc, char *argv[])
   {
     mapsDrive(inMapp, 0);
     strncpy(BaseDir, MapDrive, 4);
+
+    // Reset The WorkingDirectory to the Mapped Drive
+    sprintf(CurrWorkDir, "%s\\\0", BaseDir);
+    _chdir(CurrWorkDir); 
 
     memset(WDLLPath, 0, 256);
 
@@ -981,6 +1060,7 @@ int main(int argc, char *argv[])
   {
     consPrefix("[!] ", consRed);
     printf("Could not Open Log File.\n");
+    //printf("%s\n", LogFile);
     exit(3);
   }
 
@@ -1765,7 +1845,9 @@ int main(int argc, char *argv[])
             {
               if (strlen(Inrec) > 4)
               {
-                strcat(CurrDir, "\\\0");
+                if(strlen(CurrDir) > 0 )
+                 strcat(CurrDir, "\\\0"); // Only add backslash for appended Directories
+
                 strcat(CurrDir, Inrec + 4);
                 sprintf(TempDir, "%s\\%s\0", BaseDir, CurrDir);
               }
@@ -1784,6 +1866,9 @@ int main(int argc, char *argv[])
             consPrefix("SET: ", consBlu);
             printf("Directory Has Been Set To: %s\n", CurrDir);
 
+            // Reset The WorkingDirectory to the new Directory
+            sprintf(CurrWorkDir, "%s\\%s\0", BaseDir, CurrDir);
+            _chdir(CurrWorkDir); 
           }
           else
           if (strnicmp(Inrec, "Fil:", 4) == 0)
@@ -3447,10 +3532,19 @@ int main(int argc, char *argv[])
               FileMD5(TempDir);
               if (iPrm3 > 0)
               {
-                fprintf(LogHndl, "\nExe: %s\n   : %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2, Exerec + iPrm3);
-
+                fprintf(LogHndl, "\nExe: %s\n", Exerec + iPrm1);
                 consPrefix("\nEXE: ", consBlu);
-                printf("%s\n   : %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2, Exerec + iPrm3);
+                printf("%s\n", Exerec + iPrm1);
+
+                // Redact iPrm2 if it has a Password
+                Redactor(Exerec+iPrm2, Redrec);
+                fprintf(LogHndl, "   : %s\n", Redrec);
+                printf("   : %s\n", Redrec);
+
+                // Redact iPrm3 if it has a Password
+                Redactor(Exerec+iPrm3, Redrec);
+                fprintf(LogHndl, "   : %s\n", Redrec);
+                printf("   : %s\n", Redrec);
 
                 fprintf(LogHndl, "MD5: %s\n", MD5Out);
                 consPrefix("MD5: ", consGre);
@@ -3461,9 +3555,14 @@ int main(int argc, char *argv[])
               else
               if (iPrm2 > 0)
               {
-                fprintf(LogHndl, "\nEXE: %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2);
+                fprintf(LogHndl, "\nExe: %s\n", Exerec + iPrm1);
                 consPrefix("\nEXE: ", consBlu);
-                printf("%s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2);
+                printf("%s\n", Exerec + iPrm1);
+
+                // Redact iPrm2 if it has a Password
+                Redactor(Exerec+iPrm2, Redrec);
+                fprintf(LogHndl, "   : %s\n", Redrec);
+                printf("   : %s\n", Redrec);
 
                 fprintf(LogHndl, "MD5: %s\n", MD5Out);
                 consPrefix("MD5: ", consGre);
@@ -3562,9 +3661,20 @@ int main(int argc, char *argv[])
 
                 if (iPrm3 > 0)
                 {
-                  fprintf(LogHndl, "\nCMD: %s\n   : %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2, Exerec + iPrm3);
+                  fprintf(LogHndl, "\nCMD: %s\n", Exerec + iPrm1);
                   consPrefix("\nCMD: ", consBlu);
-                  printf("%s\n   : %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2, Exerec + iPrm3);
+                  printf("%s\n", Exerec + iPrm1);
+
+                  // Redact iPrm2 if it has a Password
+                  Redactor(Exerec+iPrm2, Redrec);
+                  fprintf(LogHndl, "   : %s\n", Redrec);
+                  printf("   : %s\n", Redrec);
+
+                  // Redact iPrm3 if it has a Password
+                  Redactor(Exerec+iPrm3, Redrec);
+                  fprintf(LogHndl, "   : %s\n", Redrec);
+                  printf("   : %s\n", Redrec);
+
                   fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
                   consPrefix("MD5: ", consGre);
                   printf("Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
@@ -3574,9 +3684,15 @@ int main(int argc, char *argv[])
                 else
                 if (iPrm2 > 0)
                 {
-                  fprintf(LogHndl, "\nCMD: %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2);
+                  fprintf(LogHndl, "\nCMD: %s\n", Exerec + iPrm1);
                   consPrefix("\nCMD: ", consBlu);
-                  printf("%s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2);
+                  printf("%s\n", Exerec + iPrm1);
+
+                  // Redact iPrm2 if it has a Password
+                  Redactor(Exerec+iPrm2, Redrec);
+                  fprintf(LogHndl, "   : %s\n ", Redrec);
+                  printf("   : %s\n", Redrec);
+
                   fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
                   consPrefix("MD5: ", consGre);
                   printf("Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
@@ -3588,6 +3704,7 @@ int main(int argc, char *argv[])
                   fprintf(LogHndl, "\nCMD: %s\n", Exerec + iPrm1);
                   consPrefix("\nCMD: ", consBlu);
                   printf("%s\n", Exerec + iPrm1);
+
                   fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
                   consPrefix("MD5: ", consGre);
                   printf("Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
@@ -4194,6 +4311,59 @@ size_t Squish(char *SqString)
 
   SqLen = strlen(SqString);
   return SqLen;
+}
+
+
+/****************************************************************/
+/* Redact a String to delete sensitive data                     */
+/****************************************************************/
+size_t Redactor(char *inRedact, char *outRedact)
+{
+  size_t inRdi, outRdi, RdiFlag, RdLen;
+
+  RdiFlag = outRdi = 0;
+  RdLen = strlen(inRedact);
+  memset (outRedact, 0, 1024);
+
+  //Zap any Redacted Strings... Max Size = 1000
+  if(RdLen > 1000)
+   RdLen = 1000;
+
+  for (inRdi = 0; inRdi < RdLen; inRdi++)
+  {
+    if (RdiFlag == 1)
+    {
+      if(inRedact[inRdi] == ' ')
+      {
+       RdiFlag = 0;
+       outRedact[outRdi] = inRedact[inRdi];
+       outRdi++;
+      }
+      
+      if(inRedact[inRdi] == '"')
+      {
+       RdiFlag = 0;
+       outRedact[outRdi] = inRedact[inRdi];
+       outRdi++;
+      }
+    }
+    else
+    if (strnicmp(inRedact+inRdi, "pwd:", 4) == 0)
+    {
+      strncpy(outRedact+outRdi, "PWD:*Redacted*\0", 15);
+      outRdi+=14;
+      RdiFlag = 1;
+    }
+    else
+    if (RdiFlag == 0)
+    {
+      outRedact[outRdi] = inRedact[inRdi];
+      outRdi++;
+    }
+  }
+
+  RdLen = strlen(outRedact);
+  return RdLen;
 }
 
 
@@ -5633,7 +5803,7 @@ void Time_tToFileTime(time_t InTimeT, int whichTime)
 long consInput(char *consString, int conLog, int conHide)
 {
   if(conLog == 1)
-    fprintf(LogHndl, "INP: [%s]", consString);
+    fprintf(LogHndl, "INP: [%s] ", consString);
 
   consPrefix("INP: ", consBlu);
   printf("%s", consString);
@@ -5664,7 +5834,12 @@ long consInput(char *consString, int conLog, int conHide)
   }
 
   if(conLog == 1)
-    fprintf(LogHndl, "%s\n", Conrec);
+  {
+    if(conHide == 1)
+     fprintf(LogHndl, "*Redacted*\n");
+    else
+     fprintf(LogHndl, "%s\n", Conrec);
+  }
 
   fflush(stdout); //More PSExec Friendly
   return 0;

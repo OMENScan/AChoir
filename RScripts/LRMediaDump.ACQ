@@ -1,0 +1,94 @@
+***************************************************
+* Local->Remote Live Media Collect Script (2.0)   *
+* - Pulls Common Media File Types from disk       *
+* - Created by D0n Quix0te/OMENScan (May 2015)    *
+***************************************************
+ADM:Force
+***************************************************
+* Create the Acquisition Directory and RESTRICT   *
+*  PERMISSIONS to only THAT user                  *
+***************************************************
+ACQ:
+SAY:
+SAY: Locking Permissions (For Privacy) ...
+SAY:
+CMD:icacls "&ACQ" /inheritance:d /Q
+CMD:icacls "&ACQ" /setowner "CREATOR OWNER" /T /Q
+CMD:icacls "&ACQ" /grant:r "CREATOR OWNER":(OI)(CI)F 
+CMD:icacls "&ACQ" /remove:g "Users" /Q
+CMD:icacls "&ACQ" /remove:g "Authenticated Users" /Q
+SAY:
+SAY: AChoir will scan the Hard drive and pull Media Files based on 
+SAY:  File Type AND/OR File Signature
+SAY:
+SAY: Step 1. Loading Video File Signatures...
+SAY:
+Sig:Clear
+Sig:ASF=3026b2758e66cf11
+Sig:AVI=41564920
+Sig:avi=52494646
+Sig:CDA=52494646
+Sig:FLV=464c56
+Sig:M4A=00000020667479704d3441
+Sig:Mov=0100020304050607
+Sig:Mov=6674797071742020
+Sig:MOV=000007b56d6f6f76
+Sig:MOV=66726565
+Sig:MOV=6d646174
+Sig:MOV=6d6f6f76
+Sig:MOV=706e6f74
+Sig:MOV=736b6970
+Sig:MOV=77696465
+Sig:Mp4=0000001866747970
+Sig:Mp4=0000001c66747970
+Sig:Mp4=6674797033677035
+Sig:MP4=667479704d534e56
+Sig:MP4=6674797069736f6d
+Sig:MPEG=000001b3
+Sig:mpg=000001b3000001b7
+Sig:mpg=000001ba000001b9
+Sig:QCP=52494646
+Sig:QT=6d646174
+Sig:ra=2e7261fd
+Sig:RAM=2e7261fd
+Sig:RMI=52494646
+Sig:SWF=465753
+Sig:VOB=000001ba000001b9
+Sig:wma=3026B275000000FF
+Sig:wma=3026B275529A1246
+Sig:WMA=3026b2758e66cf11
+Sig:WMF=d7cdc69a
+Sig:WMV=3026b2758e66cf11
+SAY:
+SAY: Step 2. Loading Image File Signatures...
+SAY:
+Sig:Clear
+Sig:BMP=424d
+Sig:GIF=47494638
+Sig:JFIF=ffd8ffffd9
+Sig:JP2=0000000c6a502020
+Sig:JPE=ffd8ffffd9
+Sig:JPEG=ffd8ffffd9
+Sig:JPG=ffd8ffe0
+Sig:JPG=ffd8ffe1
+Sig:JPG=ffd8ffffd9
+Sig:PCX=0a020101
+Sig:PCX=0a030101
+Sig:PCX=0a050101
+Sig:PCX=0a050108
+Sig:PNG=889a0d12
+Sig:PNG=89504e470d0a1a0a
+Sig:TIF=492049
+Sig:TIF=49492a00
+Sig:tif=4D4D002A
+Sig:TIF=4d4d002b
+Sig:TIF=4d4d2a
+Sig:TIFF=492049
+Sig:TIFF=49492a00
+Sig:TIFF=4d4d002b
+Sig:TIFF=4d4d2a
+SAY:
+SAY: Step 3. Searching for Image And Video Files...
+SAY:
+ACQ:\Img-Vid
+NCS:"C:\*" "&Acq"

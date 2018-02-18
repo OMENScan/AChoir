@@ -1,0 +1,15 @@
+*******************************************************************************************
+* Achoir - Endpoint Artifact Acquisistion - Server Version - 64Bit                        *
+*   /VR0:<Endpoint> /VR1:<Admin ID> /VR2:<Admin PW> /VR3:<ServerShare>                    *
+*                                                                                         *
+* IMPORTANT - When  using PSexec the -e parameter is REQUIRED for remote mapping to work! *
+* IMPORTANT - When using /MAP, /USR, /PWD - They MUST be in this order: /USR, /PWD, /MAP! *
+*******************************************************************************************
+Say:
+Say:Loading AChoir on Remote Computer
+*******************************************************************************************
+* Important: All the Parameters are in quotes to make sure they are separated.  This is   *
+*            ESPECIALLY IMPORTANT for the Map Back UserID when using the form:            *
+*            <ComputerName\UserID> - without quotes it WILL NOT WORK                      *
+*******************************************************************************************
+EXE:\SYS\PSexec.exe \\&VR0 -h -e -c -f "Achoir.exe" "/usr:&VR1" "/pwd:&VR2" "/map:&VR3" "/ini:RScripts\LRAChoir64.Acq"

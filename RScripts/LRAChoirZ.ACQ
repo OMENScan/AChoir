@@ -1,0 +1,198 @@
+***************************************************
+* ZPAQ Local->Remote Live Acquisition Script (3.0)*
+* - Pulls Forensics artifacts for analysis        *
+* - Created by D0n Quix0te/OMENScan (May 2015)    *
+* - Inspired by many other tools                  *
+***************************************************
+ADM:Force
+***************************************************
+* Create the Acquisition Directory and RESTRICT   *
+*  PERMISSIONS to only THAT user                  *
+***************************************************
+ACQ:
+64B:
+SAY:
+SAY: AChoir - 64 Bit Detected...  Switching to 64 Bit Script...
+SAY:
+INI:RScripts\LRAChoir64Z.ACQ
+END:
+SAY:
+SAY: AChoir will scan the Hard drive and pull forensics for investigation.
+SAY:  When Completed, AChoir will Archive the Artifacts using ZPAQ.
+SAY:
+SAY: 1. Now Dumping Memory...
+SAY:
+SAY:  WARNING: This will take while, and will create a HUGE memory image File.
+SAY:  You've been warned ;-) 
+SAY:
+ACQ:\MemDump
+EXE:\MEM\WinPmem.exe &Acq\WinPmemDump.Raw
+SAY:
+SAY: 2. Extracting Prefetch Directory...
+SAY:
+ACQ:\Prf
+NCP:"&Win\prefetch\*" "&Acq"
+SAY:
+SAY: 3a. Copy Raw $MFT...
+SAY:
+DSK:Fixed
+ACQ:\RawData
+NCP:"&Dsk:\$MFT" "&Acq"
+SAY:
+SAY: 3b. Copy Raw $LogFile...
+SAY:
+NCP:"&Dsk:\$LogFile" "&Acq"
+SAY:
+SAY:
+SAY: 3c. Now Extracting USNJrnl...
+SAY:
+EXE:\DSK\ExtractUSNJrnl.exe /DevicePath:c: /OutputPath:&Acq
+SAY:
+SAY: 3d. Now Parsing USNJrnl...
+SAY:
+CMD:fsutil usn enumdata 1 0 1 C: > &Acq\USNJrnl.dat
+CMD:fsutil usn readjournal C: csv >> &Acq\USNJrnl.dat
+SAY:
+SAY: 4a. Gathering System Information...
+SAY:
+ACQ:\
+CMD:\SYS\PSInfo.exe /accepteula -s > &Acq\Info.dat
+SAY:
+SAY: 4b. Gathering System Audit Information...
+SAY:
+EXE:\SYS\WinAudit.exe /r=gsoPxuTUeERNtnzDaIbMpmidcSArCOHG /f=&Acq\WinAudit.htm /l=&Acq\WinAudLog.txt
+SAY:
+SAY: 4c. Gathering Group Policy Information...
+SAY:
+CMD:GPResult /R /Z > &Acq\GPResult.txt
+SAY:
+SAY: 5. Raw Copy Registry Hives...
+SAY:
+ACQ:\Reg
+NCP:"&Win\System32\Config\SECURITY" "&Acq"
+NCP:"&Win\System32\Config\SOFTWARE" "&Acq"
+NCP:"&Win\System32\Config\SAM" "&Acq"
+NCP:"&Win\System32\Config\SYSTEM" "&Acq"
+SAY: 6. Copying (System32) EventViewer Logs...
+SAY:
+ACQ:\Evt
+ACQ:\Evt\Sys32
+NCP:"&Win\System32\winevt\Logs\*" "&Acq"
+SAY:
+SAY: 6a. Copying (Sysnative) Bit EventViewer Logs...
+SAY:
+ACQ:\Evt\Nativ
+NCP:"&Win\sysnative\winevt\Logs\*" "&Acq"
+SAY:
+SAY: 7. Parsing (System32) Hosts And Services Directory...
+SAY:
+ACQ:\SYS
+ACQ:\SYS\Sys32
+NCP:"&Win\System32\Drivers\Etc\*" "&Acq"
+SAY:
+SAY: 7a. Parsing (Sysnative) Hosts And Services Directory...
+SAY:
+ACQ:\SYS\Nativ
+NCP:"&Win\sysnative\Drivers\Etc\*" "&Acq"
+SAY:
+SAY: 8. Parsing Environment Variables...
+SAY:
+ACQ:\SYS
+CMD:Set > &Acq\EnVar.dat
+SAY:
+SAY: 9. Parsing The Patch List...
+SAY:
+CMD:WMIC qfe list > &Acq\QFEList.dat
+SAY:
+SAY: 10. Gathering Running Process List Information...
+SAY:
+CMD:Tasklist /v > &Acq\Tasklist.dat
+CMD:Tasklist /M > &Acq\TaskAll.dat
+CMD:\SYS\PSList.exe /accepteula -x > &Acq\PSList.dat
+SAY:
+SAY: 11. Gathering Connection Information...
+SAY:
+***:Replaced NETSTAT with CPORTS (Gives Full Path of Process)
+***:NetStat -abno > &Acq\NetStat.dat
+EXE:\SYS\cports.exe /scomma &Acq\CPorts.csv
+SAY:
+SAY: 12. Gathering IP Config Information...
+SAY:
+CMD:IPConfig /all > &Acq\IPConfig.dat
+CMD:IPConfig /DisplayDNS > &Acq\IPCfgDNS.dat
+SAY:
+SAY: 13. Gathering ARP Information...
+SAY:
+CMD:Arp -a > &Acq\ArpInfo.dat
+SAY:
+SAY: 14. Gathering NetBIOS Information...
+SAY:
+CKY:&Win\System32\NBTStat.exe
+CMD:&Win\System32\NBTStat.exe -scn > &Acq\NetBios.dat
+END:
+CKY:&Win\sysnative\NBTStat.exe
+CMD:&Win\sysnative\NBTStat.exe -scn >> &Acq\NetBios.dat
+END:
+SAY:
+SAY: 15. Gathering Open Files/Process Information...
+SAY:
+CMD:\SYS\Handle.exe /accepteula > &Acq\OpenFiles.dat
+SAY:
+SAY: 16. Gathering Scheduled Task Information...
+SAY:
+CMD:At > &Acq\SchedTasks.dat
+CMD:Schtasks /query /fo LIST /v >> &Acq\SchedTasks.dat
+SAY:
+SAY: 17. Gathering System Logon Information...
+SAY:
+CMD:\SYS\PSLoggedon.exe /accepteula > &Acq\Logon.dat
+SAY:
+SAY: 18. Gathering Services Information...
+SAY:
+CMD:Net Start > &Acq\Services.dat
+CMD:sc query type= service state= all > &Acq\Services-2.dat
+CMD:Tasklist /SVC > &Acq\Services-3.dat
+SAY:
+SAY: 19. Gathering Last Activity Information...
+SAY:
+EXE:\SYS\LastActivityView.exe /scomma &Acq\LastActivity.csv
+SAY:
+SAY: 20. Gathering User Assist Information...
+SAY:
+EXE:\SYS\UserAssistView.exe /scomma &Acq\UserAssist.csv
+SAY:
+SAY: 21. Gathering AutoRun Information...
+SAY:
+ACQ:\Arn
+ARN:
+SAY:
+CMD:\SYS\Autorunsc.exe /accepteula -a * -c -h > &Acq\AutoRun.dat
+SAY:
+SAY: 22a. Gathering Current (Open) User Registry...
+SAY:
+ACQ:\Reg
+CMD:Reg Save HKCU &Acq\NTUSER.DAT
+SAY:
+SAY: 22b. Gathering All User Registries...
+SAY:
+NCP:"C:\Users\*\NTUSER.DAT" "&Acq"
+SAY:
+SAY: 23. Now Extracting Browser History...
+SAY:
+ACQ:\Brw
+EXE:\SYS\BrowsingHistoryView.exe /scomma &Acq\BrowseHist.csv
+EXE:\SYS\BrowsingHistoryView.exe /shtml &Acq\BrowseHist.htm
+SAY:
+SAY: Acquisition Complete...
+SAY:
+SAY: Now Hashing Artifacts...
+HSH:ACQ
+ACQ:\
+SAY:
+SAY: Now Archiving Artifacts into:
+SAY:  &Acq.zpaq
+SAY:
+INP: Please Enter an Archive Password > 
+SAY:
+XIT:\ZPAQ.EXE add &Acq.zpaq &Acq\* -key &Inp
+SAY:
