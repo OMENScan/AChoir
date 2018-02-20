@@ -111,6 +111,25 @@ Achoir is a Framework/Scripting Tool to standardize and simplify that process.
 * ............ - DSK:<type>  Set &DSK looping variable to
 * ............   - Types: Removable, Fixed, Remote, CDROM
 * ............ - &DSK - Looping Var Contains Disk that match 
+* AChoir v1.1  - Peppered Flush STDOUT buffers for better
+* ............ - PSExec Display (Remote Acq)
+* ............ - SHR:<Path> <Name> - Create a Local Share
+* ............ - SHD:<Name> - Delete a Local Share
+* AChoir v1.2  - Add /USR:? and /PWD:? - Query MAP USR and PWD 
+* ............ - Replaced getch() with getchar().  This is
+* ............ - because PsExec does not work with getch().
+* ............ - PsExec also does not work with SetConsoleMode
+* ............ - so there is no way to do hidden/masked
+* ............ - password input.
+* AChoir v1.3  - Implement NTP Client for Querying Time Drift
+* ............ - Fix minor display bug when using &Tim
+* AChoir v1.4  - New Actions to Hide and Reconnect the Console
+* ............ - CON:Hide and CON:Show
+* ............ - SLP:<Sec> Sleep for <Sec>Seconds
+* AChoir v1.5  - Add /VR0: -/VR9: Command Line Parameters
+* ............ - When BaseDir changes, change Windows CWD too
+* ............ - New Redaction Routine for PWD: EXE: CMD:
+* AChoir v1.6  - Add EXA: and EXB:  (Asyn & Background EXe)
 
 
 # Quick Start (tl;dr):

@@ -128,6 +128,7 @@
 /* AChoir v1.5  - Add /VR0: -/VR9: Command Line Parameters      */
 /*              - When BaseDir changes, change Windows CWD too  */
 /*              - New Redaction Routine for PWD: EXE: CMD:      */
+/* AChoir v1.6  - Add EXA: and EXB:  (Asyn & Background EXe)    */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -210,7 +211,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v1.5\0";
+char Version[10] = "v1.6\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -218,6 +219,7 @@ int  iHtmMode = 0;
 int  iChkYN = 0;
 int  iChkRC = 0;
 int  iIsAdmin = 0;
+int  iExec = 0;
 
 char ACQName[255];
 char ACQDir[1024];
@@ -3491,10 +3493,24 @@ int main(int argc, char *argv[])
             fprintf(LogHndl, "Return Code: %d\n", LastRC);
           }
           else
-          if (strnicmp(Inrec, "EXE:", 4) == 0)
+          if ((strnicmp(Inrec, "EXE:", 4) == 0) || (strnicmp(Inrec, "EXA:", 4) == 0) || (strnicmp(Inrec, "EXB:", 4) == 0))
           {
+            if(strnicmp(Inrec, "EXE:", 4) == 0)
+             iExec = 1 ;
+            else            
+            if(strnicmp(Inrec, "EXA:", 4) == 0)
+             iExec = 2 ;
+            else            
+            if(strnicmp(Inrec, "EXB:", 4) == 0)
+             iExec = 3 ;
+            else
+             iExec = 1 ;
+
             /****************************************************************/
             /* Spawn an Executable                                          */
+            /*  EXE - P_Wait    (Default is Blocked/Sequential)             */
+            /*  EXA - P_NOWAIT  (Asyncronous/Not Blocked)                   */
+            /*  EXB - P_DETACH  (Run as a Background Process)               */
             /****************************************************************/
             strtok(Inrec, "\n");
             strtok(Inrec, "\r");
@@ -3530,12 +3546,34 @@ int main(int argc, char *argv[])
             else
             {
               FileMD5(TempDir);
+
+              /****************************************************************/
+              /* EXA, EXB, or EXE                                             */
+              /****************************************************************/
+              if(iExec == 1)
+              {
+                fprintf(LogHndl, "\nEXE: %s\n", Exerec + iPrm1);
+                consPrefix("\nEXE: ", consBlu);
+              }
+              else
+              if(iExec == 2)
+              {
+                fprintf(LogHndl, "\nEXA: %s\n", Exerec + iPrm1);
+                consPrefix("\nEXA: ", consBlu);
+              }
+              else
+              if(iExec == 3)
+              {
+                fprintf(LogHndl, "\nEXB: %s\n", Exerec + iPrm1);
+                consPrefix("\nEXB: ", consBlu);
+              }
+              printf("%s\n", Exerec + iPrm1);
+
+
+              // Processing of 1, 2, or 3 sets of Command Line Parameters
               if (iPrm3 > 0)
               {
-                fprintf(LogHndl, "\nExe: %s\n", Exerec + iPrm1);
-                consPrefix("\nEXE: ", consBlu);
-                printf("%s\n", Exerec + iPrm1);
-
+                // 3 Command Line Parameters
                 // Redact iPrm2 if it has a Password
                 Redactor(Exerec+iPrm2, Redrec);
                 fprintf(LogHndl, "   : %s\n", Redrec);
@@ -3550,15 +3588,19 @@ int main(int argc, char *argv[])
                 consPrefix("MD5: ", consGre);
                 printf("%s\n", MD5Out);
 
-                LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
+                if(iExec == 1)
+                 LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
+                else
+                if(iExec == 2)
+                 LastRC = (int) spawnlp(P_NOWAIT, TempDir, TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
+                else
+                if(iExec == 3)
+                 LastRC = (int) spawnlp(P_DETACH, TempDir, TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
               }
               else
               if (iPrm2 > 0)
               {
-                fprintf(LogHndl, "\nExe: %s\n", Exerec + iPrm1);
-                consPrefix("\nEXE: ", consBlu);
-                printf("%s\n", Exerec + iPrm1);
-
+                // 2 Command Line Parameters
                 // Redact iPrm2 if it has a Password
                 Redactor(Exerec+iPrm2, Redrec);
                 fprintf(LogHndl, "   : %s\n", Redrec);
@@ -3568,19 +3610,31 @@ int main(int argc, char *argv[])
                 consPrefix("MD5: ", consGre);
                 printf("%s\n", MD5Out);
 
-                LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, Exerec + iPrm2, NULL);
+                if(iExec == 1)
+                 LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, Exerec + iPrm2, NULL);
+                else
+                if(iExec == 2)
+                 LastRC = (int) spawnlp(P_NOWAIT, TempDir, TempDir, Exerec + iPrm2, NULL);
+                else
+                if(iExec == 3)
+                 LastRC = (int) spawnlp(P_DETACH, TempDir, TempDir, Exerec + iPrm2, NULL);
               }
               else
               {
-                fprintf(LogHndl, "\nEXE: %s\n", Exerec + iPrm1);
-                consPrefix("\nEXE: ", consBlu);
-                printf("%s\n", Exerec + iPrm1);
-
+                // 1 Command Line Parameter
+                // No Redaction necessary
                 fprintf(LogHndl, "MD5: %s\n", MD5Out);
                 consPrefix("MD5: ", consGre);
                 printf("%s\n", MD5Out);
 
-                LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, NULL);
+                if(iExec == 1)
+                 LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, NULL);
+                else
+                if(iExec == 2)
+                 LastRC = (int) spawnlp(P_NOWAIT, TempDir, TempDir, NULL);
+                else
+                if(iExec == 3)
+                 LastRC = (int) spawnlp(P_DETACH, TempDir, TempDir, NULL);
               }
 
 
@@ -4325,7 +4379,7 @@ size_t Redactor(char *inRedact, char *outRedact)
   RdLen = strlen(inRedact);
   memset (outRedact, 0, 1024);
 
-  //Zap any Redacted Strings... Max Size = 1000
+  //Redacted String... Max Size = 1000
   if(RdLen > 1000)
    RdLen = 1000;
 
@@ -4333,6 +4387,7 @@ size_t Redactor(char *inRedact, char *outRedact)
   {
     if (RdiFlag == 1)
     {
+      //Strings delimied by space or dbl-quote
       if(inRedact[inRdi] == ' ')
       {
        RdiFlag = 0;
@@ -4350,6 +4405,7 @@ size_t Redactor(char *inRedact, char *outRedact)
     else
     if (strnicmp(inRedact+inRdi, "pwd:", 4) == 0)
     {
+      // Redact out passwords - we dont want passwords in log files
       strncpy(outRedact+outRdi, "PWD:*Redacted*\0", 15);
       outRdi+=14;
       RdiFlag = 1;

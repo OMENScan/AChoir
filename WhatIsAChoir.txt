@@ -1,4 +1,4 @@
-AChoir - v1.4
+AChoir - v1.6
 
 AChoir
 ======
@@ -170,7 +170,9 @@ CSE:GET  Input Optional Case Information - ONLY allowed ONCE
 GET:     Get a file using HTTP into &Fil 
          Note: &Fil (FIL:) MUST BE SET TO THE FULL PATH OF 
                THE NEW FILE!
-EXE:     Run a Program
+EXE:     Run a Program and wait for completion (P_WAIT)
+EXA:     Run a Program and DON'T wait for completion (P_NOWAIT)
+EXB:     Run a Program in the background (P_DETACH)
 SYS:     Execute a System Command using the OS Shell
 CMD:     Execute a System Command using AChoir's Command Shell
 USR:<UserId> 
@@ -314,6 +316,9 @@ Here are the Command Line Options:
 /MAP:<\\Server\Share> - Map a network drive - THIS SETS THE ACQUISITION AND 
       CURRENT DIRECTORIES TO THE MAPPED DRIVE - This is mostly used for REMOTE
       Acquisition 
+/VR0: - /VR9:  
+      Set the &VR0 - &VR9 variables from the command line.  These can be used 
+      to pass variables to the AChoir Scripts.
 
 
 A note about Conditonal Logic (CKY:, 64B:, 32B:, CKN:, RC=:, RC!:, RC>:, RC<:, END:, LBL:, JMP:)
@@ -352,6 +357,20 @@ BY DEFAULT NONE of the default/provided scripts use NTP.  This is for three reas
 
 AChoir's NTP client may be useful in many situations to identify Time Drift, but please take
 into account the issues above before using this function.
+
+
+A note about EXE: EXA: and EXB:
+----------
+Under normal circumstances I recommend using EXE: to execute programs, it is much easier to 
+control the script when things are run sequentially, but in cases where there may be several 
+machines running AChoir, or Execution Time is limited or important, one may want to run 
+several programs Concurrently or in the Background.  The primary problem with this method 
+is that one cannot know when these Asynchoronously run programs will complete. 
+
+Use EXA: and EXB: judiciously, bearing in mind that NOT ONLY will they complete at different 
+times, but the AChoir Script ITSELF will continue to run as these programs also run in 
+parrallel.  In fact, AChoir could even complete and exit while these programs are still 
+executing.  This can have major implications for your AChoir scripts. 
 
 
 Artifacts that AChoir itself generates:
