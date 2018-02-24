@@ -129,6 +129,8 @@
 /*              - When BaseDir changes, change Windows CWD too  */
 /*              - New Redaction Routine for PWD: EXE: CMD:      */
 /* AChoir v1.6  - Add EXA: and EXB:  (Asyn & Background EXe)    */
+/* AChoir v1.7  - Fix DSK: &DSK bug for Remote Collections      */
+/*                 File not being properly closed causes loop.  */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -211,7 +213,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v1.6\0";
+char Version[10] = "v1.7\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -3926,6 +3928,9 @@ int main(int argc, char *argv[])
 
         if ((LstMe == 1) && (LstHndl != NULL))
           fclose(LstHndl);
+
+        if ((DskMe == 1) && (DskHndl != NULL))
+          fclose(DskHndl);
 
         fflush(stdout); //More PSExec Friendly
 

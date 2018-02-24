@@ -5,6 +5,26 @@
 * IMPORTANT - When  using PSexec the -e parameter is REQUIRED for remote mapping to work! *
 * IMPORTANT - When using /MAP, /USR, /PWD - They MUST be in this order: /USR, /PWD, /MAP! *
 *******************************************************************************************
+LBL:ChkLoop
+Say:
+Say:Checking for Admin Rights on: &VR0
+CKN:\\&VR0\admin$
+ SAY:***
+ SAY:*
+ SAY:* Either &VR0 is not turned on and connected to this network, or  
+ SAY:*  You DO NOT HAVE Admin Rights on &VR0
+ SAY:*
+ SAY:* Check to make sure &VR0 is turned on and connected and that you have Admin
+ SAY:*  Rights. Without Admin rights you cannot run AChoir on the Remote System!
+ SAY:* 
+ SAY:***
+ INP:Do you want to Attach to &VR0 as an Admin (y/n)?
+ EQU:&Inp y
+  SYS:net use \\&VR0\admin$
+  JMP:ChkLoop
+ END:
+ BYE:
+END:
 Say:
 Say:Loading AChoir on Remote Computer
 *******************************************************************************************
