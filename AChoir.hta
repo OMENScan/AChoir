@@ -1,6 +1,6 @@
 <html>
 <head>
-  <title>AChoir GUI 0.20</title>
+  <title>AChoir GUI 0.25</title>
   <HTA:APPLICATION ID="AChoirGUI" 
     APPLICATIONNAME="AChoir GUI" 
     BORDER="Yes"
@@ -14,7 +14,7 @@
 <script type="text/javascript">
 self.moveTo(10,10);
 self.resizeTo(1100,860);
-var panels = new Array("","panel1","panel2","panel3","panel4","panel5");
+var panels = new Array("","panel1","panel2","panel3","panel4","panel5","panel6");
 
 function panel(tab) 
 {
@@ -184,6 +184,73 @@ function RunMRACh(Bits)
   WshShell.Run(ScrName, 1, false);
 }
 
+
+// Run AChoir Local MapBack Test Script
+function RunLTest(Bits)
+{
+  var ScrName = " /ini:RScripts\\LTest.acq" ;
+  var ScrBits = "A-AChoir.exe";
+  
+  if (Bits == 32) 
+  {
+    ScrBits = "A-AChoir.exe" ;
+  } 
+  else if (Bits == 64) 
+  {
+    ScrBits = "A-AChoir64.exe" ;
+  } 
+
+  ScrName = ScrBits + ScrName + " /VR1:" + Locl6User.value + " /VR2:" + Locl6Pass.value ;  
+
+  WshShell = new ActiveXObject("WScript.Shell");
+  WshShell.Run(ScrName, 1, false);
+}
+
+
+// Check for Admin Privileges on Remote machine
+function RunRTest(Bits)
+{
+  var ScrName = " /ini:RScripts\\RTest.acq" ;
+  var ScrBits = "A-AChoir.exe";
+  
+  if (Bits == 32) 
+  {
+    ScrBits = "A-AChoir.exe" ;
+  } 
+  else if (Bits == 64) 
+  {
+    ScrBits = "A-AChoir64.exe" ;
+  } 
+
+  ScrName = ScrBits + ScrName + " /VR0:" + Host6Name.value ;  
+
+  WshShell = new ActiveXObject("WScript.Shell");
+  WshShell.Run(ScrName, 1, false);
+}
+
+
+// Run AChoir Server Share Map Test Script
+function RunSTest(Bits)
+{
+  var ScrName = " /ini:RScripts\\STest.acq" ;
+  var ScrBits = "A-AChoir.exe";
+  
+  if (Bits == 32) 
+  {
+    ScrBits = "A-AChoir.exe" ;
+  } 
+  else if (Bits == 64) 
+  {
+    ScrBits = "A-AChoir64.exe" ;
+  } 
+
+  ScrName = ScrBits + ScrName + " /VR0:" + Serv6Name.value + " /VR1:" + Serv6User.value + " /VR2:" + Serv6Pass.value ;  
+
+  WshShell = new ActiveXObject("WScript.Shell");
+  WshShell.Run(ScrName, 1, false);
+}
+
+
 // Exit HTA
 function ExitMe()
 {
@@ -256,7 +323,7 @@ function EditList()
 <table align="center" border="0" cellpadding="0" cellspacing="0" width="1000">
 <tr valign="top">
   <td align="right" colspan="2">
-    <span class="head">AChoir GUI 0.20</span> &nbsp; &nbsp;
+    <span class="head">AChoir GUI 0.25</span> &nbsp; &nbsp;
     <br>
   </td>
 </tr>
@@ -267,6 +334,7 @@ function EditList()
     &nbsp; <span class="tabs tabs0" id="tab3" onclick="panel(3)">Remote->Local</span>
     &nbsp; <span class="tabs tabs0" id="tab4" onclick="panel(4)">Remote->Remote</span>
     &nbsp; <span class="tabs tabs0" id="tab5" onclick="panel(5)">Multi-Remote</span>
+    &nbsp; <span class="tabs tabs0" id="tab6" onclick="panel(6)">Tests</span>
 
     <div class="panel" id="panel1" style="display:block">
       <table border="0" width="100%">
@@ -641,6 +709,81 @@ function EditList()
         </tr>
       </table>
     </div>
+
+
+    <div class="panel" id="panel6" style="display:none">
+      <table border="0" width="100%">
+        <tr valign="top">
+          <td>
+
+            <TABLE Width="100%" border="0" bgcolor="#FFFFEF"><TR><TD>
+            <p>
+            This Tab has several tests on it that can be run to check connectivity.  If Remote
+            collection is not working, the most likely cause is insufficient permissions,
+            an incorrect UserId, or Incorrect Password. You can use the options below to test 
+            your connectivity to: Map Back a Drive to the Local System, Check for Admin 
+            priveleges (required to Run PsExec on a Remote), or Map a Drive to your AChoir Server.
+            </p>
+            </TD></TR></TABLE>
+
+
+            <p>
+            <TABLE Width="100%" border="0"><TR><TD>
+             <font color="#000000"><i><fieldset><legend>Map Back Test</legend></i></font>
+
+             <p>
+             MapBack (Local) ID/Password:
+             <input type="text" size="25" name="Locl6User" value="Domain\AdminID">&nbsp / &nbsp
+             <input type="password" size="25" name="Locl6Pass" value="">
+             <input type="button" value="Test" onclick="RunLTest(32);"/><br><br>
+             </p>
+            </TD></TR></TABLE>
+            </p>
+
+
+            <p>
+            <TABLE Width="100%" border="0"><TR><TD>
+             <font color="#000000"><i><fieldset><legend>Remote Host Admin Test</legend></i></font>
+             <p>
+             Remote Host to Triage:
+             <input type="text" size="25" name="Host6Name" value="MyHost">
+             <input type="button" value="Test" onclick="RunRTest(32);"/><br><br>
+             </p>
+            </TD></TR></TABLE>
+            </p>
+
+
+            <p>
+            <TABLE Width="100%" border="0"><TR><TD>
+             <font color="#000000"><i><fieldset><legend>AChoir Server Share Test</legend></i></font>
+             <p>
+             AChoir Server Share:
+             <input type="text" size="25" name="Serv6Name" value="\\Server\Share">
+             </p>
+
+             <p>
+             Achoir Server Admin ID/Password:
+             <input type="text" size="25" name="Serv6User" value="Domain\AdminID">&nbsp / &nbsp
+             <input type="password" size="25" name="Serv6Pass" value="">&nbsp
+             <input type="button" value="Test" onclick="RunSTest(32);"/><br><br>
+             </p>
+            </TD></TR></TABLE>
+            </p>
+
+            </TD></TR></TABLE>
+            
+            <p>
+            <input type="button" value="Exit GUI" onclick="ExitMe();"/> 
+            </p>
+
+            <p>
+            <b><i>Important Note: </b></i>This GUI will use the 32Bit AChoir Program as Admin.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </div>
+
 
 
   </td>

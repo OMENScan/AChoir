@@ -1,0 +1,41 @@
+*******************************************************************************************
+* Achoir - Local MapBack Test Script                                                      *
+*  /VR1:<LocalAdmin UserID>  /VR2:<LocalAdmin PW>                                         *
+*                                                                                         *
+* IMPORTANT - When using /MAP, /USR, /PWD - They MUST be in this order: /USR, /PWD, /MAP! *
+*******************************************************************************************
+Say:
+Say:Creating a Local Share on this machine: %COMPUTERNAME%
+CKY:\\%COMPUTERNAME%\Ach-Remt
+ SAY:The Local Share has Already Been Mapped!  Now Deleting it.
+ SHD:Ach-Remt
+ SAY:
+END:
+SHR:&Dir Ach-Remt
+Say:
+USR:&VR1
+PWD:&VR2
+MAP:\\%COMPUTERNAME%\Ach-Remt
+CKN:&MAP\AChoir.exe
+ SAY:***
+ SAY:*
+ SAY:* I Was Unable to MapBack to this Machine.
+ SAY:* 
+ SAY:*  You May Have Entered the WRONG UserId or Password.
+ SAY:* 
+ SAY:***
+ PZZ:Press Any Key To Continue...
+END:
+CKY:&MAP\AChoir.exe
+ SAY:***
+ SAY:*
+ SAY:* MapBack to this Machine was Succesful!
+ SAY:*
+ SAY:*  The Local Share, UserId, and Password are Correct! 
+ SAY:*
+ SAY:***
+ PZZ:Press Any Key To Continue...
+END:
+SHD:Ach-Remt
+CMD:net use &Map /Del
+SAY:Exiting...

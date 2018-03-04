@@ -1,0 +1,34 @@
+*******************************************************************************************
+* Achoir - Server Map Test                                                                *
+*  /VR0:<\\Server\Share> /VR1:<LocalAdmin UserID>  /VR2:<LocalAdmin PW>                   *
+*                                                                                         *
+* IMPORTANT - When using /MAP, /USR, /PWD - They MUST be in this order: /USR, /PWD, /MAP! *
+*******************************************************************************************
+Say:
+Say:Mapping to the Achoir Server Share: &VR0
+Say:
+USR:&VR1
+PWD:&VR2
+MAP:&VR0
+CKN:&MAP\AChoir.exe
+ SAY:***
+ SAY:*
+ SAY:* I Was Unable to Map to the AChoir Server Share: &VR0
+ SAY:* 
+ SAY:*  You May Have Entered the WRONG UserId or Password.
+ SAY:* 
+ SAY:***
+ PZZ:Press Any Key To Continue...
+END:
+CKY:&MAP\AChoir.exe
+ SAY:***
+ SAY:*
+ SAY:* Succesful Map to the Achoir Server: &VR0
+ SAY:*
+ SAY:*  The Local Share, UserId, and Password are Correct! 
+ SAY:*
+ SAY:***
+ PZZ:Press Any Key To Continue...
+END:
+CMD:net use &Map /Del
+SAY:Exiting...
