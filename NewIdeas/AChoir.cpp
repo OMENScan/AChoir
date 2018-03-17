@@ -5082,9 +5082,9 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
           iFileFound = 1; // Yes... Substitution Successful
 
           if(binLog == 1)
-            fprintf(LogHndl, "[!] Sysnative Source Copy File Found, Now Substituting.\n");
+            fprintf(LogHndl, "[*] Sysnative Source Copy File Found, Now Substituting.\n");
 
-          consPrefix("[!] ", consRed);
+          consPrefix("[*] ", consYel);
           printf("Sysnative Source Copy File Found, Now Substituting.\n");
           fflush(stdout); //More PSExec Friendly
         }
