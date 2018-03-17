@@ -135,6 +135,11 @@
 /*                 be copied by the OS API to DeCompress them   */
 /*                 The Flag for this behaviour is:              */
 /*                 SET:NCP=OSCOPY or SET:NCP=RAWONLY            */
+/*              - Also Added built in Support for WOW64 file    */
+/*                 redirection of X86 binCopy of SYSTEM32       */
+/*                 (sub) directories. This was needed for       */
+/*                 switching from rawcopy to bincopy - plus its */
+/*                 a good general feature anyway.               */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -217,7 +222,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v1.7\0";
+char Version[10] = "v1.8\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -227,7 +232,10 @@ int  iChkRC = 0;
 int  iIsAdmin = 0;
 int  iExec = 0;
 int  iIsCompressed = 0;
-int  setNCP = 0; // 0=OSCOPY (Default), 1=RAWCOPY
+int  setNCP = 0;  // 0=OSCOPY (Default), 1=RAWCOPY
+
+int  iNative = 0; // Are we Native 64Bit on 64Bit (Native = 1, NonNative = 0)
+char sNative[10] = "\0";
 
 char ACQName[255];
 char ACQDir[1024];
@@ -1083,6 +1091,28 @@ int main(int argc, char *argv[])
   showTime("Start Acquisition");
   fflush(stdout); //More PSExec Friendly
 
+
+
+  /****************************************************************/
+  /* Are we running Non-Native (Sysnative vs. System32)           */
+  /****************************************************************/
+  memset(TempDir, 0, 1024);
+  sprintf(TempDir, "%s\\Sysnative\0", WinRoot);
+
+  if (access(TempDir, 0) == 0)
+  {
+    strncpy (sNative, "NON-\0", 5);
+    iNative = 0;
+  }
+  else
+  {
+    strncpy (sNative, "\0\0\0\0\0", 5);
+    iNative = 1;
+  }
+  memset(TempDir, 0, 1024);
+
+
+
   /****************************************************************/
   /* Check If We are an Admin                                     */
   /****************************************************************/
@@ -1091,18 +1121,17 @@ int main(int argc, char *argv[])
     iIsAdmin = 1;
 
     consPrefix("[+] ", consGre);
-    printf("Running As Admin\n");
-    fprintf(LogHndl, "[+] Running As Admin\n");
+    printf("Running As Admin, %sNative\n", sNative);
+    fprintf(LogHndl, "[+] Running As Admin, %sNative\n", sNative);
   }
   else
   {
     consPrefix("[+] ", consGre);
-    printf("Running As NON-Admin\n");
-    fprintf(LogHndl, "[+] Running As NON-Admin\n");
+    printf("Running As NON-Admin, %sNative\n", sNative);
+    fprintf(LogHndl, "[+] Running As NON-Admin, %sNative\n", sNative);
     iIsAdmin = 0;
   }
   fflush(stdout); //More PSExec Friendly
-
 
 
   /****************************************************************/
@@ -3306,7 +3335,26 @@ int main(int argc, char *argv[])
             if (MD5Hndl != NULL)
             {
               ListDir(Inrec + 4, "FOR");
+
+              if (iNative == 0)
+              {
+                if(strnicmp(Inrec+4+strlen(WinRoot), "\\System32\\", 10) == 0)
+                {
+                  memset(TempDir, 0, 1024);
+                  sprintf(TempDir, "%s\\Sysnative\\%s\0", WinRoot, Inrec+4+strlen(WinRoot)+10);
+
+                  if(iLogOpen == 1)
+                   fprintf(LogHndl, "[*] Non-Native Flag Has Been Detected - Adding Sysnative Redirection: \n %s\n", TempDir);
+
+                  consPrefix("[*] ", consYel);
+                  printf("Non-Native Flag Has Been Detected - Adding Sysnative Redirection: \n %s\n", TempDir);
+
+                  ListDir(TempDir, "FOR");
+                }
+              }
+
               fclose(MD5Hndl);
+
             }
           }
           else
@@ -4962,6 +5010,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   /****************************************************************/
   memset(tmpTooFile, 0, 4096);
   snprintf(tmpTooFile, 4090, "%s", TooFile);
+
   memset(tmpFrmFile, 0, 4096);
   snprintf(tmpFrmFile, 4090, "%s", FrmFile);
 
@@ -4988,47 +5037,57 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
 
 
   iFileFound = 1;  // Assume Yes, Found
-  if (access(FrmFile, 0) != 0)
+  if (access(tmpFrmFile, 0) != 0)
   {
     iFileFound = 0; // Not Found
 
     if(binLog == 1)
-      fprintf(LogHndl, "[!] Source Copy File Not Found: \n %s\n", FrmFile);
+      fprintf(LogHndl, "[!] Source Copy File Not Found: \n %s\n", tmpFrmFile);
 
     consPrefix("[!] ", consRed);
-    printf("Source Copy File Not Found: \n %s\n", FrmFile);
+    printf("Source Copy File Not Found: \n %s\n", tmpFrmFile);
 
 
     // Check for Sysnative edge case (running 32 bit on 64 bit)
-    if (strnicmp(Procesr, "X86", 3) == 0)
+    //if (strnicmp(Procesr, "X86", 3) == 0)
+    if (iNative == 0)
     {
       iFileFound = 1; //Wait... Maybe it's a file Redirect
+
       if(strnicmp(FrmFile+strlen(WinRoot), "\\System32\\", 10) == 0)
       {
         memset(tmpFrmFile, 0, 4096);
-        strcpy(tmpFrmFile, WinRoot);
-        strcat(tmpFrmFile, "\\Sysnative\\");
-        strcat(tmpFrmFile, FrmFile+strlen(WinRoot)+10);
+        sprintf(tmpFrmFile, "%s\\Sysnative\\%s\0", WinRoot, FrmFile+strlen(WinRoot)+10);
 
         if(binLog == 1)
-          fprintf(LogHndl, "[*] Trying Sysnative: \n %s\n", tmpFrmFile);
+          fprintf(LogHndl, "[*] Non-Native Flag Has Been Detected - Trying Sysnative Redirection: \n %s\n", tmpFrmFile);
 
         consPrefix("[*] ", consYel);
-        printf("Trying Sysnative: \n %s\n", tmpFrmFile);
+        printf("Non-Native Flag Has Been Detected - Trying Sysnative Redirection: \n %s\n", tmpFrmFile);
 
         if (access(tmpFrmFile, 0) != 0)
         {
-          iFileFound = 0; //No... Sorry...
+          iFileFound = 0; //No... Sorry... Not Sysnative
 
           if(binLog == 1)
-            fprintf(LogHndl, "[!] Source Copy File Not Found: \n %s\n", tmpFrmFile);
+            fprintf(LogHndl, "[*] Sysnative Source Copy Also File Not Found: \n %s\n", tmpFrmFile);
 
-          consPrefix("[!] ", consRed);
-          printf("Source Copy File Not Found: \n %s\n", tmpFrmFile);
+          consPrefix("[*] ", consYel);
+          printf("Sysnative Source Copy Also File Not Found: \n %s\n", tmpFrmFile);
           fflush(stdout); //More PSExec Friendly
           return 0;
         }
+        else
+        {
+          iFileFound = 1; // Yes... Substitution Successful
 
+          if(binLog == 1)
+            fprintf(LogHndl, "[!] Sysnative Source Copy File Found, Now Substituting.\n");
+
+          consPrefix("[!] ", consRed);
+          printf("Sysnative Source Copy File Found, Now Substituting.\n");
+          fflush(stdout); //More PSExec Friendly
+        }
       }
       else
       {
@@ -5822,9 +5881,9 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           
           if(iIsCompressed == 1)
           {
-            fprintf(LogHndl, "[*] Raw Copied File Identified as COMPRESSED!\n");
+            fprintf(LogHndl, "[*] Raw Copied File Was Detected as COMPRESSED!\n");
             consPrefix("[*] ", consYel);
-            printf("Raw Copied File Identified as  COMPRESSED!\n");
+            printf("Raw Copied File Was Detected as  COMPRESSED!\n");
 
             if(setNCP == 0)
             {
