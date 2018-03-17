@@ -127,6 +127,14 @@
 /*              - SLP:<Sec> Sleep for <Sec>Seconds              */
 /* AChoir v1.5  - Add /VR0: -/VR9: Command Line Parameters      */
 /*              - When BaseDir changes, change Windows CWD too  */
+/*              - New Redaction Routine for PWD: EXE: CMD:      */
+/* AChoir v1.6  - Add EXA: and EXB:  (Asyn & Background EXe)    */
+/* AChoir v1.7  - Fix DSK: &DSK bug for Remote Collections      */
+/*                 File not being properly closed causes loop.  */
+/* AChoir v1.8  - Recognize Compressed Files, and allow them to */
+/*                 be copied by the OS API to DeCompress them   */
+/*                 The Flag for this behaviour is:              */
+/*                 SET:NCP=OSCOPY or SET:NCP=RAWONLY            */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -209,7 +217,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v1.5\0";
+char Version[10] = "v1.7\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -217,6 +225,9 @@ int  iHtmMode = 0;
 int  iChkYN = 0;
 int  iChkRC = 0;
 int  iIsAdmin = 0;
+int  iExec = 0;
+int  iIsCompressed = 0;
+int  setNCP = 0; // 0=OSCOPY (Default), 1=RAWCOPY
 
 char ACQName[255];
 char ACQDir[1024];
@@ -252,6 +263,8 @@ BOOL SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, BOOL bEnablePrivilege);
 char * convert_sid_to_string_sid(const PSID psid, char *sid_str);
 void getCaseInfo(int SayOrGet);
 int ntpGetTime(char* ntpServer);
+size_t Redactor(char *inRedact, char *outRedact);
+
 
 // Variables to create a share
 int  iGoodShr = 0;
@@ -586,6 +599,7 @@ int main(int argc, char *argv[])
   char Cmprec[4096];
   char Arnrec[2048];
   char Shrrec[1024];
+  char Redrec[1024];
 
   DWORD dwSize = 0;
   DWORD dwDownloaded = 0;
@@ -2330,6 +2344,7 @@ int main(int argc, char *argv[])
               printf("%s\n     %s\n", Cpyrec + iPrm1, Cpyrec + iPrm2);
 
               rawCopy(Cpyrec + iPrm1, Cpyrec + iPrm2, 1);
+
             }
           } 
           else
@@ -2704,6 +2719,7 @@ int main(int argc, char *argv[])
                         printf("     Searching %s Volume(Raw Copy)...\n", fileSystemName);
 
                         rawCopy(o32VarRec, Cpyrec, 1);
+
                       }
                       else
                       {
@@ -2738,6 +2754,7 @@ int main(int argc, char *argv[])
                           printf("     Searching %s Volume(Raw Copy)...\n", fileSystemName);
 
                           rawCopy(o64VarRec, Cpyrec, 1);
+
                         }
                         else
                         {
@@ -3433,6 +3450,22 @@ int main(int argc, char *argv[])
             netShareDel(Inrec + 4, 1);
           }
           else
+          if (strnicmp(Inrec, "SET:NCP=RAWONLY", 15) == 0)
+          {
+            /****************************************************************/
+            /* Set Raw NTFS Copy to RAW ONLY                                */
+            /****************************************************************/
+            setNCP = 1;
+          }
+          else
+          if (strnicmp(Inrec, "SET:NCP=OSCOPY", 14) == 0)
+          {
+            /****************************************************************/
+            /* Set Raw NTFS Copy to RAW ONLY                                */
+            /****************************************************************/
+            setNCP = 10;
+          }
+          else
           if (strnicmp(Inrec, "XIT:", 4) == 0)
           {
             /****************************************************************/
@@ -3487,10 +3520,24 @@ int main(int argc, char *argv[])
             fprintf(LogHndl, "Return Code: %d\n", LastRC);
           }
           else
-          if (strnicmp(Inrec, "EXE:", 4) == 0)
+          if ((strnicmp(Inrec, "EXE:", 4) == 0) || (strnicmp(Inrec, "EXA:", 4) == 0) || (strnicmp(Inrec, "EXB:", 4) == 0))
           {
+            if(strnicmp(Inrec, "EXE:", 4) == 0)
+             iExec = 1 ;
+            else            
+            if(strnicmp(Inrec, "EXA:", 4) == 0)
+             iExec = 2 ;
+            else            
+            if(strnicmp(Inrec, "EXB:", 4) == 0)
+             iExec = 3 ;
+            else
+             iExec = 1 ;
+
             /****************************************************************/
             /* Spawn an Executable                                          */
+            /*  EXE - P_Wait    (Default is Blocked/Sequential)             */
+            /*  EXA - P_NOWAIT  (Asyncronous/Not Blocked)                   */
+            /*  EXB - P_DETACH  (Run as a Background Process)               */
             /****************************************************************/
             strtok(Inrec, "\n");
             strtok(Inrec, "\r");
@@ -3526,43 +3573,95 @@ int main(int argc, char *argv[])
             else
             {
               FileMD5(TempDir);
+
+              /****************************************************************/
+              /* EXA, EXB, or EXE                                             */
+              /****************************************************************/
+              if(iExec == 1)
+              {
+                fprintf(LogHndl, "\nEXE: %s\n", Exerec + iPrm1);
+                consPrefix("\nEXE: ", consBlu);
+              }
+              else
+              if(iExec == 2)
+              {
+                fprintf(LogHndl, "\nEXA: %s\n", Exerec + iPrm1);
+                consPrefix("\nEXA: ", consBlu);
+              }
+              else
+              if(iExec == 3)
+              {
+                fprintf(LogHndl, "\nEXB: %s\n", Exerec + iPrm1);
+                consPrefix("\nEXB: ", consBlu);
+              }
+              printf("%s\n", Exerec + iPrm1);
+
+
+              // Processing of 1, 2, or 3 sets of Command Line Parameters
               if (iPrm3 > 0)
               {
-                fprintf(LogHndl, "\nExe: %s\n   : %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2, Exerec + iPrm3);
+                // 3 Command Line Parameters
+                // Redact iPrm2 if it has a Password
+                Redactor(Exerec+iPrm2, Redrec);
+                fprintf(LogHndl, "   : %s\n", Redrec);
+                printf("   : %s\n", Redrec);
 
-                consPrefix("\nEXE: ", consBlu);
-                printf("%s\n   : %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2, Exerec + iPrm3);
+                // Redact iPrm3 if it has a Password
+                Redactor(Exerec+iPrm3, Redrec);
+                fprintf(LogHndl, "   : %s\n", Redrec);
+                printf("   : %s\n", Redrec);
 
                 fprintf(LogHndl, "MD5: %s\n", MD5Out);
                 consPrefix("MD5: ", consGre);
                 printf("%s\n", MD5Out);
 
-                LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
+                if(iExec == 1)
+                 LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
+                else
+                if(iExec == 2)
+                 LastRC = (int) spawnlp(P_NOWAIT, TempDir, TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
+                else
+                if(iExec == 3)
+                 LastRC = (int) spawnlp(P_DETACH, TempDir, TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
               }
               else
               if (iPrm2 > 0)
               {
-                fprintf(LogHndl, "\nEXE: %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2);
-                consPrefix("\nEXE: ", consBlu);
-                printf("%s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2);
+                // 2 Command Line Parameters
+                // Redact iPrm2 if it has a Password
+                Redactor(Exerec+iPrm2, Redrec);
+                fprintf(LogHndl, "   : %s\n", Redrec);
+                printf("   : %s\n", Redrec);
 
                 fprintf(LogHndl, "MD5: %s\n", MD5Out);
                 consPrefix("MD5: ", consGre);
                 printf("%s\n", MD5Out);
 
-                LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, Exerec + iPrm2, NULL);
+                if(iExec == 1)
+                 LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, Exerec + iPrm2, NULL);
+                else
+                if(iExec == 2)
+                 LastRC = (int) spawnlp(P_NOWAIT, TempDir, TempDir, Exerec + iPrm2, NULL);
+                else
+                if(iExec == 3)
+                 LastRC = (int) spawnlp(P_DETACH, TempDir, TempDir, Exerec + iPrm2, NULL);
               }
               else
               {
-                fprintf(LogHndl, "\nEXE: %s\n", Exerec + iPrm1);
-                consPrefix("\nEXE: ", consBlu);
-                printf("%s\n", Exerec + iPrm1);
-
+                // 1 Command Line Parameter
+                // No Redaction necessary
                 fprintf(LogHndl, "MD5: %s\n", MD5Out);
                 consPrefix("MD5: ", consGre);
                 printf("%s\n", MD5Out);
 
-                LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, NULL);
+                if(iExec == 1)
+                 LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, NULL);
+                else
+                if(iExec == 2)
+                 LastRC = (int) spawnlp(P_NOWAIT, TempDir, TempDir, NULL);
+                else
+                if(iExec == 3)
+                 LastRC = (int) spawnlp(P_DETACH, TempDir, TempDir, NULL);
               }
 
 
@@ -3643,9 +3742,20 @@ int main(int argc, char *argv[])
 
                 if (iPrm3 > 0)
                 {
-                  fprintf(LogHndl, "\nCMD: %s\n   : %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2, Exerec + iPrm3);
+                  fprintf(LogHndl, "\nCMD: %s\n", Exerec + iPrm1);
                   consPrefix("\nCMD: ", consBlu);
-                  printf("%s\n   : %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2, Exerec + iPrm3);
+                  printf("%s\n", Exerec + iPrm1);
+
+                  // Redact iPrm2 if it has a Password
+                  Redactor(Exerec+iPrm2, Redrec);
+                  fprintf(LogHndl, "   : %s\n", Redrec);
+                  printf("   : %s\n", Redrec);
+
+                  // Redact iPrm3 if it has a Password
+                  Redactor(Exerec+iPrm3, Redrec);
+                  fprintf(LogHndl, "   : %s\n", Redrec);
+                  printf("   : %s\n", Redrec);
+
                   fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
                   consPrefix("MD5: ", consGre);
                   printf("Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
@@ -3655,9 +3765,15 @@ int main(int argc, char *argv[])
                 else
                 if (iPrm2 > 0)
                 {
-                  fprintf(LogHndl, "\nCMD: %s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2);
+                  fprintf(LogHndl, "\nCMD: %s\n", Exerec + iPrm1);
                   consPrefix("\nCMD: ", consBlu);
-                  printf("%s\n   : %s\n", Exerec + iPrm1, Exerec + iPrm2);
+                  printf("%s\n", Exerec + iPrm1);
+
+                  // Redact iPrm2 if it has a Password
+                  Redactor(Exerec+iPrm2, Redrec);
+                  fprintf(LogHndl, "   : %s\n ", Redrec);
+                  printf("   : %s\n", Redrec);
+
                   fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
                   consPrefix("MD5: ", consGre);
                   printf("Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
@@ -3669,6 +3785,7 @@ int main(int argc, char *argv[])
                   fprintf(LogHndl, "\nCMD: %s\n", Exerec + iPrm1);
                   consPrefix("\nCMD: ", consBlu);
                   printf("%s\n", Exerec + iPrm1);
+
                   fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
                   consPrefix("MD5: ", consGre);
                   printf("Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
@@ -3836,6 +3953,9 @@ int main(int argc, char *argv[])
 
         if ((LstMe == 1) && (LstHndl != NULL))
           fclose(LstHndl);
+
+        if ((DskMe == 1) && (DskHndl != NULL))
+          fclose(DskHndl);
 
         fflush(stdout); //More PSExec Friendly
 
@@ -4275,6 +4395,61 @@ size_t Squish(char *SqString)
 
   SqLen = strlen(SqString);
   return SqLen;
+}
+
+
+/****************************************************************/
+/* Redact a String to delete sensitive data                     */
+/****************************************************************/
+size_t Redactor(char *inRedact, char *outRedact)
+{
+  size_t inRdi, outRdi, RdiFlag, RdLen;
+
+  RdiFlag = outRdi = 0;
+  RdLen = strlen(inRedact);
+  memset (outRedact, 0, 1024);
+
+  //Redacted String... Max Size = 1000
+  if(RdLen > 1000)
+   RdLen = 1000;
+
+  for (inRdi = 0; inRdi < RdLen; inRdi++)
+  {
+    if (RdiFlag == 1)
+    {
+      //Strings delimied by space or dbl-quote
+      if(inRedact[inRdi] == ' ')
+      {
+       RdiFlag = 0;
+       outRedact[outRdi] = inRedact[inRdi];
+       outRdi++;
+      }
+      
+      if(inRedact[inRdi] == '"')
+      {
+       RdiFlag = 0;
+       outRedact[outRdi] = inRedact[inRdi];
+       outRdi++;
+      }
+    }
+    else
+    if (strnicmp(inRedact+inRdi, "pwd:", 4) == 0)
+    {
+      // Redact out passwords - we dont want passwords in log files
+      strncpy(outRedact+outRdi, "PWD:*Redacted*\0", 15);
+      outRdi+=14;
+      RdiFlag = 1;
+    }
+    else
+    if (RdiFlag == 0)
+    {
+      outRedact[outRdi] = inRedact[inRdi];
+      outRdi++;
+    }
+  }
+
+  RdLen = strlen(outRedact);
+  return RdLen;
 }
 
 
@@ -4760,8 +4935,10 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   unsigned char Cpybuf[8192];
   int NBlox = 0;
 
+  char tmpFrmFile[4096];
   char tmpTooFile[4096];
   int iFileCount = 0;
+  int iFileFound = 0;
   int TimeNotGood = 0;
   int setOwner = 0;
 
@@ -4785,6 +4962,9 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   /****************************************************************/
   memset(tmpTooFile, 0, 4096);
   snprintf(tmpTooFile, 4090, "%s", TooFile);
+  memset(tmpFrmFile, 0, 4096);
+  snprintf(tmpFrmFile, 4090, "%s", FrmFile);
+
 
   iFileCount = 0;
 
@@ -4807,20 +4987,66 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   }
 
 
+  iFileFound = 1;  // Assume Yes, Found
   if (access(FrmFile, 0) != 0)
   {
+    iFileFound = 0; // Not Found
+
     if(binLog == 1)
       fprintf(LogHndl, "[!] Source Copy File Not Found: \n %s\n", FrmFile);
 
     consPrefix("[!] ", consRed);
     printf("Source Copy File Not Found: \n %s\n", FrmFile);
+
+
+    // Check for Sysnative edge case (running 32 bit on 64 bit)
+    if (strnicmp(Procesr, "X86", 3) == 0)
+    {
+      iFileFound = 1; //Wait... Maybe it's a file Redirect
+      if(strnicmp(FrmFile+strlen(WinRoot), "\\System32\\", 10) == 0)
+      {
+        memset(tmpFrmFile, 0, 4096);
+        strcpy(tmpFrmFile, WinRoot);
+        strcat(tmpFrmFile, "\\Sysnative\\");
+        strcat(tmpFrmFile, FrmFile+strlen(WinRoot)+10);
+
+        if(binLog == 1)
+          fprintf(LogHndl, "[*] Trying Sysnative: \n %s\n", tmpFrmFile);
+
+        consPrefix("[*] ", consYel);
+        printf("Trying Sysnative: \n %s\n", tmpFrmFile);
+
+        if (access(tmpFrmFile, 0) != 0)
+        {
+          iFileFound = 0; //No... Sorry...
+
+          if(binLog == 1)
+            fprintf(LogHndl, "[!] Source Copy File Not Found: \n %s\n", tmpFrmFile);
+
+          consPrefix("[!] ", consRed);
+          printf("Source Copy File Not Found: \n %s\n", tmpFrmFile);
+          fflush(stdout); //More PSExec Friendly
+          return 0;
+        }
+
+      }
+      else
+      {
+        fflush(stdout); //More PSExec Friendly
+        return 0;
+      }
+
+    }
+
   }
-  else
+
+
+  if(iFileFound == 1)
   {
     /****************************************************************/
     /* Get the original TimeStamps                                  */
     /****************************************************************/
-    _stat(FrmFile, &Frmstat);
+    _stat(tmpFrmFile, &Frmstat);
 
 
     /****************************************************************/
@@ -4834,7 +5060,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
     SecLen = 200;
 
     // Populate the Security Description Structure
-    if (GetFileSecurity(FrmFile, OWNER_SECURITY_INFORMATION, SecDesc, SecLen, &LenSec))
+    if (GetFileSecurity(tmpFrmFile, OWNER_SECURITY_INFORMATION, SecDesc, SecLen, &LenSec))
     {
       if (GetSecurityDescriptorOwner(SecDesc, &pSidOwner, &pFlag))
       {
@@ -4848,7 +5074,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
     /****************************************************************/
     /* Open Input File - Make sure we can read it!                  */
     /****************************************************************/
-    FrmHndl = fopen(FrmFile, "rb"); // Open From File
+    FrmHndl = fopen(tmpFrmFile, "rb"); // Open From File
     if (FrmHndl == NULL)
     {
       consPrefix("[!] ", consRed);
@@ -4890,7 +5116,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
 
       // Parse Out the FileType for Signature Checking
       memset(filetype, 0, 11);
-      dotPos = strrchr(FrmFile, '.') ;
+      dotPos = strrchr(tmpFrmFile, '.') ;
 
       if(dotPos !=NULL)
        strncpy(filetype, dotPos + 1, 10);
@@ -4936,7 +5162,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
     {
       rewind(FrmHndl); // Make sure we start at the top
 
-      //FrmHndl = fopen(FrmFile, "rb");
+      //FrmHndl = fopen(tmpFrmFile, "rb");
       TooHndl = fopen(tmpTooFile, "wb");
 
       if ((FrmHndl != NULL) && (TooHndl != NULL))
@@ -5092,7 +5318,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         /* MD5 The Files                                                */
         /****************************************************************/
         memset(MD5Tmp, 0, 255);
-        FileMD5(FrmFile);
+        FileMD5(tmpFrmFile);
         strncpy(MD5Tmp, MD5Out, 255);
       
         if (binLog == 1)
@@ -5202,6 +5428,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   ULONG n;
 
   char Full_Fname[2048] = "\0";
+  char Tooo_Fname[2048] = "\0";
   int  Full_MFTID;
   int  SQL_MFT = 0;
   int  i;
@@ -5215,6 +5442,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   char Text_SIModDate[30] = "\0";
   char Text_FileTyp[5] = "\0";
   char * pointEnd;
+  char *Slash;
 
   DWORD SecLen, LenSec;
   PSID pSidOwner = NULL;
@@ -5546,6 +5774,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           }
         }
 
+        iIsCompressed = 0 ;
         consPrefix("\n[+] ", consGre);
         printf("Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
         printf("    %s\n", Full_Fname);
@@ -5591,6 +5820,39 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 			      fprintf(LogHndl, "     Status: FN Only\n");
 		      }
           
+          if(iIsCompressed == 1)
+          {
+            fprintf(LogHndl, "[*] Raw Copied File Identified as COMPRESSED!\n");
+            consPrefix("[*] ", consYel);
+            printf("Raw Copied File Identified as  COMPRESSED!\n");
+
+            if(setNCP == 0)
+            {
+              fprintf(LogHndl, "[*] Now Using Standard OS Copy to create Decompressed version.\n");
+              consPrefix("[*] ", consYel);
+              printf("Now Using Standard OS Copy to create Decompressed version.\n");
+
+              /*******************************************************************/
+              /* Identify the Filename from the Full_Fname and create Tooo_Fname */
+              /*******************************************************************/
+              memset(Tooo_Fname, 0, 2048) ;
+              strncpy(Tooo_Fname, TooFile, 2000) ;
+              if ((Slash = strrchr(Full_Fname, '\\')) != NULL)
+              {
+                if (strlen(Slash) > 2)
+                 strcat(Tooo_Fname, Slash);
+                else
+                 strcat(Tooo_Fname, "NewFile\0");
+              }
+              else
+               strcat(Tooo_Fname, "NewFile\0");
+
+              binCopy(Full_Fname, Tooo_Fname, binLog);
+
+            }
+
+          }
+
 		    }
 
       }
@@ -5714,7 +5976,7 @@ void Time_tToFileTime(time_t InTimeT, int whichTime)
 long consInput(char *consString, int conLog, int conHide)
 {
   if(conLog == 1)
-    fprintf(LogHndl, "INP: [%s]", consString);
+    fprintf(LogHndl, "INP: [%s] ", consString);
 
   consPrefix("INP: ", consBlu);
   printf("%s", consString);
@@ -5745,7 +6007,12 @@ long consInput(char *consString, int conLog, int conHide)
   }
 
   if(conLog == 1)
-    fprintf(LogHndl, "%s\n", Conrec);
+  {
+    if(conHide == 1)
+     fprintf(LogHndl, "*Redacted*\n");
+    else
+     fprintf(LogHndl, "%s\n", Conrec);
+  }
 
   fflush(stdout); //More PSExec Friendly
   return 0;
@@ -6443,6 +6710,11 @@ BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn, PULONGL
   *lcn = 0;
   ULONGLONG base = attr->LowVcn;
 
+  // Check for a Compressions size - Good Clue this file is compressed
+  if(attr->CompressionUnit == 4)
+   iIsCompressed = 1;
+
+
   if (vcn < attr->LowVcn || vcn > attr->HighVcn)
     return FALSE;
 
@@ -6851,6 +7123,8 @@ int FindActive()
   PFILENAME_ATTRIBUTE name2 = NULL;
   PSTANDARD_INFORMATION name3 = NULL;
 
+  char TempFlag[10] = "\0";
+
   char Full_Fname[2048] = "\0";
   char Ftmp_Fname[2048] = "\0";
   char Str_Temp1[15] = "\0";
@@ -6940,6 +7214,11 @@ int FindActive()
         if (attr3 != 0)
         {
           name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
+
+          // Check to see if Compress Bit is on if the Flag Field.
+          // In practice this doesnt  work, but I left it here.
+          if (attr3->Flags & (1 << 1))
+           iIsCompressed = 1;
         }
 
 
