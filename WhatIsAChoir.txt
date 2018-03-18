@@ -1,4 +1,4 @@
-AChoir - v1.6
+AChoir - v1.8
 
 AChoir
 ======
@@ -137,6 +137,16 @@ Here is a list of all the Actions and Objects:
 
 Actions:
 ========
+SET:NCP=OSCOPY  Sets the NCP: (NTFS Raw Copy) to ALSO 
+                copy a file using the OS API when 
+                COMPRESSION is encountered.  This is not 
+                as forensically sound (it may leave artifacts)
+                as RAWONLY - but copying a RAW COMPRESSED 
+                file will not be readable without a DeCompress
+                utility
+SET:NCP=RAWONLY Copy COMPRESSED files RAW ONLY.  This is 
+                more forensically sound, but the file may not
+                be usable in its COMPRESSED form.
 SAY:     Echo Text and Objects to the Screen and Logfile
 CON:Hide Hide The Console Screen - For quiet Acquisition
          DO NOT USE IF YOU HAVE SCREEN INPUT - For any 
@@ -213,6 +223,8 @@ VCK:<x:> Check if the Volume <x:> is NTFS, FAT32, CDFS, Other, None
          (Used for conditional execution if Vol is/not NTFS)
 NCP:     NTFS Raw File Copy - Supports Wildcards (* and ?)
          NCP:<File(s) to Copy>  <Destination Directory>
+         Note: COMPRESSED Files will ALSO be copied using the OS 
+               API unless SET:NCP=RAWONLY is set.
 Sig:Clear Clears out the AChoir Signature Table 
 Sig:<Typ=xxxx> 
          Loads a File Signature ino the Signature Table. The first 
@@ -371,6 +383,25 @@ Use EXA: and EXB: judiciously, bearing in mind that NOT ONLY will they complete 
 times, but the AChoir Script ITSELF will continue to run as these programs also run in 
 parrallel.  In fact, AChoir could even complete and exit while these programs are still 
 executing.  This can have major implications for your AChoir scripts. 
+
+
+A note about System32 File ReDirection:
+----------
+When Non-Native programs (for instance 32 bit programs on 64 Bit Windows) are run, the 
+Operating System will redirect files located in the %SystemRoot%\System32 directory to 
+a different directory.  This directory can be different based on circumstances, but its
+alias is always %SystemRoot%\Sysnative.  I am slowly building this into all the parts 
+of AChoir.  This can be seen in the CPY: and NCP: Copy functions and the FOR: function.
+
+Achoir will try to detect if it is not running Native, and will adjust some of it's 
+actions based on that.  Whenever AChoir does this, it will note it on the screen and
+in the Acquisition Log.
+
+One may wonder - why not just use whatever Windows tells us.  The answer to that is 
+simple: If we are running AChoir on an endpoint, we may be interested in BOTH the 
+32Bit artifacts AND the 64Bit artifacts.  Since BOTH can be present, and BOTH may 
+be relevant to an investigation, AChoir will always try to get both artifacts if 
+it can.
 
 
 Artifacts that AChoir itself generates:
