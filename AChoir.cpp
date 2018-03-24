@@ -140,6 +140,7 @@
 /*                 (sub) directories. This was needed for       */
 /*                 switching from rawcopy to bincopy - plus its */
 /*                 a good general feature anyway.               */
+/* AChoir v1.9  - Recognize Compressed Size                     */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -222,7 +223,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v1.8\0";
+char Version[10] = "v1.9\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -232,6 +233,7 @@ int  iChkRC = 0;
 int  iIsAdmin = 0;
 int  iExec = 0;
 int  iIsCompressed = 0;
+char cIsCompressed[15] = "\0";
 int  setNCP = 0;  // 0=OSCOPY (Default), 1=RAWCOPY
 
 int  iNative = 0; // Are we Native 64Bit on 64Bit (Native = 1, NonNative = 0)
@@ -295,6 +297,7 @@ VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG cou
 ULONG AttributeLength(PATTRIBUTE attr);
 ULONG AttributeLengthAllocated(PATTRIBUTE attr);
 ULONG AttributeLengthDataSize(PATTRIBUTE attr);
+ULONG AttributeLengthCompressed(PATTRIBUTE attr);
 VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer);
 VOID ReadVCN(PFILE_RECORD_HEADER file, ATTRIBUTE_TYPE type, ULONGLONG vcn, ULONG count, PVOID buffer);
 VOID ReadFileRecord(ULONG index, PFILE_RECORD_HEADER file);
@@ -675,6 +678,7 @@ int main(int argc, char *argv[])
   memset(ntpFQDN, 0, 255);
 
   memset(VarArray, 0, 2560);
+  memset(cIsCompressed,0, 15);
 
   strncpy(inFnam, "AChoir.ACQ\0", 11);
 
@@ -5723,6 +5727,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         dbMaxCol = sqlite3_column_count(dbMFTStmt);
         
         memset(Full_Fname, 0, 2048);
+        iIsCompressed = 0 ;
         for (dbi = 0; dbi < dbMaxCol; dbi++)
         {
           if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FullFileName", 12) == 0)
@@ -5784,6 +5789,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           }
         }
 
+
         for (i = (int) strlen(Full_Fname); i > 0; i--)
         {
           if (Full_Fname[i] == '\\')
@@ -5838,7 +5844,6 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           }
         }
 
-        iIsCompressed = 0 ;
         consPrefix("\n[+] ", consGre);
         printf("Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
         printf("    %s\n", Full_Fname);
@@ -5886,7 +5891,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           
           if(iIsCompressed == 1)
           {
-            fprintf(LogHndl, "[*] Raw Copied File Was Detected as COMPRESSED!\n");
+            fprintf(LogHndl, "[*] Raw Copied File Was Detected as COMPRESSED\n");
             consPrefix("[*] ", consYel);
             printf("Raw Copied File Was Detected as  COMPRESSED!\n");
 
@@ -7032,6 +7037,14 @@ ULONG AttributeLengthDataSize(PATTRIBUTE attr)
 }
 
 
+ULONG AttributeLengthCompressed(PATTRIBUTE attr)
+{
+  return attr->Nonresident == FALSE ?
+    PRESIDENT_ATTRIBUTE(attr)->ValueLength :
+    ULONG(PNONRESIDENT_ATTRIBUTE(attr)->CompressedSize);
+}
+
+
 VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
 {
   PRESIDENT_ATTRIBUTE rattr = NULL;
@@ -7607,10 +7620,10 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
   PNONRESIDENT_ATTRIBUTE nonresattr = NULL;
   PATTRIBUTE_LIST attrdatax = NULL;
-  ULONG MaxOffset, MaxDataSize;
+  ULONG MaxOffset, MaxDataSize, MaxRawsz, MaxCmprs;
   USHORT LastOffset;
   long pointData;
-  ULONG attrLen, dataLen;
+  ULONG attrLen, dataLen, rawdLen, cmprLen;
   int gotData, i, DDRetcd;
  
   // Signature Checking Variables
@@ -7712,8 +7725,22 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
       // Read the attribute list - Physical Size and Logical Size
       //  We use Physical size to READ the clusters and Logical Size to WRITE the new file
-      MaxDataSize = AttributeLengthDataSize(attrlist);
+      MaxRawsz = AttributeLengthDataSize(attrlist);
       MaxOffset = AttributeLengthAllocated(attrlist);
+      MaxCmprs = AttributeLengthCompressed(attrlist);
+
+
+      // If its a compressed file, used the CompressedSize.
+      if(iIsCompressed == 1)
+      {
+        strncpy(cIsCompressed, "(Compressed)\0", 13);
+        MaxDataSize = MaxCmprs ;
+      }
+      else
+      {
+        strncpy(cIsCompressed, "             \0", 13);
+        MaxDataSize = MaxRawsz ;
+      }
 
       bufA  = (UCHAR *) malloc(MaxOffset);
 
@@ -7807,8 +7834,24 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     //Try to get the file size
     // If it is 0 - See if we are in Append and Get the number of bytes
     //  Left in the File (leftSize)
-    dataLen = AttributeLengthDataSize(attr);
+    rawdLen = AttributeLengthDataSize(attr);
     attrLen = AttributeLengthAllocated(attr);
+    cmprLen = AttributeLengthCompressed(attr);
+    
+
+    // If the File is Compressed - Use Compression Size.
+    if(iIsCompressed == 1)
+    {
+      strncpy(cIsCompressed, "(Compressed)\0", 13);
+      dataLen = cmprLen ;
+    }
+    else
+    {
+      strncpy(cIsCompressed, "            \0", 13);
+      dataLen = rawdLen ;
+    }
+
+
     if (attrLen > 0)
     {
       maxFileSize = attrLen;
@@ -7822,7 +7865,8 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       dataLen = leftDataSize;
     }
 
-    // Changing to unique Buffer bufD - To avoid conflict with attr BufA
+ 
+   // Changing to unique Buffer bufD - To avoid conflict with attr BufA
     // If File exceeds Max Memory, Cache the Extraction
     maxMemExceed = useDiskOrMem = 0;
     if (attrLen > maxMemBytes)
@@ -7936,13 +7980,16 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         // MaxMem Exceeded! Just Use a Cluster at a Time - Also Show us the size.
         bufD  = (UCHAR *) malloc(bootb.BytesPerSector * bootb.SectorsPerCluster)  ;
 
-        printf("     (In)Size: %lu\n", dataLen);
+        printf("     (In)Size: %lu ", dataLen);
+        consPrefix(cIsCompressed, consYel);
+        printf("\n");
+
         consPrefix("\n[+] ", consGre);
         printf("File Exceeds Max Memory Size...  Disk Caching Sectors...\n");
 
         if (binLog == 1)
         {
-          fprintf(LogHndl, "     (In)Size: %lu\n", dataLen);
+          fprintf(LogHndl, "     (In)Size: %lu %s\n", dataLen, cIsCompressed);
           fprintf(LogHndl, "\n[+] File Exceeds Max Memory Size...  Disk Caching Sectors...\n");
         }
       }
@@ -7965,10 +8012,12 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       //Now show the iData Size since we didn't show the dataLen
       if(maxMemExceed != 1)
       {
-        printf("     (In)Size: %ld                         \n", iDataSize);
+        printf("     (In)Size: %ld ", iDataSize);
+        consPrefix(cIsCompressed, consYel);
+        printf("                         \n");
       
         if (binLog == 1)
-          fprintf(LogHndl, "     (In)Size: %ld                         \n", iDataSize);
+          fprintf(LogHndl, "     (In)Size: %ld %s                        \n", iDataSize, cIsCompressed);
       }
 
       consPrefix("\n[+] ", consGre);
@@ -8140,11 +8189,13 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       if (binLog == 1)
       {
         fprintf(LogHndl, "     (out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
-        fprintf(LogHndl, "     (out)Size: %llu\n", ftSize.QuadPart);
+        fprintf(LogHndl, "     (out)Size: %llu %s\n", ftSize.QuadPart, cIsCompressed);
         fprintf(LogHndl, "     (out)File MD5: %s\n", MD5Out);
       }
       printf("     (out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
-      printf("     (out)Size: %llu\n", ftSize.QuadPart);
+      printf("     (out)Size: %llu ", ftSize.QuadPart);
+      consPrefix(cIsCompressed, consYel);
+      printf("\n");
       printf("     (out)File MD5: %s\n", MD5Out);
 
       if ((CompareFileTime(&ToCreTime, &ftCreate) != 0) || (CompareFileTime(&ToAccTime, &ftAccess) != 0) || (CompareFileTime(&ToModTime, &ftWrite) != 0))
