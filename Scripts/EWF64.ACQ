@@ -5,6 +5,10 @@
 *   - Requires 64 Bit Windows                     *
 *     If you are using 32 Bit Windows:            *
 *     Use the EWF32.Acq Script instead            *
+*                                                 *
+* - IMPORTANT NOTE: IT IS BEST TO MOUNT THE E01   *
+*   AS TEMPORARY WRITE - MANY UTILS FAIL on R/O   *
+*                                                 *
 ***************************************************
 SAY:
 SAY: AChoir will Mount an EWF Evidence File (.E01) and pull Artifacts 
@@ -39,16 +43,20 @@ SAY:
 ACQ:\RawData
 NCP:"&Drv\$MFT" "&Acq"
 SAY:
-SAY: 1b. Copy Raw $LogFile...
+SAY: 1b. Now Parsing $MFT...
+SAY:
+EXE:\DSK\MFTDump.exe /l /d /v --output=&Acq\MFTDump.dat &Acq\$MFT 
+SAY:
+SAY: 1c. Copy Raw $LogFile...
 SAY:
 NCP:"&Drv\$LogFile" "&Acq"
 SAY:
-SAY: 1c. Now Parsing USNJrnl...
+SAY: 1d. Now Parsing USNJrnl...
 SAY:
 CMD:fsutil usn enumdata 1 0 1 &Drv > &Acq\USNJrnl.dat
 CMD:fsutil usn readjournal &Drv csv >> &Acq\USNJrnl.dat
 SAY:
-SAY: 1d. Now Extracting USNJrnl...
+SAY: 1e. Now Extracting USNJrnl...
 SAY:
 EXE:\DSK\ExtractUSNJrnl64.exe /DevicePath:&Drv /OutputPath:&Acq
 SAY:
@@ -59,43 +67,56 @@ RegFileExport "&Drv\Windows\system32\config\SAM" "Reg-SAM.txt"
 RegFileExport "&Drv\Windows\system32\config\SECURITY" "Reg-SECURITY.txt"
 RegFileExport "&Drv\Windows\system32\config\SOFTWARE" "Reg-SOFTWARE.txt"
 RegFileExport "&Drv\Windows\system32\config\SYSTEM" "Reg-SYSTEM.txt"
-SAY:
-NCP:"&Drv\Windows\system32\config\*" "&Acq"
+For:&Drv\Windows\system32\config\*.*
+CPY:"&For" "&Acq\&Fnm"
 SAY:
 SAY: 2a. Parsing and Copying USER Registry Hives/Files...
-SAY:
 FOR:&Drv\Users\NTUSER.DAT
 EXE:\SYS\RegfileExport.exe &For "&Acq\NTUSER(&Num).EXP"
-NCP:"&Drv\Users\*\NTUSER.DAT" "&Acq"
+CPY:"&For" "&Acq\&Fnm(&Num)"
 SAY:
-SAY: 2b. RegRipping Common Hives...
+SAY: 2b. RegRipping USER Registry Hives/Files...
+DIR:\RRV\RegRipper2.8-master
+CMD:rip.exe -r &FOR -f ntuser > &Acq\NTUSER(&NUM).regrip
+SAY:
+SAY: 2c. RegRipping Common Hives...
 SAY:
 SAY: ***Scanning Software hive***
-CMD:\RRV\RegRipper2.8-master\rip.exe -r &Drv\Windows\System32\Config\software -f software > &Acq\Software.regrip
+CMD:rip.exe -r &Drv\Windows\System32\Config\software -f software > &Acq\Software.regrip
 SAY:
 SAY: ***Scanning System hive***
-CMD:\RRV\RegRipper2.8-master\rip.exe -r &Drv\Windows\System32\Config\system -f system > &Acq\System.regrip 
+CMD:rip.exe -r &Drv\Windows\System32\Config\system -f system > &Acq\System.regrip 
 SAY:
 SAY: ***Scanning SAM hive***
-CMD:\RRV\RegRipper2.8-master\rip.exe -r &Drv\Windows\System32\Config\sam -f sam > &Acq\Sam.regrip
+CMD:rip.exe -r &Drv\Windows\System32\Config\sam -f sam > &Acq\Sam.regrip
 SAY:
 SAY: ***Scanning Security hive*** 
-CMD:\RRV\RegRipper2.8-master\rip -r &Drv\Windows\System32\Config\SECURITY –f security > &AcSecurity.regrip
+CMD:rip.exe -r &Drv\Windows\System32\Config\SECURITY –f security > &Acq\Security.regrip
 SAY:
 SAY: 3. Parsing Prefetch Directory...
+DIR:\
 SAY:
 ACQ:\Prf
-NCP:"&Drv\Windows\prefetch\*" "&Acq"
+For:&Drv\Windows\prefetch\*.*
+CPY:"&For" "&Acq\&Fnm"
+CMD:Dir &Drv\Windows\prefetch /a /q /r > &Acq\Prefetch.dat
+EXE:\SYS\WinPrefetchView.exe /folder &Drv\Windows\Prefetch /scomma &Acq\WinPrefetchview.dat
 SAY:
 SAY: 4. Parsing Hosts And Services Directory...
 SAY:
 ACQ:\SYS
-NCP:"&Drv\Windows\System32\Drivers\Etc\*" "&Acq"
+For:&Drv\Windows\System32\Drivers\Etc\*.*
+CPY:"&For" "&Acq\&Fnm"
 SAY:
-SAY: 5. Gathering AutoRun Information...
-SAY:
-EXE:\SYS\Autoruns.exe
-SAY:
+***:
+***:AutoRuns/c Does not appear to work with R/O mounted drive.
+***:
+***:SAY: 5. Gathering AutoRun Information...
+***:SAY:
+***:ACQ:\Arn
+***:SYS:for /d %%z in (&Drv\Users\*) do &Dir\Sys\Autorunsc.exe -c -z &Drv\Windows %%z >> &Acq\Arn.csv
+***:EXE:\SYS\Autoruns.exe
+***:SAY:
 SAY: 6a. Parsing EventViewer Logs Hives...
 SAY:
 ACQ:\Evt
@@ -105,12 +126,13 @@ CMD:\SYS\PSLogList.exe /accepteula -s -l &Drv\Windows\System32\Winevt\logs\Syste
 SAY:
 SAY: 6b. Copying EventViewer Logs Hives...
 SAY:
-NCP:"&Drv\Windows\System32\winevt\Logs\*" "&Acq"
+For:&Drv\Windows\System32\winevt\Logs\*.*
+CPY:"&For" "&Acq\&Fnm"
 SAY:
 SAY: 7. Now Extracting Browser History...
 SAY:
 ACQ:\Brw
-EXE:\SYS\BrowsingHistoryView.exe 
+EXE:\SYS\BrowsingHistoryView.exe /HistorySource 3 /HistorySourceFolder "&Drv\Users" /VisitTimeFilterType 1 /scomma "&Acq\BrowserHistory.csv" 
 SAY:
 SAY: 8. Parsing Offline Registry AutoRun Keys
 SAY:
@@ -122,6 +144,7 @@ SAY:
 SAY: Now Hashing Artifacts...
 HSH:ACQ
 SAY:
+PZZ: All Done!  Press Any Key to Finish.
 SAY: Now DISMOUNTING Evidence File...
 EXE:\EWF\64Bit\osfmount.com -d -m &Drv
 SAY:
