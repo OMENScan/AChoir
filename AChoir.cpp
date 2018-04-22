@@ -141,6 +141,7 @@
 /*                 switching from rawcopy to bincopy - plus its */
 /*                 a good general feature anyway.               */
 /* AChoir v1.9  - Recognize Compressed Size                     */
+/* AChoir v1.9a - More Comressed Files Support                  */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -223,7 +224,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v1.9\0";
+char Version[10] = "v1.9a\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -5888,41 +5889,55 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 			      printf("FN Only\n");
 			      fprintf(LogHndl, "     Status: FN Only\n");
 		      }
-          
-          if(iIsCompressed == 1)
+
+        }
+        else
+        {
+		      // We had an Error Copying Raw
+          consPrefix("\n[!] ", consRed);
+		      printf("Error Encountered Copying the file.  Internal Return Code: %d\n", DDRetcd);
+		      fprintf(LogHndl, "Error Encountered Copying the file.  Internal Return Code: %d\n", DDRetcd);
+        }
+
+
+
+        /****************************************************************/
+        /* Regardless of whether we got an error or not, check to see   */
+        /*  if the file is compressed - We might still be able to get a */
+        /*  good copy if setNCP was set to API Copy Raw Files           */
+        /****************************************************************/
+        if(iIsCompressed == 1)
+        {
+          fprintf(LogHndl, "[*] Raw Copied File Was Detected as COMPRESSED\n");
+          consPrefix("[*] ", consYel);
+          printf("Raw Copied File Was Detected as  COMPRESSED!\n");
+
+          if(setNCP == 0)
           {
-            fprintf(LogHndl, "[*] Raw Copied File Was Detected as COMPRESSED\n");
+            fprintf(LogHndl, "[*] Now Using Standard OS Copy to create Decompressed version.\n");
             consPrefix("[*] ", consYel);
-            printf("Raw Copied File Was Detected as  COMPRESSED!\n");
+            printf("Now Using Standard OS Copy to create Decompressed version.\n");
 
-            if(setNCP == 0)
+            /*******************************************************************/
+            /* Identify the Filename from the Full_Fname and create Tooo_Fname */
+            /*******************************************************************/
+            memset(Tooo_Fname, 0, 2048) ;
+            strncpy(Tooo_Fname, TooFile, 2000) ;
+            if ((Slash = strrchr(Full_Fname, '\\')) != NULL)
             {
-              fprintf(LogHndl, "[*] Now Using Standard OS Copy to create Decompressed version.\n");
-              consPrefix("[*] ", consYel);
-              printf("Now Using Standard OS Copy to create Decompressed version.\n");
-
-              /*******************************************************************/
-              /* Identify the Filename from the Full_Fname and create Tooo_Fname */
-              /*******************************************************************/
-              memset(Tooo_Fname, 0, 2048) ;
-              strncpy(Tooo_Fname, TooFile, 2000) ;
-              if ((Slash = strrchr(Full_Fname, '\\')) != NULL)
-              {
-                if (strlen(Slash) > 2)
-                 strcat(Tooo_Fname, Slash);
-                else
-                 strcat(Tooo_Fname, "NewFile\0");
-              }
+              if (strlen(Slash) > 2)
+               strcat(Tooo_Fname, Slash);
               else
                strcat(Tooo_Fname, "NewFile\0");
-
-              binCopy(Full_Fname, Tooo_Fname, binLog);
-
             }
+            else
+             strcat(Tooo_Fname, "NewFile\0");
+
+            binCopy(Full_Fname, Tooo_Fname, binLog);
 
           }
 
-		    }
+        }
 
       }
 
