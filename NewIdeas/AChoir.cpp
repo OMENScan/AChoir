@@ -225,7 +225,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v1.9a\0";
+char Version[10] = "v2.0\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -260,6 +260,7 @@ char *stristr(const char *String, const char *Pattern);
 int  FileMD5(char *MD5FileName);
 int  MemAllocErr(char *ErrType);
 int  binCopy(char *FrmFile, char *TooFile, int binLog);
+int  lznCopy(char *FrmFile, char *TooFile, ULONG TooSize);
 void Time_tToFileTime(time_t InTimeT, int whichTime);
 long varConvert(char *inVarRec);
 long consInput(char *consString, int conLog, int conHide);
@@ -597,304 +598,21 @@ template <class T1, class T2> inline T1* Padd(T1* p, T2 n)
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 //Start Testing Variables
 ULONG lst_cur, lst_end, tot_byt_src, tot_byt_dst;
 //End Testing Varaibles
 
-#define STATUS_ACCESS_VIOLATION 0xC0000005
+//Global Variables for lznCopy
+ULONG last_rawdLen ;
+char  last_Fname[2048] = "\0";
+
+//#define STATUS_ACCESS_VIOLATION 0xC0000005
 #define STATUS_BAD_COMPRESSION_BUFFER 0xC0000242
 #define STATUS_SUCCESS 0x00000000
 
-static PUCHAR lznt1_decompress_chunk (UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG src_size)
-{
-  UCHAR *src_cur, *src_end, *dst_cur, *dst_end;
-  ULONG displacement_bits, length_bits;
-  ULONG code_displacement, code_length;
-  WORD flags, code;
-  
-  src_cur = src;
-  src_end = src + src_size;
-  dst_cur = dst;
-  dst_end = dst + dst_size;
-  
-  /* Partial decompression is no error on Windows. */
-  while (src_cur < src_end && dst_cur < dst_end)
-  {
-    /* read flags header */
-    flags = 0x8000 | *src_cur++;
-
-    /* parse following 8 entities, either uncompressed data or backwards reference */
-    while ((flags & 0xFF00) && src_cur < src_end)
-    {
-      if (flags & 1)
-      {
-        /* backwards reference */
-        if (src_cur + sizeof(WORD) > src_end)
-         return NULL;
-
-        code = *(WORD *)src_cur;
-        src_cur += sizeof(WORD);
-   
-        /* find length / displacement bits */
-        for (displacement_bits = 12; displacement_bits > 4; displacement_bits--)
-         if ((1 << (displacement_bits - 1)) < dst_cur - dst) 
-          break;
-
-        length_bits       = 16 - displacement_bits;
-        code_length       = (code & ((1 << length_bits) - 1)) + 3;
-        code_displacement = (code >> length_bits) + 1;
- 
-        /* ensure reference is valid */
-        if (dst_cur < dst + code_displacement)
-         return NULL;
- 
-        /* copy bytes of chunk - we can't use memcpy()
-        * since source and dest can be overlapping */
-        while (code_length--)
-        {
-          if (dst_cur >= dst_end) 
-           return dst_cur;
-
-          *dst_cur = *(dst_cur - code_displacement);
-          dst_cur++;
-        }
-      }
-      else
-      {
-        /* uncompressed data */
-        if (dst_cur >= dst_end)
-         return dst_cur;
-
-        *dst_cur++ = *src_cur++;
-      }
-      flags >>= 1;
-    }
-    
-  }
-  
-  return dst_cur;
-}
-
-
-static NTSTATUS lznt1_decompress ( UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG src_size, ULONG offset, ULONG * final_size, UCHAR * workspace)
-{
-  UCHAR *src_cur = src, *src_end = src + src_size;
-  UCHAR *dst_cur = dst, *dst_end = dst + dst_size;
-  ULONG chunk_size, block_size;
-  WORD chunk_header;
-  UCHAR *ptr;
-
-
-  if (src_cur + sizeof(WORD) > src_end)
-{
-printf ("Past src end 1 - Next Loc: %lu -- End: %lu \n", src_cur + sizeof(WORD), src_end);
-   return STATUS_BAD_COMPRESSION_BUFFER;
-}
- 
-  /* skip over chunks which have a big distance (>= 0x1000) to the destination offset */
-  while (offset >= 0x1000 && src_cur + sizeof(WORD) <= src_end)
-  {
-    /* read chunk header and extract size */
-    chunk_header = *(WORD *)src_cur;
-    src_cur += sizeof(WORD);
-
-//tot_byt_src += sizeof(WORD);
-
-    if(!chunk_header)
-{
-printf ("Not Chunk Header 1\n");
-     goto out;
-}
-
-    chunk_size = (chunk_header & 0xFFF) + 1;
-  
-    /* ensure we have enough buffer to process chunk */
-    if (src_cur + chunk_size > src_end)
-{
-printf ("Past src end 2\n");
-     return STATUS_BAD_COMPRESSION_BUFFER;
-}
-
-
-//tot_byt_src += chunk_size;
-    src_cur += chunk_size;
-    offset  -= 0x1000;
-  }
-
-  
-  /* this chunk is can be included partially */
-  if (offset && src_cur + sizeof(WORD) <= src_end)
-  {
-    /* read chunk header and extract size */
-    chunk_header = *(WORD *)src_cur;
-    src_cur += sizeof(WORD);
-
-//tot_byt_src += sizeof(WORD);
-
-
-    if (!chunk_header)
-{
-printf ("Past src end 3\n");
-     goto out;
-}
-
-    chunk_size = (chunk_header & 0xFFF) + 1;
-  
-    /* ensure we have enough buffer to process chunk */
-    if (src_cur + chunk_size > src_end)
-{
-printf ("Past src end 4\n");
-     return STATUS_BAD_COMPRESSION_BUFFER;
-}
-  
-    if (dst_cur >= dst_end)
-     goto out;
-  
-    if (chunk_header & 0x8000)
-    {
-      /* compressed chunk */
-      if (!workspace)
-{
-printf ("Access Violation\n");
-       return STATUS_ACCESS_VIOLATION;
-}
-
-      ptr = lznt1_decompress_chunk(workspace, 0x1000, src_cur, chunk_size);
-
-      if (!ptr) 
-{
-printf ("Error Decompressing Chunk\n");
-
-       return STATUS_BAD_COMPRESSION_BUFFER;
-}
-
-      if (ptr - workspace > offset)
-      {
-        block_size = min ((ptr - workspace) - offset, dst_end - dst_cur);
-        memcpy(dst_cur, workspace + offset, block_size);
-        dst_cur += block_size;
-      }
-    }
-    else
-    {
-      /* uncompressed chunk */
-      if (chunk_size > offset)
-      {
-        block_size = min(chunk_size - offset, dst_end - dst_cur);
-        memcpy(dst_cur, src_cur + offset, block_size);
-        dst_cur += block_size;
-      }
-    }
-    src_cur += chunk_size;
-//tot_byt_src += chunk_size;
-
-  }
-
-  
-  /* handle remaining chunks */
-  while (src_cur + sizeof(WORD) <= src_end)
-  {
-    /* read chunk header and extract size */
-    chunk_header = *(WORD *)src_cur;
-    src_cur += sizeof(WORD);
-//tot_byt_src += sizeof(WORD);
-
-    if (!chunk_header) 
-{
-printf ("Not Chunk Header 2\n");
-     goto out;
-}
-
-    chunk_size = (chunk_header & 0xFFF) + 1;
-
-    if (src_cur + chunk_size > src_end)
-{
-printf ("Past src end 5\n");
-
-     return STATUS_BAD_COMPRESSION_BUFFER;
-}
-  
-    /* add padding if required */
-    block_size = ((dst_cur - dst) + offset) & 0xFFF;
-    if (block_size)
-    {
-      block_size = 0x1000 - block_size;
-      if (dst_cur + block_size >= dst_end)
-{
-printf ("Past dst end\n");
-       goto out;
-}
-
-      memset(dst_cur, 0, block_size);
-      dst_cur += block_size;
-    }
- 
-    if (dst_cur >= dst_end)
-{
-printf ("Past dst end\n");
-     goto out;
-}
-    if (chunk_header & 0x8000)
-    {
-      /* compressed chunk */
-lst_cur = src_cur - src;
-printf("Good: Cur in: %04x - Last offset: %04x\n", src_cur, lst_cur);
-     dst_cur = lznt1_decompress_chunk(dst_cur, dst_end - dst_cur, src_cur, chunk_size);
-
-      if (!dst_cur) 
-{
-printf ("Error Decompressing Chunk\n");
-      return STATUS_BAD_COMPRESSION_BUFFER;
-}
-    }
-    else
-    {
-      /* uncompressed chunk */
-      block_size = min(chunk_size, dst_end - dst_cur);
-      memcpy(dst_cur, src_cur, block_size);
-      dst_cur += block_size;
-    }
-
-      src_cur += chunk_size;
-//tot_byt_src += chunk_size;
-  }
-   
-out:
-  if (final_size)
-   *final_size = dst_cur - dst;
-  
-  return STATUS_SUCCESS;
-  
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+//lznCopy - Routines Definitions
+static PUCHAR lznt1_decompress_chunk (UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG src_size);
+static NTSTATUS lznt1_decompress ( UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG src_size, ULONG offset, ULONG * final_size, UCHAR * workspace);
 
 
 int main(int argc, char *argv[])
@@ -5785,6 +5503,338 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
 
 
 /****************************************************************/
+/* LZNT1 Copy/Decompress From, To, OutFile Size (for Padding)   */
+/*                                                              */
+/*  * LZNT1 Compressed Input - 64K Chunks (16 x 4K sections)    */
+/*  * Pass Max File Size since the file can be Sparse           */
+/*                                                              */
+/****************************************************************/
+int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
+{
+  WORD chunk_hdr_test;
+  NTSTATUS lastStatus;
+
+  ULONG n;
+  size_t inSize ;
+  //size_t inSize, outSize;
+  PUCHAR InLzbuf ;  //Input LZNT1 Encoded
+  PUCHAR UnLzbuf ;  //Output Decompresseed (UnLz) Data
+  PUCHAR Wrkzbuf ;  //Working Space  
+  ULONG  writLen ;  //How many bytes were written to the file
+  ULONG  bytsLft ;  //How many bytes are left in the File
+
+  int iLZNTSz = 65536 ;
+  int NBlox = 0;
+
+  char tmpFrmFile[4096];
+  char tmpTooFile[4096];
+  int iFileCount = 0;
+  int iFileFound = 0;
+  int TimeNotGood = 0;
+  int setOwner = 0;
+
+  FILE* FrmHndl;
+  //FILE* TooHndl;
+  HANDLE HndlToo;
+
+  DWORD dwRtnCode = 0;
+  DWORD SecLen, LenSec;
+  PSID pSidOwner = NULL;
+  BOOL pFlag = FALSE;
+  
+  // Signature Checking Variables
+  //int i;
+  CHAR filetype[11] = "\0";
+  //char *dotPos;
+
+
+
+  /****************************************************************/
+  /* Make Sure the File is Not There - Don't Overwrite!           */
+  /****************************************************************/
+  memset(tmpTooFile, 0, 4096);
+  snprintf(tmpTooFile, 4090, "%s", TooFile);
+
+  memset(tmpFrmFile, 0, 4096);
+  snprintf(tmpFrmFile, 4090, "%s", FrmFile);
+
+
+  iFileCount = 0;
+
+  if (access(tmpTooFile, 0) == 0)
+  {
+    do
+    {
+      iFileCount++;
+
+      memset(tmpTooFile, 0, 4096);
+      snprintf(tmpTooFile, 4090, "%s(%d)", TooFile, iFileCount);
+    } while (access(tmpTooFile, 0) == 0);
+  }
+
+  if (iFileCount > 0)
+  {
+    fprintf(LogHndl, "[*] DeCompressed File Already Exists. \n     Renamed To: %s\n", tmpTooFile);
+    consPrefix("[*] ", consYel);
+    printf("Decompressed File Already Exists. \n     Renamed To: %s\n", tmpTooFile);
+  }
+
+
+  iFileFound = 1;  // Assume Yes, Found
+  if (access(tmpFrmFile, 0) != 0)
+  {
+    iFileFound = 0; // Not Found
+
+    fprintf(LogHndl, "[!] Source Compressed File Not Found: \n %s\n", tmpFrmFile);
+    consPrefix("[!] ", consRed);
+    printf("Source Compressed File Not Found: \n %s\n", tmpFrmFile);
+
+
+    // Check for Sysnative edge case (running 32 bit on 64 bit)
+    //if (strnicmp(Procesr, "X86", 3) == 0)
+    if (iNative == 0)
+    {
+      iFileFound = 1; //Wait... Maybe it's a file Redirect
+
+      if(strnicmp(FrmFile+strlen(WinRoot), "\\System32\\", 10) == 0)
+      {
+        memset(tmpFrmFile, 0, 4096);
+        sprintf(tmpFrmFile, "%s\\Sysnative\\%s\0", WinRoot, FrmFile+strlen(WinRoot)+10);
+
+        fprintf(LogHndl, "[*] Non-Native Flag Has Been Detected - Trying Sysnative Redirection: \n %s\n", tmpFrmFile);
+        consPrefix("[*] ", consYel);
+        printf("Non-Native Flag Has Been Detected - Trying Sysnative Redirection: \n %s\n", tmpFrmFile);
+
+        if (access(tmpFrmFile, 0) != 0)
+        {
+          iFileFound = 0; //No... Sorry... Not Sysnative
+
+          fprintf(LogHndl, "[*] Sysnative Source Compressed File Also Not Found: \n %s\n", tmpFrmFile);
+          consPrefix("[*] ", consYel);
+          printf("Sysnative Source Compressed File Also Not Found: \n %s\n", tmpFrmFile);
+          fflush(stdout); //More PSExec Friendly
+          return 0;
+        }
+        else
+        {
+          iFileFound = 1; // Yes... Substitution Successful
+
+          fprintf(LogHndl, "[*] Sysnative Source Compressed File Found, Now Substituting.\n");
+          consPrefix("[*] ", consYel);
+          printf("Sysnative Source Compressed File Found, Now Substituting.\n");
+          fflush(stdout); //More PSExec Friendly
+        }
+      }
+      else
+      {
+        fflush(stdout); //More PSExec Friendly
+        return 0;
+      }
+
+    }
+
+  }
+
+
+  if(iFileFound == 1)
+  {
+    /****************************************************************/
+    /* Get the original TimeStamps                                  */
+    /****************************************************************/
+    _stat(tmpFrmFile, &Frmstat);
+
+
+    /****************************************************************/
+    /* Get the SID (File Owner) of the file - Security Descripter   */
+    /****************************************************************/
+    gotOwner = 0;
+
+    /****************************************************************/
+    /* NOTE: Use Static Security Descriptor Buffer. Its Safer       */
+    /****************************************************************/
+    SecLen = 200;
+
+    // Populate the Security Description Structure
+    if (GetFileSecurity(tmpFrmFile, OWNER_SECURITY_INFORMATION, SecDesc, SecLen, &LenSec))
+    {
+      if (GetSecurityDescriptorOwner(SecDesc, &pSidOwner, &pFlag))
+      {
+        gotOwner = 1;
+
+        convert_sid_to_string_sid(pSidOwner, SidString);
+      }
+    }
+
+
+    /****************************************************************/
+    /* Open Input File - Make sure we can read it!                  */
+    /****************************************************************/
+    FrmHndl = fopen(tmpFrmFile, "rb"); // Open From File
+    if (FrmHndl == NULL)
+    {
+      consPrefix("[!] ", consRed);
+      printf("Could Not Open Compressed File for Reading - File Decompress Bypassed.\n");
+      fprintf(LogHndl, "[!] Could Not Open Compressed File for Reading - File Decompress Bypassed.\n");
+
+      fflush(stdout); //More PSExec Friendly
+      return 1;
+    }
+
+    //Output Uncompressed File
+    HndlToo = CreateFile((LPCSTR)TooFile, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+    if (HndlToo == INVALID_HANDLE_VALUE)
+    {
+      consPrefix("[!] ", consRed);
+      printf("Could Not Open UnCompressed Output File for Writing - File Decompress Bypassed.\n");
+      fprintf(LogHndl, "[!] Could Not Open UnCompressed Output File for Writing - File Decompress Bypassed.\n");
+
+      fflush(stdout); //More PSExec Friendly
+      return 1;
+    }
+
+
+
+
+    //Allocate the LZNT1 64K Buffer 
+    //InLzbuf = Compressed Input
+    //UnLzbuf = Decompressed Output
+    //Wrkzbuf = 4K Working Buffer
+    tot_byt_src = tot_byt_dst = 0;
+    bytsLft = TooSize;
+
+    InLzbuf  = (UCHAR *) malloc(iLZNTSz);
+    UnLzbuf  = (UCHAR *) malloc(iLZNTSz);
+    Wrkzbuf  = (UCHAR *) malloc(0x1000);
+
+    //Start with Clean Memory
+    memset(InLzbuf, 0, iLZNTSz);
+    memset(UnLzbuf, 0, iLZNTSz);
+    memset(Wrkzbuf, 0, 0x1000);
+
+
+    // Did we allocate our Buffers OK?
+    if (InLzbuf == NULL || UnLzbuf == NULL || Wrkzbuf == NUL)
+    {
+      consPrefix("[!] ", consRed);
+      printf("LZNT1 - Buffer Allocation Error - File Decompress Bypassed.\n");
+      fprintf(LogHndl, "[!] LZNT1 Buffer Allocation Error - File Decompress Bypassed.\n");
+
+      free(InLzbuf);
+      free(UnLzbuf);
+      free(Wrkzbuf);
+
+      fflush(stdout); //More PSExec Friendly
+      fclose(FrmHndl);
+      CloseHandle(HndlToo);
+
+      return 1;
+    }
+
+
+    while ((inSize = fread(InLzbuf, 1, iLZNTSz, FrmHndl)) > 0)
+    {
+      consPrefix("[+] ", consGre);
+      printf("LZNT1 64K Block: %d\r", NBlox++);
+
+      //Make sure we have a chunk Header 
+      chunk_hdr_test = *(WORD *)(InLzbuf);
+      if (!chunk_hdr_test) 
+      {
+        //Bad Chunk Header - Ignore this Chunk (for now) - maybe come back to this.
+        //consPrefix("[!] ", consRed);
+        //printf("Bad Chunk Header...  Bypassing Decompress of this Chunk...\n");
+        //fprintf(LogHndl, "[!] Bad Chunk Header...  Bypassing Decompress of this Chunk...\n");
+
+        continue;
+      }
+      else
+      {
+        lastStatus = lznt1_decompress(UnLzbuf, iLZNTSz, InLzbuf, inSize, 0, &writLen, Wrkzbuf);
+        if (lastStatus == 0)
+        {
+          //Sometimes we decompress more bytes than the FileSize.  So defer to Filesize!
+          if (bytsLft < writLen)
+           writLen = bytsLft;
+
+          WriteFile(HndlToo, UnLzbuf, writLen, &n, 0);
+          //Debug
+          //printf("Decompressed Bytes D:%lu   X:%04x\n", writLen, writLen);
+          //printf("File Written Bytes: %lu\n", n);
+
+          tot_byt_src += inSize ;
+          tot_byt_dst += writLen ;
+          bytsLft = TooSize-tot_byt_dst;
+
+          //Start Next Round with Clean Memory
+          memset(InLzbuf, 0, iLZNTSz);
+          memset(UnLzbuf, 0, iLZNTSz);
+          memset(Wrkzbuf, 0, 0x1000);
+
+          //Debug
+          //printf("Bytes Left: %lu\n", bytsLft);
+        }
+        else
+        {
+          consPrefix("[!] ", consRed);
+          printf("Decompressed Failed! (RC:%08x) - (Bytes Written: %ld - Decompression Aborted.)\n", lastStatus, writLen);
+          fprintf(LogHndl, "[!] Decompressed Failed! (RC:%08x) - (Bytes Written: %ld - Decompression Aborted.)\n", lastStatus, writLen);
+
+          free(InLzbuf);
+          free(UnLzbuf);
+          free(Wrkzbuf);
+
+          fflush(stdout); //More PSExec Friendly
+          fclose(FrmHndl);
+          CloseHandle(HndlToo);
+          return 1;
+        }
+      }
+    }
+
+    //Debug
+    //printf("No More Compressed Input Data\n");
+    free(InLzbuf);
+    free(UnLzbuf);
+    free(Wrkzbuf);
+
+    if (bytsLft > 0)
+    {
+      //Debug
+      //printf ("Now Padding Sparse Data (%lu)\n", bytsLft);
+      Wrkzbuf  = (UCHAR *) malloc(bytsLft);
+      memset(Wrkzbuf, 0, bytsLft);
+      WriteFile(HndlToo, Wrkzbuf, bytsLft, &n, 0);
+      free(Wrkzbuf);
+    }
+
+    fflush(stdout); //More PSExec Friendly
+    fclose(FrmHndl);
+    CloseHandle(HndlToo);
+    return 1;
+
+
+
+
+
+    //LOH
+    //Add all the post processing after gettting the basic Logic to work
+
+
+
+
+
+
+    fflush(stdout); //More PSExec Friendly
+
+  }
+
+  fflush(stdout); //More PSExec Friendly
+
+  return 0;
+}
+
+
+/****************************************************************/
 /* Raw NTFS Copy From, To                                       */
 /****************************************************************/
 int rawCopy(char *FrmFile, char *TooFile, int binLog)
@@ -6201,7 +6251,6 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         }
 
 
-
         /****************************************************************/
         /* Regardless of whether we got an error or not, check to see   */
         /*  if the file is compressed - We might still be able to get a */
@@ -6212,6 +6261,21 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           fprintf(LogHndl, "[*] Raw Copied File Was Detected as COMPRESSED\n");
           consPrefix("[*] ", consYel);
           printf("Raw Copied File Was Detected as  COMPRESSED!\n");
+
+
+          /*******************************************************************/
+          /* Add (U) to Tooo_Fname - Uncompressed                            */
+          /*******************************************************************/
+          memset(Tooo_Fname, 0, 2048) ;
+          strncpy(Tooo_Fname, last_Fname, 2000) ;
+          strcat(Tooo_Fname, "(U)") ;
+
+          fprintf(LogHndl, "[*] LZNT1 Decompress:\n  In: %s\n  Out: %s\n", last_Fname, Tooo_Fname);
+          consPrefix("[*] ", consYel);
+          printf("LZNT1 Decompress:\n  In: %s\n  Out: %s\n", last_Fname, Tooo_Fname);
+
+          lznCopy(last_Fname, Tooo_Fname, last_rawdLen);
+
 
           if(setNCP == 0)
           {
@@ -7910,14 +7974,6 @@ int FindActive()
 
 int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime, int binLog, int Append)
 {
-  //Start LZNT1 Variables
-  WORD chunk_hdr_test;
-  NTSTATUS lastStatus;
-  PUCHAR bufW;
-  PUCHAR bufU;
-  //End LZNT1 Variables
-
-
   PUCHAR bufD;
   PUCHAR bufA;
   FILE* SectHndl;
@@ -7947,7 +8003,8 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   ULONG MaxOffset, MaxDataSize, MaxRawsz, MaxCmprs;
   USHORT LastOffset;
   long pointData;
-  ULONG attrLen, dataLen, rawdLen, cmprLen, writLen;
+  //ULONG attrLen, dataLen, rawdLen, cmprLen, writLen, leftSpars;
+  ULONG attrLen, dataLen, rawdLen, cmprLen;
 
   int gotData, i, DDRetcd;
  
@@ -8168,7 +8225,21 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     //      LZNT1 appears to pad each 64K block chunk, making file size the same whether compressed or not
     //cmprLen = AttributeLengthCompressed(attr);
     cmprLen = AttributeLengthAllocated(attr);  //Test setting the InFile Compression size to the whole Buffer Size 
-    
+
+
+
+
+
+    //Global Last Data Length - Used to pass to LZNCopy Routine for the Size check (Sparse Data)
+    last_rawdLen = rawdLen;
+
+    //Global Last File Name - Used to pass to LZNCopy Routine for the Output/Input File Name
+    memset(last_Fname, 0, 2048);
+    strncpy(last_Fname, Tooo_Fname, 2040);
+
+
+
+
 
     // If the File is Compressed - Use Compression Size.
     if(iIsCompressed == 1)
@@ -8200,7 +8271,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     }
 
  
-   // Changing to unique Buffer bufD - To avoid conflict with attr BufA
+    // Changing to unique Buffer bufD - To avoid conflict with attr BufA
     // If File exceeds Max Memory, Cache the Extraction
     maxMemExceed = useDiskOrMem = 0;
     if (attrLen > maxMemBytes)
@@ -8388,142 +8459,6 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
       if(useDiskOrMem == 0)
       {
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-if(iIsCompressed == 1)
-{
-  printf("Decompressing...\n");
-  tot_byt_src = tot_byt_dst = 0;
-  bufU  = (UCHAR *) malloc(rawdLen);
-  bufW  = (UCHAR *) malloc(0x1000);
-
-  // Did we allocate our Buffers OK?
-  if (bufU == NULL || bufW == NULL)
-  {
-    printf("Buffer Alloc Error\n");
-    free(bufW);
-    free(bufU);
-
-    free(bufD);
-    delete[] file;
-    fflush(stdout); //More PSExec Friendly
-    return 1;
-  }
-  else
-  {
-    // Decompress 
-    // bufD (cmprLen) - Source File (Compressed)
-    // bufU (rawdLen) - Destination (Uncompressed)
-    // bufW (0x1000) - 4096 Working space
-       
-    while (tot_byt_dst < rawdLen)
-    {
-      //Make sure we have a chunk Header 
-      chunk_hdr_test = *(WORD *)(bufD+tot_byt_src);
-      printf("Checking Chunk Header: Buffer: %04x - Increment: %04x - Cur in: %04x\n", bufD, tot_byt_src, bufD+tot_byt_src);
-      if (!chunk_hdr_test) 
-      {
-        //Bad Chunk Header - Error Out (Probably needs Padding with =x0s
-        //For Testing Just Error out - We will comeback to this
-        printf ("Bad Chunk Header\n");
-        free(bufW);
-        free(bufU);
-        free(bufD);
-
-
-
-
-
-        printf ("Now Padding Sparse Data...\n");
-        bufU  = (UCHAR *) malloc(rawdLen-tot_byt_dst);
-        memset(bufU, 0, rawdLen-tot_byt_dst);
-        WriteFile(hFile, bufU, rawdLen-tot_byt_dst, &n, 0);
-        free(bufU);
-
-
-
-
-
-        delete[] file;
-        fflush(stdout); //More PSExec Friendly
-        return 1;
-      }
-
-
-      if(tot_byt_src < cmprLen)
-      {
-        //static NTSTATUS lznt1_decompress ( UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG src_size, ULONG offset, ULONG * final_size, UCHAR * workspace)
-        lastStatus = lznt1_decompress(bufU+tot_byt_dst, rawdLen-tot_byt_dst, bufD+tot_byt_src, cmprLen-tot_byt_src, 0, &writLen, bufW);
-        if (lastStatus == 0)
-        {
-          WriteFile(hFile, bufU+tot_byt_dst, writLen, &n, 0);
-          printf("Decompressed Bytes D:%lu   X:%04x\n", writLen, writLen);
-          printf("File Written Bytes: %lu\n", n);
-
-          tot_byt_src += writLen ;
-          tot_byt_dst += writLen ;
-
-          printf("Bytes Left: %lu\n", rawdLen-tot_byt_dst);
-        }
-        else
-        {
-          printf("(1)Decompressed Failed! (RC:%08x) - (Bytes Written: %ld)\n", lastStatus, writLen);
-          free(bufW);
-          free(bufU);
-          free(bufD);
-          delete[] file;
-          fflush(stdout); //More PSExec Friendly
-          return 1;
-        }
-      }
-      else
-      {
-        printf("No More Compressed Input Data\n");
-        free(bufW);
-        free(bufU);
-        free(bufD);
-        delete[] file;
-        fflush(stdout); //More PSExec Friendly
-        return 1;
-      }
-    }
-  }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         // Write the File From the memory Buffer
         if (WriteFile(hFile, bufD, totdata, &n, 0) == 0)
         {
@@ -9045,3 +8980,281 @@ int ntpGetTime(char* ntpServer)
   return(0);
 
 }
+
+
+static PUCHAR lznt1_decompress_chunk (UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG src_size)
+{
+  UCHAR *src_cur, *src_end, *dst_cur, *dst_end;
+  ULONG displacement_bits, length_bits;
+  ULONG code_displacement, code_length;
+  WORD flags, code;
+  
+  src_cur = src;
+  src_end = src + src_size;
+  dst_cur = dst;
+  dst_end = dst + dst_size;
+  
+  /* Partial decompression is no error on Windows. */
+  while (src_cur < src_end && dst_cur < dst_end)
+  {
+    /* read flags header */
+    flags = 0x8000 | *src_cur++;
+
+    /* parse following 8 entities, either uncompressed data or backwards reference */
+    while ((flags & 0xFF00) && src_cur < src_end)
+    {
+      if (flags & 1)
+      {
+        /* backwards reference */
+        if (src_cur + sizeof(WORD) > src_end)
+         return NULL;
+
+        code = *(WORD *)src_cur;
+        src_cur += sizeof(WORD);
+   
+        /* find length / displacement bits */
+        for (displacement_bits = 12; displacement_bits > 4; displacement_bits--)
+         if ((1 << (displacement_bits - 1)) < dst_cur - dst) 
+          break;
+
+        length_bits       = 16 - displacement_bits;
+        code_length       = (code & ((1 << length_bits) - 1)) + 3;
+        code_displacement = (code >> length_bits) + 1;
+ 
+        /* ensure reference is valid */
+        if (dst_cur < dst + code_displacement)
+         return NULL;
+ 
+        /* copy bytes of chunk - we can't use memcpy()
+        * since source and dest can be overlapping */
+        while (code_length--)
+        {
+          if (dst_cur >= dst_end) 
+           return dst_cur;
+
+          *dst_cur = *(dst_cur - code_displacement);
+          dst_cur++;
+        }
+      }
+      else
+      {
+        /* uncompressed data */
+        if (dst_cur >= dst_end)
+         return dst_cur;
+
+        *dst_cur++ = *src_cur++;
+      }
+      flags >>= 1;
+    }
+    
+  }
+  
+  return dst_cur;
+}
+
+
+static NTSTATUS lznt1_decompress ( UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG src_size, ULONG offset, ULONG * final_size, UCHAR * workspace)
+{
+  UCHAR *src_cur = src, *src_end = src + src_size;
+  UCHAR *dst_cur = dst, *dst_end = dst + dst_size;
+  ULONG chunk_size, block_size;
+  WORD chunk_header;
+  UCHAR *ptr;
+
+
+  if (src_cur + sizeof(WORD) > src_end)
+  {
+    //Debug
+    //printf ("Past src end 1 - Next Loc: %lu -- End: %lu \n", src_cur + sizeof(WORD), src_end);
+    return STATUS_BAD_COMPRESSION_BUFFER;
+  }
+ 
+
+  /* skip over chunks which have a big distance (>= 0x1000) to the destination offset */
+  while (offset >= 0x1000 && src_cur + sizeof(WORD) <= src_end)
+  {
+    /* read chunk header and extract size */
+    chunk_header = *(WORD *)src_cur;
+    src_cur += sizeof(WORD);
+    //Debug
+    //tot_byt_src += sizeof(WORD);
+
+    if(!chunk_header)
+    {
+      //Debug
+      //printf ("Not Chunk Header 1\n");
+      goto out;
+    }
+
+
+    /* ensure we have enough buffer to process chunk */
+    chunk_size = (chunk_header & 0xFFF) + 1;
+    if (src_cur + chunk_size > src_end)
+    {
+      //Debug
+      //printf ("Past src end 2\n");
+      return STATUS_BAD_COMPRESSION_BUFFER;
+    }
+
+
+    //tot_byt_src += chunk_size;
+    src_cur += chunk_size;
+    offset  -= 0x1000;
+  }
+
+  
+  /* this chunk is can be included partially */
+  if (offset && src_cur + sizeof(WORD) <= src_end)
+  {
+    /* read chunk header and extract size */
+    chunk_header = *(WORD *)src_cur;
+    src_cur += sizeof(WORD);
+    //tot_byt_src += sizeof(WORD);
+
+
+    if (!chunk_header)
+    {
+      //Debug
+      //printf ("Past src end 3\n");
+      goto out;
+    }
+
+
+    /* ensure we have enough buffer to process chunk */
+    chunk_size = (chunk_header & 0xFFF) + 1;
+    if (src_cur + chunk_size > src_end)
+    {
+      //Debug
+      //printf ("Past src end 4\n");
+      return STATUS_BAD_COMPRESSION_BUFFER;
+    }
+
+
+    if (dst_cur >= dst_end)
+     goto out;
+  
+
+    if (chunk_header & 0x8000)
+    {
+      /* compressed chunk */
+      if (!workspace)
+      {
+        //Debug
+        //printf ("Access Violation\n");
+       return STATUS_ACCESS_VIOLATION;
+      }
+
+
+      ptr = lznt1_decompress_chunk(workspace, 0x1000, src_cur, chunk_size);
+      if (!ptr) 
+      {
+        //Debug
+        //printf ("Error Decompressing Chunk\n");
+       return STATUS_BAD_COMPRESSION_BUFFER;
+      }
+
+
+      if (ptr - workspace > offset)
+      {
+        block_size = min ((ptr - workspace) - offset, dst_end - dst_cur);
+        memcpy(dst_cur, workspace + offset, block_size);
+        dst_cur += block_size;
+      }
+    }
+    else
+    {
+      /* uncompressed chunk */
+      if (chunk_size > offset)
+      {
+        block_size = min(chunk_size - offset, dst_end - dst_cur);
+        memcpy(dst_cur, src_cur + offset, block_size);
+        dst_cur += block_size;
+      }
+    }
+    src_cur += chunk_size;
+    //tot_byt_src += chunk_size;
+  }
+
+  
+  /* handle remaining chunks */
+  while (src_cur + sizeof(WORD) <= src_end)
+  {
+    /* read chunk header and extract size */
+    chunk_header = *(WORD *)src_cur;
+    src_cur += sizeof(WORD);
+    //tot_byt_src += sizeof(WORD);
+
+    if (!chunk_header) 
+    {
+      //Debug
+      //printf ("Not Chunk Header(2)\n");
+      goto out;
+    }
+
+    chunk_size = (chunk_header & 0xFFF) + 1;
+
+    if (src_cur + chunk_size > src_end)
+    {
+      //Debug
+      //printf ("Past src end 5\n");
+      return STATUS_BAD_COMPRESSION_BUFFER;
+    }
+  
+    /* add padding if required */
+    block_size = ((dst_cur - dst) + offset) & 0xFFF;
+    if (block_size)
+    {
+      block_size = 0x1000 - block_size;
+      if (dst_cur + block_size >= dst_end)
+      {
+        //Debug
+        //printf ("Past dst end\n");
+        goto out;
+      }
+
+      memset(dst_cur, 0, block_size);
+      dst_cur += block_size;
+    }
+ 
+    if (dst_cur >= dst_end)
+    {
+      //Debug
+      //printf ("Past dst end\n");
+      goto out;
+    }
+
+    if (chunk_header & 0x8000)
+    {
+      /* compressed chunk */
+      //Debug
+      //lst_cur = src_cur - src;
+      //printf("Good: Cur in: %04x - Last offset: %04x\n", src_cur, lst_cur);
+      dst_cur = lznt1_decompress_chunk(dst_cur, dst_end - dst_cur, src_cur, chunk_size);
+
+      if (!dst_cur) 
+      {
+        //Debug
+        //printf ("Error Decompressing Chunk\n");
+        return STATUS_BAD_COMPRESSION_BUFFER;
+      }
+    }
+    else
+    {
+      /* uncompressed chunk */
+      block_size = min(chunk_size, dst_end - dst_cur);
+      memcpy(dst_cur, src_cur, block_size);
+      dst_cur += block_size;
+    }
+
+      src_cur += chunk_size;
+      //tot_byt_src += chunk_size;
+  }
+   
+out:
+  if (final_size)
+   *final_size = dst_cur - dst;
+  
+  return STATUS_SUCCESS;
+  
+}
+
