@@ -5513,6 +5513,7 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
 {
   WORD chunk_hdr_test;
   NTSTATUS lastStatus;
+  int deCompRC = 0; 
 
   ULONG n;
   size_t inSize ;
@@ -5552,6 +5553,8 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
   /****************************************************************/
   /* Make Sure the File is Not There - Don't Overwrite!           */
   /****************************************************************/
+  deCompRC = 0; //Assume All is well
+
   memset(tmpTooFile, 0, 4096);
   snprintf(tmpTooFile, 4090, "%s", TooFile);
 
@@ -5613,7 +5616,9 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
           consPrefix("[*] ", consYel);
           printf("Sysnative Source Compressed File Also Not Found: \n %s\n", tmpFrmFile);
           fflush(stdout); //More PSExec Friendly
-          return 0;
+
+          deCompRC =  1;
+          return 1;
         }
         else
         {
@@ -5628,7 +5633,8 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       else
       {
         fflush(stdout); //More PSExec Friendly
-        return 0;
+        deCompRC =  1;
+        return 1;
       }
 
     }
@@ -5660,7 +5666,6 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       if (GetSecurityDescriptorOwner(SecDesc, &pSidOwner, &pFlag))
       {
         gotOwner = 1;
-
         convert_sid_to_string_sid(pSidOwner, SidString);
       }
     }
@@ -5677,7 +5682,8 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       fprintf(LogHndl, "[!] Could Not Open Compressed File for Reading - File Decompress Bypassed.\n");
 
       fflush(stdout); //More PSExec Friendly
-      return 1;
+      deCompRC = 2;
+      return 2;
     }
 
     //Output Uncompressed File
@@ -5689,9 +5695,9 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       fprintf(LogHndl, "[!] Could Not Open UnCompressed Output File for Writing - File Decompress Bypassed.\n");
 
       fflush(stdout); //More PSExec Friendly
-      return 1;
+      deCompRC = 3;
+      return 3;
     }
-
 
 
 
@@ -5727,7 +5733,8 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       fclose(FrmHndl);
       CloseHandle(HndlToo);
 
-      return 1;
+      deCompRC = 4;
+      return 4;
     }
 
 
@@ -5745,6 +5752,7 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
         //printf("Bad Chunk Header...  Bypassing Decompress of this Chunk...\n");
         //fprintf(LogHndl, "[!] Bad Chunk Header...  Bypassing Decompress of this Chunk...\n");
 
+        deCompRC = 5;
         continue;
       }
       else
@@ -5776,8 +5784,10 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
         else
         {
           consPrefix("[!] ", consRed);
-          printf("Decompressed Failed! (RC:%08x) - (Bytes Written: %ld - Decompression Aborted.)\n", lastStatus, writLen);
-          fprintf(LogHndl, "[!] Decompressed Failed! (RC:%08x) - (Bytes Written: %ld - Decompression Aborted.)\n", lastStatus, writLen);
+          printf("Decompress Error: %08x Encountered in Chunk: %d - Decompression Stopped/Saved.\n", lastStatus, NBlox);
+          fprintf(LogHndl, "[!] Decompressed Error: %08x Encounterd in Chunk %d - Decompression Stopped/Saved.\n", lastStatus, NBlox);
+          //printf("Decompress Error! (RC:%08x) - (Bytes Written: %ld - Decompression Aborted.)\n", lastStatus, writLen);
+          //fprintf(LogHndl, "[!] Decompressed Error! (RC:%08x) - (Bytes Written: %ld - Decompression Aborted.)\n", lastStatus, writLen);
 
           free(InLzbuf);
           free(UnLzbuf);
@@ -5786,7 +5796,9 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
           fflush(stdout); //More PSExec Friendly
           fclose(FrmHndl);
           CloseHandle(HndlToo);
-          return 1;
+
+          deCompRC = 6;
+          return 6;
         }
       }
     }
@@ -5810,7 +5822,11 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
     fflush(stdout); //More PSExec Friendly
     fclose(FrmHndl);
     CloseHandle(HndlToo);
-    return 1;
+  
+
+
+
+
 
 
 
@@ -5818,6 +5834,193 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
 
     //LOH
     //Add all the post processing after gettting the basic Logic to work
+    /****************************************************************/
+    /* Re-Set the original TimeStamps on copied file                */
+    /****************************************************************/
+    Time_tToFileTime(Frmstat.st_atime, 1);
+    Time_tToFileTime(Frmstat.st_mtime, 2);
+    Time_tToFileTime(Frmstat.st_ctime, 3);
+
+
+    HndlToo = CreateFile(tmpTooFile, FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+              OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+    SetFileTime(HndlToo, &ToCTime, &ToATime, &ToMTime);
+    CloseHandle(HndlToo);
+      
+
+    /****************************************************************/
+    /* Check to see if Windows converted it correctly               */
+    /*   This code should not even be neccesary.  Alas, it is.      */
+    /****************************************************************/
+    _stat(tmpTooFile, &Toostat);
+    TimeNotGood = 0;
+
+    // Check Create Time for wierd TZ Anomoly
+    if (Frmstat.st_ctime == (Toostat.st_ctime + 3600))
+    {
+      TimeNotGood = 1;
+      Time_tToFileTime(Frmstat.st_ctime + 3600, 3);
+    }
+    else
+    if (Frmstat.st_ctime == (Toostat.st_ctime - 3600))
+    {
+      TimeNotGood = 1;
+      Time_tToFileTime(Frmstat.st_ctime - 3600, 3);
+    }
+
+    // Check Modify Time for wierd TZ Anomoly
+    if (Frmstat.st_mtime == (Toostat.st_mtime + 3600))
+    {
+      TimeNotGood = 1;
+      Time_tToFileTime(Frmstat.st_mtime + 3600, 2);
+    }
+    else
+    if (Frmstat.st_mtime == (Toostat.st_mtime - 3600))
+    {
+      TimeNotGood = 1;
+      Time_tToFileTime(Frmstat.st_mtime - 3600, 2);
+    }
+
+    // Check Access Time for wierd TZ Anomoly
+    if (Frmstat.st_atime == (Toostat.st_atime + 3600))
+    {
+      TimeNotGood = 1;
+      Time_tToFileTime(Frmstat.st_atime + 3600, 1);
+    }
+    else
+    if (Frmstat.st_atime == (Toostat.st_atime - 3600))
+    {
+      TimeNotGood = 1;
+      Time_tToFileTime(Frmstat.st_atime - 3600, 1);
+    }
+
+    if (TimeNotGood == 1)
+    {
+      consPrefix("[+] ", consGre);
+      printf("Converging Mismatched TimeStamp(s)\n");
+
+      fprintf(LogHndl, "[+] Converging Mismatched TimeStamp(s)\n");
+
+      HndlToo = CreateFile(tmpTooFile, FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+      SetFileTime(HndlToo, &ToCTime, &ToATime, &ToMTime);
+      CloseHandle(HndlToo);
+    }
+      
+
+    /****************************************************************/
+    /* Set the SID (Owner) of the new file same as the old file     */
+    /****************************************************************/
+    if (gotOwner == 1)
+    {
+      setOwner = SetFileSecurity(TooFile, OWNER_SECURITY_INFORMATION, SecDesc);
+                
+      if (setOwner)
+      {
+        consPrefix("[+] ", consGre);
+        printf("File Owner Set (%s)\n", SidString);
+
+        fprintf(LogHndl, "[+] File Owner Set (%s)\n", SidString);
+      }
+      else
+      {
+        consPrefix("[*] ", consYel);
+        printf("Can NOT Set Target File Owner(%s)\n", SidString);
+        fprintf(LogHndl, "[*] Can NOT Set Target File Owner (%s)\n", SidString);
+      }
+    }
+    else
+    {
+      consPrefix("[*] ", consYel);
+      printf("Could NOT Determine Source File Owner(Unknown)\n");
+      fprintf(LogHndl, "[*] Could NOT Determine Source File Owner (Unknown)\n");
+    }
+
+
+    /****************************************************************/
+    /* MD5 The Files - They obvipusly will not match                */
+    /****************************************************************/
+    memset(MD5Tmp, 0, 255);
+    FileMD5(tmpFrmFile);
+    strncpy(MD5Tmp, MD5Out, 255);
+      
+    fprintf(LogHndl, "[+] Source File MD5.....: %s\n", MD5Out);
+    fprintf(LogHndl, "[+] Source MetaData.....: %ld-%lld-%lld-%lld\n", Frmstat.st_size, Frmstat.st_ctime, Frmstat.st_atime, Frmstat.st_mtime);
+    consPrefix("[+] ", consGre);
+    printf("Source File MD5.....: %s\n", MD5Out);
+
+    consPrefix("[+] ", consGre);
+    printf("Source MetaData.....: %ld-%lld-%lld-%lld\n", Frmstat.st_size, Frmstat.st_ctime, Frmstat.st_atime, Frmstat.st_mtime);
+
+    _stat(tmpTooFile, &Toostat);
+    FileMD5(tmpTooFile);
+    fprintf(LogHndl, "[+] Destination File MD5: %s\n", MD5Out);
+    fprintf(LogHndl, "[+] Destination MetaData: %ld-%lld-%lld-%lld\n", Toostat.st_size, Toostat.st_ctime, Toostat.st_atime, Toostat.st_mtime);
+
+    consPrefix("[+] ", consGre);
+    printf("Destination File MD5: %s\n", MD5Out);
+
+    consPrefix("[+] ", consGre);
+    printf("Destination MetaData: %ld-%lld-%lld-%lld\n", Toostat.st_size, Toostat.st_ctime, Toostat.st_atime, Toostat.st_mtime);
+
+
+    /****************************************************************/
+    /* Make Sure Times copied over OK                               */
+    /****************************************************************/
+    if (Frmstat.st_ctime != Toostat.st_ctime)
+    {
+      Old_CTime = localtime(&Frmstat.st_ctime);
+      strftime(OldDate, 25, "%m/%d/%y@%H:%M:%S\0", Old_CTime);
+
+      consPrefix("[!] ", consRed);
+      printf("Create Time Mismatch! Actual Create Time: %s\n", OldDate);
+      fprintf(LogHndl, "[!] Create Time MisMatch! Actual Create Time: %s\n", OldDate);
+    }
+
+    if (Frmstat.st_mtime != Toostat.st_mtime)
+    {
+      Old_MTime = localtime(&Frmstat.st_mtime);
+      strftime(OldDate, 25, "%m/%d/%y@%H:%M:%S\0", Old_MTime);
+
+      consPrefix("[!] ", consRed);
+      printf("Modify Time Mismatch! Actual Modify Time: %s\n", OldDate);
+      fprintf(LogHndl, "[!] Modify MisMatch! Actual Modify Time: %s\n", OldDate);
+    }
+
+    if (Frmstat.st_atime != Toostat.st_atime)
+    {
+      Old_ATime = localtime(&Frmstat.st_atime);
+      strftime(OldDate, 25, "%m/%d/%y@%H:%M:%S\0", Old_ATime);
+
+      consPrefix("[!] ", consRed);
+      printf("Access Time Mismatch! Actual Access Time: %s\n", OldDate);
+      fprintf(LogHndl, "[!] Access MisMatch! Actual Access Time: %s\n", OldDate);
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5825,12 +6028,14 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
 
 
     fflush(stdout); //More PSExec Friendly
+    return 0;
 
   }
-
-  fflush(stdout); //More PSExec Friendly
-
-  return 0;
+  else
+  {
+    fflush(stdout); //More PSExec Friendly
+    return 1;
+  }
 }
 
 
@@ -5870,6 +6075,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   int PrivRes = 0;
 
   int DDRetcd = 0;
+  int lzRetcd = 0;
 
   // Get The Drive Letter
   drive[4] = FrmFile[0];
@@ -6274,14 +6480,14 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           consPrefix("[*] ", consYel);
           printf("LZNT1 Decompress:\n  In: %s\n  Out: %s\n", last_Fname, Tooo_Fname);
 
-          lznCopy(last_Fname, Tooo_Fname, last_rawdLen);
+          lzRetcd = lznCopy(last_Fname, Tooo_Fname, last_rawdLen);
 
 
-          if(setNCP == 0)
+          if((setNCP == 0) && (lzRetcd !=0))
           {
-            fprintf(LogHndl, "[*] Now Using Standard OS Copy to create Decompressed version.\n");
+            fprintf(LogHndl, "[*] LZNT1 Decompress Encountered Errors, Trying Standard OS Copy to create Decompressed version.\n");
             consPrefix("[*] ", consYel);
-            printf("Now Using Standard OS Copy to create Decompressed version.\n");
+            printf("LZNT1 Decompress Encountered Errors, Trying Standard OS Copy to create Decompressed version.\n");
 
             /*******************************************************************/
             /* Identify the Filename from the Full_Fname and create Tooo_Fname */
