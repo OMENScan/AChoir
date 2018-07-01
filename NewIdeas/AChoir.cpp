@@ -162,6 +162,17 @@
 /*   them for making this example code available.               */
 /****************************************************************/
 
+/****************************************************************/
+/* IMPORTANT NOTE : I could not have implemented the NTFS       */
+/* LZNT1 Decode without the awesome LZNT1 code found in ReactOS */
+/* hxxps://doxygen.reactos.org/d0/dd2/                          */
+/*       sdk_2lib_2rtl_2compress_8c_source.html                 */
+/*                                                              */
+/* Much of the code in the Achoir LZNT1 decompressor function   */
+/* is directly from this code.And I want to publicly thank      */
+/*   them for making this amazing code available.               */
+/****************************************************************/
+
 #include "stdafx.h"
 
 //Visual Leak Detector (In Debug)
@@ -5748,9 +5759,9 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       if (!chunk_hdr_test) 
       {
         //Bad Chunk Header - Ignore this Chunk (for now) - maybe come back to this.
-        //consPrefix("[!] ", consRed);
-        //printf("Bad Chunk Header...  Bypassing Decompress of this Chunk...\n");
-        //fprintf(LogHndl, "[!] Bad Chunk Header...  Bypassing Decompress of this Chunk...\n");
+        consPrefix("[!] ", consRed);
+        printf("Bad Chunk Header...  Bypassing Decompress of Chunk: %d\n", NBlox);
+        fprintf(LogHndl, "[!] Bad Chunk Header...  Bypassing Decompress of Chunk %d\n", NBlox);
 
         deCompRC = 5;
         continue;
@@ -5809,6 +5820,24 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
     free(UnLzbuf);
     free(Wrkzbuf);
 
+
+    //For Some reason File around 15K or more always write 0 Bytes - Not Sure Why.
+    //Deal with that here (Set Error Code so we will use OS Copy)
+    if (tot_byt_dst < 1)
+    {
+      consPrefix("[!] ", consRed);
+      printf("Decompress Error: 0 Bytes Were Decompressed.\n");
+      fprintf(LogHndl, "[!] Decompress Error: 0 Bytes Were Decompressed.\n");
+
+      fflush(stdout); //More PSExec Friendly
+      fclose(FrmHndl);
+      CloseHandle(HndlToo);
+
+      deCompRC = 7;
+      return 7;
+    }
+
+
     if (bytsLft > 0)
     {
       //Debug
@@ -5825,15 +5854,6 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
   
 
 
-
-
-
-
-
-
-
-    //LOH
-    //Add all the post processing after gettting the basic Logic to work
     /****************************************************************/
     /* Re-Set the original TimeStamps on copied file                */
     /****************************************************************/
@@ -5940,7 +5960,7 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
 
 
     /****************************************************************/
-    /* MD5 The Files - They obvipusly will not match                */
+    /* MD5 The Files - They obviously will not match                */
     /****************************************************************/
     memset(MD5Tmp, 0, 255);
     FileMD5(tmpFrmFile);
@@ -5998,33 +6018,6 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       printf("Access Time Mismatch! Actual Access Time: %s\n", OldDate);
       fprintf(LogHndl, "[!] Access MisMatch! Actual Access Time: %s\n", OldDate);
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     fflush(stdout); //More PSExec Friendly
@@ -6449,6 +6442,9 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 
         }
         else
+        if (DDRetcd == 2)
+         DDRetcd = 0; //Yeah - It's kludgy, but RC=2 is just a way to exit out - Reset it to be a 0 (Everything is OK)
+        else
         {
 		      // We had an Error Copying Raw
           consPrefix("\n[!] ", consRed);
@@ -6483,7 +6479,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           lzRetcd = lznCopy(last_Fname, Tooo_Fname, last_rawdLen);
 
 
-          if((setNCP == 0) && (lzRetcd !=0))
+          if((setNCP == 0) && (lzRetcd !=0 || DDRetcd != 0))
           {
             fprintf(LogHndl, "[*] LZNT1 Decompress Encountered Errors, Trying Standard OS Copy to create Decompressed version.\n");
             consPrefix("[*] ", consYel);
@@ -8417,7 +8413,8 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     }
 
     fflush(stdout); //More PSExec Friendly
-    return 1;
+    //return 1; 
+    return 2; //Everything is OK, but this is nested (0X80) - So return an RC to exit out.
 
   }
   else
@@ -8433,18 +8430,12 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     cmprLen = AttributeLengthAllocated(attr);  //Test setting the InFile Compression size to the whole Buffer Size 
 
 
-
-
-
     //Global Last Data Length - Used to pass to LZNCopy Routine for the Size check (Sparse Data)
     last_rawdLen = rawdLen;
 
     //Global Last File Name - Used to pass to LZNCopy Routine for the Output/Input File Name
     memset(last_Fname, 0, 2048);
     strncpy(last_Fname, Tooo_Fname, 2040);
-
-
-
 
 
     // If the File is Compressed - Use Compression Size.
@@ -8735,18 +8726,21 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         consPrefix("[!] ", consRed);
         printf("Error Setting File Time!\n");
       }
+
       //Read it back out to Verify
       if(GetFileTime(hFile, &ftCreate, &ftAccess, &ftWrite) == 0)
       {
         consPrefix("[!] ", consRed);
         printf("Error Retrieving File Time!\n");
       }
+
       //Read it back out to Verify
       if(GetFileSizeEx(hFile, &ftSize) == 0)
       {
         consPrefix("[!] ", consRed);
         printf("Error Getting File Size!\n");
       }
+
       if(CloseHandle(hFile) == 0)
       {
         consPrefix("[!] ", consRed);
