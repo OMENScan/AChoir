@@ -5760,11 +5760,32 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       {
         //Bad Chunk Header - Ignore this Chunk (for now) - maybe come back to this.
         consPrefix("[!] ", consRed);
-        printf("Bad Chunk Header...  Bypassing Decompress of Chunk: %d\n", NBlox);
-        fprintf(LogHndl, "[!] Bad Chunk Header...  Bypassing Decompress of Chunk %d\n", NBlox);
+        printf("Invalid Chunk Header...  Zeroing Chunk: %d\n", NBlox);
+        fprintf(LogHndl, "[!] Invalid Chunk Header...  Zeroing Chunk %d\n", NBlox);
+
+        //Write out a 64K Chunk of Nulls
+        writLen = iLZNTSz;
+
+        //Sometimes we decompress more bytes than the FileSize.  So defer to Filesize!
+        if (bytsLft < writLen)
+         writLen = bytsLft;
+
+        memset(UnLzbuf, 0, iLZNTSz);
+        WriteFile(HndlToo, UnLzbuf, writLen, &n, 0);
+
+        //Debug
+        //printf("Decompressed Bytes D:%lu   X:%04x\n", writLen, writLen);
+        //printf("File Written Bytes: %lu\n", n);
+
+        tot_byt_src += inSize ;
+        tot_byt_dst += writLen ;
+        bytsLft = TooSize-tot_byt_dst;
+
+        //Start Next Round with Clean Memory
+        memset(InLzbuf, 0, iLZNTSz);
+        memset(Wrkzbuf, 0, 0x1000);
 
         deCompRC = 5;
-        continue;
       }
       else
       {
@@ -5795,21 +5816,32 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
         else
         {
           consPrefix("[!] ", consRed);
-          printf("Decompress Error: %08x Encountered in Chunk: %d - Decompression Stopped/Saved.\n", lastStatus, NBlox);
-          fprintf(LogHndl, "[!] Decompressed Error: %08x Encounterd in Chunk %d - Decompression Stopped/Saved.\n", lastStatus, NBlox);
-          //printf("Decompress Error! (RC:%08x) - (Bytes Written: %ld - Decompression Aborted.)\n", lastStatus, writLen);
-          //fprintf(LogHndl, "[!] Decompressed Error! (RC:%08x) - (Bytes Written: %ld - Decompression Aborted.)\n", lastStatus, writLen);
+          printf("Decompress RetCD: %08x Encountered in Chunk: %d - Zeroing Chunk.\n", lastStatus, NBlox);
+          fprintf(LogHndl, "[!] Decompressed RetCD: %08x Encounterd in Chunk %d - Zeroing Chunk.\n", lastStatus, NBlox);
 
-          free(InLzbuf);
-          free(UnLzbuf);
-          free(Wrkzbuf);
+          //Write out a 64K Chunk of Nulls
+          writLen = iLZNTSz;
 
-          fflush(stdout); //More PSExec Friendly
-          fclose(FrmHndl);
-          CloseHandle(HndlToo);
+          //Sometimes we decompress more bytes than the FileSize.  So defer to Filesize!
+          if (bytsLft < writLen)
+           writLen = bytsLft;
+
+          memset(UnLzbuf, 0, iLZNTSz);
+          WriteFile(HndlToo, UnLzbuf, writLen, &n, 0);
+
+          //Debug
+          //printf("Decompressed Bytes D:%lu   X:%04x\n", writLen, writLen);
+          //printf("File Written Bytes: %lu\n", n);
+
+          tot_byt_src += inSize ;
+          tot_byt_dst += writLen ;
+          bytsLft = TooSize-tot_byt_dst;
+
+          //Start Next Round with Clean Memory
+          memset(InLzbuf, 0, iLZNTSz);
+          memset(Wrkzbuf, 0, 0x1000);
 
           deCompRC = 6;
-          return 6;
         }
       }
     }
@@ -5829,12 +5861,7 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       printf("Decompress Error: 0 Bytes Were Decompressed.\n");
       fprintf(LogHndl, "[!] Decompress Error: 0 Bytes Were Decompressed.\n");
 
-      fflush(stdout); //More PSExec Friendly
-      fclose(FrmHndl);
-      CloseHandle(HndlToo);
-
       deCompRC = 7;
-      return 7;
     }
 
 
@@ -5848,11 +5875,11 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       free(Wrkzbuf);
     }
 
+    // Close Everything and Set File Dates
     fflush(stdout); //More PSExec Friendly
     fclose(FrmHndl);
     CloseHandle(HndlToo);
   
-
 
     /****************************************************************/
     /* Re-Set the original TimeStamps on copied file                */
@@ -6021,6 +6048,13 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
 
 
     fflush(stdout); //More PSExec Friendly
+
+
+    // Only return egregious error codes (will cause an OS/API Copy to also happen)
+    // Otherwise, it's likely to be OK - For our first implementation - Lets error on 6 and 7 to be safe
+    if(deCompRC > 5)
+     return deCompRC;
+   else
     return 0;
 
   }
