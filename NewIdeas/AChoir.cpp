@@ -143,6 +143,10 @@
 /* AChoir v1.9  - Recognize Compressed Size                     */
 /* AChoir v1.9a - More Comressed Files Support                  */
 /* AChoir v2.0  - Add LZNT1 Decompress Routine                  */
+//*                Flag behaviors have changed:                 */
+/*                 SET:NCP=NODCMP - NoDecompression             */
+/*                 SET:NCP=DECOMP/RAWONLY - LZNT1 Decompress    */
+/*                 SET:NCP=OSCOPY - Do OS/API copy on Decomp Err*/
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -247,7 +251,7 @@ int  iIsAdmin = 0;
 int  iExec = 0;
 int  iIsCompressed = 0;
 char cIsCompressed[15] = "\0";
-int  setNCP = 0;  // 0=OSCOPY (Default), 1=RAWCOPY
+int  setNCP = 2;  // 0=NODCMP, 1=DECOMP/RAWONLY, 2=OSCOPY (Default)
 
 int  iNative = 0; // Are we Native 64Bit on 64Bit (Native = 1, NonNative = 0)
 char sNative[10] = "\0";
@@ -2284,7 +2288,7 @@ int main(int argc, char *argv[])
                   fprintf(LogHndl, "[+] Detected File System (%s): %s\n", rootDrive, fileSystemName);
                 }
 
-                //printf("Debug: FileSystem: %s\n", fileSystemName);
+                //What kind of File System is on this Volume?
                 if (strnicmp(fileSystemName, "NTFS", 4) == 0)
                 {
                   strncpy(volType, "NTFS", 4);
@@ -3533,10 +3537,26 @@ int main(int argc, char *argv[])
             netShareDel(Inrec + 4, 1);
           }
           else
-          if (strnicmp(Inrec, "SET:NCP=RAWONLY", 15) == 0)
+          if (strnicmp(Inrec, "SET:NCP=NODCMP", 14) == 0)
           {
             /****************************************************************/
             /* Set Raw NTFS Copy to RAW ONLY                                */
+            /****************************************************************/
+            setNCP = 0;
+          }
+          else
+          if (strnicmp(Inrec, "SET:NCP=RAWONLY", 15) == 0)
+          {
+            /****************************************************************/
+            /* Set Raw NTFS to LZNT1 Decompress (Legacy)                    */
+            /****************************************************************/
+            setNCP = 1;
+          }
+          else
+          if (strnicmp(Inrec, "SET:NCP=DECOMP", 14) == 0)
+          {
+            /****************************************************************/
+            /* Set Raw NTFS to LZNT1 Decompress                             */
             /****************************************************************/
             setNCP = 1;
           }
@@ -3546,7 +3566,7 @@ int main(int argc, char *argv[])
             /****************************************************************/
             /* Set Raw NTFS Copy to RAW ONLY                                */
             /****************************************************************/
-            setNCP = 10;
+            setNCP = 2;
           }
           else
           if (strnicmp(Inrec, "XIT:", 4) == 0)
@@ -5528,7 +5548,6 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
 
   ULONG n;
   size_t inSize ;
-  //size_t inSize, outSize;
   PUCHAR InLzbuf ;  //Input LZNT1 Encoded
   PUCHAR UnLzbuf ;  //Output Decompresseed (UnLz) Data
   PUCHAR Wrkzbuf ;  //Working Space  
@@ -5546,7 +5565,6 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
   int setOwner = 0;
 
   FILE* FrmHndl;
-  //FILE* TooHndl;
   HANDLE HndlToo;
 
   DWORD dwRtnCode = 0;
@@ -5555,10 +5573,7 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
   BOOL pFlag = FALSE;
   
   // Signature Checking Variables
-  //int i;
   CHAR filetype[11] = "\0";
-  //char *dotPos;
-
 
 
   /****************************************************************/
@@ -5605,7 +5620,6 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
 
 
     // Check for Sysnative edge case (running 32 bit on 64 bit)
-    //if (strnicmp(Procesr, "X86", 3) == 0)
     if (iNative == 0)
     {
       iFileFound = 1; //Wait... Maybe it's a file Redirect
@@ -5712,10 +5726,10 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
 
 
 
-    //Allocate the LZNT1 64K Buffer 
-    //InLzbuf = Compressed Input
-    //UnLzbuf = Decompressed Output
-    //Wrkzbuf = 4K Working Buffer
+    //Allocate the LZNT1 64K Buffers 
+    // InLzbuf = Compressed Input
+    // UnLzbuf = Decompressed Output
+    // Wrkzbuf = 4K Working Buffer
     tot_byt_src = tot_byt_dst = 0;
     bytsLft = TooSize;
 
@@ -5758,7 +5772,7 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       chunk_hdr_test = *(WORD *)(InLzbuf);
       if (!chunk_hdr_test) 
       {
-        //Bad Chunk Header - Ignore this Chunk (for now) - maybe come back to this.
+        //Bad Chunk Header - Zero Out the Chunk (This is the Observed Windows Behavior)
         consPrefix("[!] ", consRed);
         printf("Invalid Chunk Header...  Zeroing Chunk: %d\n", NBlox);
         fprintf(LogHndl, "[!] Invalid Chunk Header...  Zeroing Chunk %d\n", NBlox);
@@ -5772,10 +5786,6 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
 
         memset(UnLzbuf, 0, iLZNTSz);
         WriteFile(HndlToo, UnLzbuf, writLen, &n, 0);
-
-        //Debug
-        //printf("Decompressed Bytes D:%lu   X:%04x\n", writLen, writLen);
-        //printf("File Written Bytes: %lu\n", n);
 
         tot_byt_src += inSize ;
         tot_byt_dst += writLen ;
@@ -5797,9 +5807,6 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
            writLen = bytsLft;
 
           WriteFile(HndlToo, UnLzbuf, writLen, &n, 0);
-          //Debug
-          //printf("Decompressed Bytes D:%lu   X:%04x\n", writLen, writLen);
-          //printf("File Written Bytes: %lu\n", n);
 
           tot_byt_src += inSize ;
           tot_byt_dst += writLen ;
@@ -5810,8 +5817,6 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
           memset(UnLzbuf, 0, iLZNTSz);
           memset(Wrkzbuf, 0, 0x1000);
 
-          //Debug
-          //printf("Bytes Left: %lu\n", bytsLft);
         }
         else
         {
@@ -5829,10 +5834,6 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
           memset(UnLzbuf, 0, iLZNTSz);
           WriteFile(HndlToo, UnLzbuf, writLen, &n, 0);
 
-          //Debug
-          //printf("Decompressed Bytes D:%lu   X:%04x\n", writLen, writLen);
-          //printf("File Written Bytes: %lu\n", n);
-
           tot_byt_src += inSize ;
           tot_byt_dst += writLen ;
           bytsLft = TooSize-tot_byt_dst;
@@ -5846,15 +5847,14 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       }
     }
 
-    //Debug
-    //printf("No More Compressed Input Data\n");
+
     free(InLzbuf);
     free(UnLzbuf);
     free(Wrkzbuf);
 
 
-    //For Some reason File around 15K or more always write 0 Bytes - Not Sure Why.
-    //Deal with that here (Set Error Code so we will use OS Copy)
+    //For Some reason File around 15K or more always write 0 Bytes - Need to investigate this
+    //For now: Deal with that here (Set Error Code so we can use OS Copy)
     if (tot_byt_dst < 1)
     {
       consPrefix("[!] ", consRed);
@@ -5867,8 +5867,6 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
 
     if (bytsLft > 0)
     {
-      //Debug
-      //printf ("Now Padding Sparse Data (%lu)\n", bytsLft);
       Wrkzbuf  = (UCHAR *) malloc(bytsLft);
       memset(Wrkzbuf, 0, bytsLft);
       WriteFile(HndlToo, Wrkzbuf, bytsLft, &n, 0);
@@ -6052,6 +6050,7 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
 
     // Only return egregious error codes (will cause an OS/API Copy to also happen)
     // Otherwise, it's likely to be OK - For our first implementation - Lets error on 6 and 7 to be safe
+    //  Note: 6 appears to be OK (and possibly 7 too) - but err on the side of caution.
     if(deCompRC > 5)
      return deCompRC;
    else
@@ -6488,17 +6487,25 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 
 
         /****************************************************************/
-        /* Regardless of whether we got an error or not, check to see   */
-        /*  if the file is compressed - We might still be able to get a */
-        /*  good copy if setNCP was set to API Copy Raw Files           */
+        /* Tell us if the File is Compressed.  It's nice to know        */
         /****************************************************************/
         if(iIsCompressed == 1)
         {
           fprintf(LogHndl, "[*] Raw Copied File Was Detected as COMPRESSED\n");
           consPrefix("[*] ", consYel);
           printf("Raw Copied File Was Detected as  COMPRESSED!\n");
+       }
 
 
+        /****************************************************************/
+        /* Check if we should DeCompressthe file (SetNCP > 0)           */
+        /*  NODCMP(0) = Don't Decompress                                */
+        /*  DECOMP(1) = LZNT1 Decompress                                */
+        /*  RAWONLY(1) = LZNT1 Decompress                               */
+        /*  OSCOPY(1) = On LZNT1 Decompress Error - Do an API/OS Copy   */
+        /****************************************************************/
+        if((iIsCompressed == 1) && (setNCP > 0))
+        {
           /*******************************************************************/
           /* Add (U) to Tooo_Fname - Uncompressed                            */
           /*******************************************************************/
@@ -6506,14 +6513,17 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           strncpy(Tooo_Fname, last_Fname, 2000) ;
           strcat(Tooo_Fname, "(U)") ;
 
-          fprintf(LogHndl, "[*] LZNT1 Decompress:\n  In: %s\n  Out: %s\n", last_Fname, Tooo_Fname);
+          fprintf(LogHndl, "[*] LZNT1 Decompress:\n     In: %s\n     Out: %s\n", last_Fname, Tooo_Fname);
           consPrefix("[*] ", consYel);
-          printf("LZNT1 Decompress:\n  In: %s\n  Out: %s\n", last_Fname, Tooo_Fname);
+          printf("LZNT1 Decompress:\n     In: %s\n     Out: %s\n", last_Fname, Tooo_Fname);
 
           lzRetcd = lznCopy(last_Fname, Tooo_Fname, last_rawdLen);
 
 
-          if((setNCP == 0) && (lzRetcd !=0 || DDRetcd != 0))
+          /****************************************************************/
+          /* Error Encountered Decompressing - Should we try an OCSOPY?   */
+          /****************************************************************/
+          if((setNCP == 2) && (lzRetcd !=0 || DDRetcd != 0))
           {
             fprintf(LogHndl, "[*] LZNT1 Decompress Encountered Errors, Trying Standard OS Copy to create Decompressed version.\n");
             consPrefix("[*] ", consYel);
