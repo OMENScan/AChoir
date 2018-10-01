@@ -1,4 +1,4 @@
-AChoir - v1.9
+AChoir - v2.0
 
 AChoir
 ======
@@ -137,16 +137,33 @@ Here is a list of all the Actions and Objects:
 
 Actions:
 ========
-SET:NCP=OSCOPY  Sets the NCP: (NTFS Raw Copy) to ALSO 
-                copy a file using the OS API when 
-                COMPRESSION is encountered.  This is not 
+SET:NCP=NODCMP  Sets the NCP: (NTFS Raw Copy) to NOT
+                DeCompress LZNT1 compressed files.
+                Instead, the RAW Compressed data will
+                be extracted (and must be manually 
+                decompressed to use it). 
+SET:NCP=DECOMP  DeCOMPRESS LZNT1 files.  This is more  
+     or         forensically sound. Since LZNT1 compressed
+SET:NCP=RAWONLY files are not usable in their RAW COMPRESSED
+                form, AChoir will attempt to decompress 
+                the file using a built-in LZNT1 Decompressor.
+                Note: There will be TWO files: The original 
+                COMPRESSED file (LZ) AND an UNcompressed version 
+                with the original file name (or possibly an "(LX)"
+                extension (see below).
+SET:NCP=OSCOPY  Sets the NCP: (NTFS Raw Copy) to  
+                copy a file using the OS API if 
+                DeCOMPRESSION ERRORS are encountered. This is 
+                a CHANGE from AChoir 1.9 behavior. This is not 
                 as forensically sound (it may leave artifacts)
-                as RAWONLY - but copying a RAW COMPRESSED 
-                file will not be readable without a DeCompress
-                utility
-SET:NCP=RAWONLY Copy COMPRESSED files RAW ONLY.  This is 
-                more forensically sound, but the file may not
-                be usable in its COMPRESSED form.
+                as the DECOMP/RAWONLY option.
+                Note1: This setting will ONLY call OS Copying
+                if the LZNT1 DeCompression has ERRORS. 
+                Note2: THREE files can be created: The original 
+                COMPRESSED file (LZ), a Decompressed version with 
+                a "(LX)" appended, and a THIRD copy of the file
+                written through OSCopying with the original file 
+                name.
 SAY:     Echo Text and Objects to the Screen and Logfile
 CON:Hide Hide The Console Screen - For quiet Acquisition
          DO NOT USE IF YOU HAVE SCREEN INPUT - For any 
@@ -404,6 +421,34 @@ be relevant to an investigation, AChoir will always try to get both artifacts if
 it can.
 
 
+A note about LZNT1 Decompression
+----------
+Building a working LZNT1 decompressor has been a huge challenge.  I would say the
+LZNT1 decompress in AChoir MOSTLY works. To ensure that you get your artifacts, the 
+LZNT1 decompressor has a fallback:
+
+1. If an NTFS file is compressed AChoir will identify it and copy the raw data file
+   preserving the compression.  It will append an (LZ) extention to the file to identify it as 
+   an LZNT1 compressed file.
+2. AChoir will then try to decompress the raw data into ANOTHER file.  It will try to use the 
+   original file name (this makes identifying the files easier).
+3. If that doesn't work properly it will append an (LX) extentions to the file (LZNT1 Xtracted)
+   and it will then use standard OS APIs to copy the file with original name
+
+You can therefore have up to 3 copies of the same file:
+* Raw compressed file (LZ)
+* Uncompressed file created by AChoir LZNT1 decompressor (LX)
+* Uncompressed file using standard OS Copy (decompress through the OS)
+
+If you are concerned with Forensic soundness, you can TURN OFF the OS Copy 
+routine using the SET:NCP=RAWONLY option in AChoir.  This may mean that 
+you will not have a working/readable file, and you will need to extract
+that file using another means.
+
+I am continually working on the LZNT1 decompressor to make it more 
+resilient to errors.
+
+
 Artifacts that AChoir itself generates:
 ----------
 Achoir itself will generate a few files.  These are meant to increase non-repudiation
@@ -450,7 +495,7 @@ every time the DSK: Action is used.  ForDisks contains the results and is used w
 &DSK Looping object (variable) is used.
 
 
-Acknowledgement:
+Acknowledgements:
 IMPORTANT NOTE: I could not have implemented the NTFS Raw Copy Function without the Excellent NTFS tutorial at:
 
 http://www.installsetupconfig.com/win32programming/windowsvolumeapis1index.html<br>
@@ -458,6 +503,8 @@ http://www.installsetupconfig.com/win32programming/windowsvolumeapis1index.html<
 Much of the code in the Achoir NTFS Raw Copy function is directly from this tutorial.  And I want to publicly thank 
 them for making this example code available.
 
+AChoir also heavily uses the LZNT1 decompression code from ReactOS at:
+https://doxygen.reactos.org/d0/dd2/sdk_2lib_2rtl_2compress_8c_source.html
 
 
 Last Thoughts:
