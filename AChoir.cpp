@@ -147,6 +147,13 @@
 /*                 SET:NCP=NODCMP - NoDecompression             */
 /*                 SET:NCP=DECOMP/RAWONLY - LZNT1 Decompress    */
 /*                 SET:NCP=OSCOPY - Do OS/API copy on Decomp Err*/
+/* AChoir v2.1  - Add App Compat Manifest - For 8.1 and above   */
+/*                 comaptibility                                */
+/*                Add new Conditional Logic on Windows Version  */
+/*                VER:WinXP, WinXP64, Vista, Win7, Win8, Win8.1 */
+/*                    Win10                                     */
+/*                    Win2000, Win2003, Win2008, Win2008R2,     */
+/*                    Win2012, Win2012R2, Win2016               */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -235,12 +242,14 @@
 #include <stdint.h>
 #define NTP_TIMESTAMP_DELTA 2208988800ull
 
+// Headers for determining OS Version 
+#include <VersionHelpers.h>
 
 #define NUL '\0'
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v2.0\0";
+char Version[10] = "v2.1\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -292,6 +301,7 @@ char * convert_sid_to_string_sid(const PSID psid, char *sid_str);
 void getCaseInfo(int SayOrGet);
 int ntpGetTime(char* ntpServer);
 size_t Redactor(char *inRedact, char *outRedact);
+BOOL CompareWindowsVersion(DWORD dwMajorVersion, DWORD dwMinorVersion);
 
 
 // Variables to create a share
@@ -628,6 +638,11 @@ char  last_Fname[2048] = "\0";
 //lznCopy - Routines Definitions
 static PUCHAR lznt1_decompress_chunk (UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG src_size);
 static NTSTATUS lznt1_decompress ( UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG src_size, ULONG offset, ULONG * final_size, UCHAR * workspace);
+
+//Windows Version
+char descrWinVer[50] = "Unknown\0";
+char shortWinVer[15] = "Win\0";
+int  iIsServer = 0;
 
 
 int main(int argc, char *argv[])
@@ -1131,6 +1146,125 @@ int main(int argc, char *argv[])
   fflush(stdout); //More PSExec Friendly
 
 
+  /****************************************************************/
+  /* Display Windows Version - This Klugy API requires checking   */
+  /*  all versions, since thelogic is Equals or Greater Than      */
+  /****************************************************************/
+  if(IsWindowsServer())
+   iIsServer = 1 ;
+  else
+   iIsServer = 0;
+
+  memset(descrWinVer, 0, 50);
+  memset(shortWinVer, 0, 15);
+  if(CompareWindowsVersion(10, 0))
+  {
+    // Windows 10 or Server 2016
+    if(iIsServer == 0)
+    {
+      strncpy(shortWinVer, "Win10\0\0\0", 8);
+      strncpy(descrWinVer, "Windows 10 (10.0)\0\0\0", 20);
+    }
+    else
+    {
+      strncpy(shortWinVer, "Win2016\0\0\0", 10);
+      strncpy(descrWinVer, "Server 2016 (10.0)\0\0\0", 21);
+    }
+  }
+  else
+  if(CompareWindowsVersion(6, 3))
+  {
+    // Windows 8.1 or Server 2012R2
+    if(iIsServer == 0)
+    {
+      strncpy(shortWinVer, "Win8.1\0\0\0", 9);
+      strncpy(descrWinVer, "Windows 8.1 (6.3)\0\0\0", 20);
+    }
+    else
+    {
+      strncpy(shortWinVer, "Win2012R2\0\0\0", 12);
+      strncpy(descrWinVer, "Server 2012R2 (6.3)\0\0\0", 22);
+    }
+  }
+  else
+  if(CompareWindowsVersion(6, 2))
+  {
+    // Windows 8 or Server 2012
+    if(iIsServer == 0)
+    {
+      strncpy(shortWinVer, "Win8\0\0\0", 7);
+      strncpy(descrWinVer, "Windows 8 (6.2)\0\0\0", 13);
+    }
+    else
+    {
+      strncpy(shortWinVer, "Win2012\0\0\0", 10);
+      strncpy(descrWinVer, "Server 2012 (6.2)\0\0\0", 20);
+    }
+  }
+  else
+  if(CompareWindowsVersion(6, 1))
+  {
+    // Windows 7 or Server 2008R2
+    if(iIsServer == 0)
+    {
+      strncpy(shortWinVer, "Win7\0\0\0", 7);
+      strncpy(descrWinVer, "Windows 7 (6.1)\0\0\0", 18);
+    }
+    else
+    {
+      strncpy(shortWinVer, "Win208R2\0\0\0", 11);
+      strncpy(descrWinVer, "Server 2008R2 (6.1)\0\0\0", 22);
+    }
+  }
+  else
+  if(CompareWindowsVersion(6, 0))
+  {
+    // Windows Vista or Server 2008
+    if(iIsServer == 0)
+    {
+      strncpy(shortWinVer, "Vista\0\0\0", 8);
+      strncpy(descrWinVer, "Windows Vista (6.0)\0\0\0", 22);
+    }
+    else
+    {
+      strncpy(shortWinVer, "Win2008\0\0\0", 10);
+      strncpy(descrWinVer, "Server 2008 (6.0)\0\0\0", 20);
+    }
+  }
+  else
+  if(CompareWindowsVersion(5, 2))
+  {
+    // Windows XP 64Bit or Server 2003(R2)
+    if(iIsServer == 0)
+    {
+      strncpy(shortWinVer, "WinXP64\0\0\0", 10);
+      strncpy(descrWinVer, "Windows XP64 (5.2)\0\0\0", 21);
+    }
+    else
+    {
+      strncpy(shortWinVer, "Win2003\0\0\0", 10);
+      strncpy(descrWinVer, "Server 2003/2003R2 (5.2)\0\0\0", 27);
+    }
+  }
+  else
+  if(CompareWindowsVersion(5, 1))
+  {
+    // Windows XP
+    strncpy(shortWinVer, "WinXP\0\0\0", 8);
+    strncpy(descrWinVer, "Windows XP (5.1)\0\0\0", 19);
+  }
+  else
+  if(CompareWindowsVersion(5, 0))
+  {
+    // Windows 2000
+    strncpy(shortWinVer, "Win2000\0\0\0", 10);
+    strncpy(descrWinVer, "Windows 2000 (5.1)\0\0\0", 21);
+  }
+
+  consPrefix("[+] ", consGre);
+  printf("Detected Windows Ver: %s\n", descrWinVer);
+  fprintf(LogHndl, "[+] Detected Windows Ver: %s\n", descrWinVer);
+
 
   /****************************************************************/
   /* Are we running Non-Native (Sysnative vs. System32)           */
@@ -1307,6 +1441,9 @@ int main(int argc, char *argv[])
           RunMe++;
         else
         if (strnicmp(Tmprec, "64B:", 4) == 0)
+          RunMe++;
+        else
+        if (strnicmp(Tmprec, "VER:", 4) == 0)
           RunMe++;
         else
         if (strnicmp(Tmprec, "CKY:", 4) == 0)
@@ -2985,6 +3122,33 @@ int main(int argc, char *argv[])
               if(strnicmp(Cmprec + iPrm1, Cmprec + iPrm2, 255) == 0)
                RunMe++;
             }
+          }
+          else
+          if (strnicmp(Inrec, "VER:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Check Running OS Version                                     */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            if(consOrFile == 1)
+            {
+              consPrefix("[*] ", consYel);
+              if (strnicmp(shortWinVer, Inrec+4, 10) != 0)
+              {
+                fprintf(LogHndl, "[*] Windows OS is: %s - Not: %s\n", shortWinVer, Inrec+4);
+                printf("Windows OS is: %s - Not: %s\n", shortWinVer, Inrec+4);
+              }
+              else
+              {
+                fprintf(LogHndl, "[*] Windows OS is: %s\n", shortWinVer);
+                printf("Windows OS is: %s\n", shortWinVer);
+              }
+            }         
+            else
+            if (strnicmp(shortWinVer, Inrec+4, 10) != 0)
+              RunMe++;
           }
           else
           if (strnicmp(Inrec, "RC=:", 4) == 0)
@@ -9553,3 +9717,19 @@ out:
   
 }
 
+
+BOOL CompareWindowsVersion(DWORD dwMajorVersion, DWORD dwMinorVersion)
+{
+    OSVERSIONINFOEX ver;
+    DWORDLONG dwlConditionMask = 0;
+
+    ZeroMemory(&ver, sizeof(OSVERSIONINFOEX));
+    ver.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+    ver.dwMajorVersion = dwMajorVersion;
+    ver.dwMinorVersion = dwMinorVersion;
+
+    VER_SET_CONDITION(dwlConditionMask, VER_MAJORVERSION, VER_EQUAL);
+    VER_SET_CONDITION(dwlConditionMask, VER_MINORVERSION, VER_EQUAL);
+
+    return VerifyVersionInfo(&ver, VER_MAJORVERSION | VER_MINORVERSION, dwlConditionMask);
+}
