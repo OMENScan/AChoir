@@ -69,6 +69,7 @@ RegFileExport "&Drv\Windows\system32\config\SOFTWARE" "Reg-SOFTWARE.txt"
 RegFileExport "&Drv\Windows\system32\config\SYSTEM" "Reg-SYSTEM.txt"
 For:&Drv\Windows\system32\config\*.*
 CPY:"&For" "&Acq\&Fnm"
+CPY:"&Drv\Windows\AppCompat\Programs\Amcache.hve" "&Acq\Amcache.hve"
 SAY:
 SAY: 2a. Parsing and Copying USER Registry Hives/Files...
 FOR:&Drv\Users\NTUSER.DAT
@@ -102,11 +103,13 @@ CPY:"&For" "&Acq\&Fnm"
 CMD:Dir &Drv\Windows\prefetch /a /q /r > &Acq\Prefetch.dat
 EXE:\SYS\WinPrefetchView.exe /folder &Drv\Windows\Prefetch /scomma &Acq\WinPrefetchview.dat
 SAY:
-SAY: 4. Parsing Hosts And Services Directory...
+SAY: 4. Parsing Etc Directory, and SRUM...
 SAY:
 ACQ:\SYS
+ACQ:\SYS\Sys32
 For:&Drv\Windows\System32\Drivers\Etc\*.*
 CPY:"&For" "&Acq\&Fnm"
+CPY:"&Drv\Windows\System32\sru\SRUDB.dat" "&Acq\SRUDB.dat"
 SAY:
 ***:
 ***:AutoRuns/c Does not appear to work with R/O mounted drive.
@@ -126,6 +129,7 @@ CMD:\SYS\PSLogList.exe /accepteula -s -l &Drv\Windows\System32\Winevt\logs\Syste
 SAY:
 SAY: 6b. Copying EventViewer Logs Hives...
 SAY:
+ACQ:\Evt\Sys32
 For:&Drv\Windows\System32\winevt\Logs\*.*
 CPY:"&For" "&Acq\&Fnm"
 SAY:

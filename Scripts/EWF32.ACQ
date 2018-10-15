@@ -65,6 +65,7 @@ RegFileExport "&Drv\Windows\system32\config\SOFTWARE" "Reg-SOFTWARE.txt"
 RegFileExport "&Drv\Windows\system32\config\SYSTEM" "Reg-SYSTEM.txt"
 For:&Drv\Windows\system32\config\*.*
 CPY:"&For" "&Acq\&Fnm"
+CPY:"&Drv\Windows\AppCompat\Programs\Amcache.hve" "&Acq\Amcache.hve"
 SAY:
 SAY: 2a. Parsing and Copying USER Registry Hives/Files...
 SAY:
@@ -99,11 +100,15 @@ CPY:"&For" "&Acq\&Fnm"
 CMD:Dir &Drv\Windows\prefetch /a /q /r > &Acq\Prefetch.dat
 EXE:\SYS\WinPrefetchView.exe /folder &Drv\Windows\Prefetch /scomma &Acq\WinPrefetchview.dat
 SAY:
-SAY: 4. Parsing Hosts And Services Directory...
+SAY: 4. Parsing Etc Directory, and SRUM...
 SAY:
 ACQ:\SYS
+ACQ:\SYS\Sys32
 For:&Drv\Windows\System32\Drivers\Etc\*.*
 CPY:"&For" "&Acq\&Fnm"
+CPY:"&Drv\Windows\System32\sru\SRUDB.dat" "&Acq\SRUDB.dat"
+ACQ:\SYS\Nativ
+CPY:"&Drv\Windows\SysWOW64\sru\SRUDB.dat" "&Acq\SRUDB.dat"
 SAY:
 ***:
 ***:AutoRuns/c Does not appear to work with R/O mounted drive.
@@ -121,9 +126,16 @@ CMD:\SYS\PSLogList.exe /accepteula -s -l &Drv\Windows\System32\Winevt\logs\Secur
 CMD:\SYS\PSLogList.exe /accepteula -s -l &Drv\Windows\System32\Winevt\logs\Application.evtx > &Acq\EvtApp.dat
 CMD:\SYS\PSLogList.exe /accepteula -s -l &Drv\Windows\System32\Winevt\logs\System.evtx > &Acq\EvtSys.dat
 SAY:
-SAY: 6b. Copying EventViewer Logs Hives...
+SAY: 6b. Copying (System32) EventViewer Logs Hives...
 SAY:
+ACQ:\Evt\Sys32
 For:&Drv\Windows\System32\winevt\Logs\*.*
+CPY:"&For" "&Acq\&Fnm"
+SAY:
+SAY: 6c. Copying (Sysnative) EventViewer Logs...
+SAY:
+ACQ:\Evt\Nativ
+For:&Drv\Windows\SysWOW64\winevt\Logs\*.*
 CPY:"&For" "&Acq\&Fnm"
 SAY:
 SAY: 7. Now Extracting Browser History...

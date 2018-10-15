@@ -64,6 +64,7 @@ NCP:"&Win\System32\Config\SECURITY" "&Acq"
 NCP:"&Win\System32\Config\SOFTWARE" "&Acq"
 NCP:"&Win\System32\Config\SAM" "&Acq"
 NCP:"&Win\System32\Config\SYSTEM" "&Acq"
+NCP:"&Win\AppCompat\Programs\Amcache.hve" "&Acq"
 SAY:
 SAY: 6. Copying EventViewer Logs...
 SAY:
@@ -73,10 +74,13 @@ SAY:
 SAY: 7. Parsing Hosts And Services Directory...
 SAY:
 ACQ:\SYS
+ACQ:\SYS\Sys32
 NCP:"&Win\System32\Drivers\Etc\*" "&Acq"
+NCP:"&Win\System32\sru\SRUDB.dat" "&Acq"
 SAY:
 SAY: 8. Parsing Environment Variables...
 SAY:
+ACQ:\SYS
 CMD:Set > &Acq\EnVar.dat
 SAY:
 SAY: 9. Parsing The Patch List...
