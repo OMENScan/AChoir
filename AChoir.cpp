@@ -154,6 +154,7 @@
 /*                    Win10                                     */
 /*                    Win2000, Win2003, Win2008, Win2008R2,     */
 /*                    Win2012, Win2012R2, Win2016               */
+/* AChoir v2.2  - Add Ver: Client, and Server checks            */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -249,7 +250,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v2.1\0";
+char Version[10] = "v2.2\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -3127,7 +3128,7 @@ int main(int argc, char *argv[])
           if (strnicmp(Inrec, "VER:", 4) == 0)
           {
             /****************************************************************/
-            /* Check Running OS Version                                     */
+            /* Check Running OS Version or Type (Server, Client)            */
             /****************************************************************/
             strtok(Inrec, "\n");
             strtok(Inrec, "\r");
@@ -3135,6 +3136,35 @@ int main(int argc, char *argv[])
             if(consOrFile == 1)
             {
               consPrefix("[*] ", consYel);
+
+              if (strnicmp(Inrec+4, "Server", 6) == 0)
+              {
+                if(iIsServer == 1)
+                {  
+                  fprintf(LogHndl, "[*] Windows OS Type is: Server\n");
+                  printf("Windows OS Type is: Server\n");
+                }
+                else
+                {
+                  fprintf(LogHndl, "[*] Windows OS Type is: Client - Not: Server\n");
+                  printf("Windows OS Type is: Client - Not: Server\n");
+                }
+              }
+              else
+              if (strnicmp(Inrec+4, "Client", 6) == 0)
+              {
+                if(iIsServer == 0)
+                {  
+                  fprintf(LogHndl, "[*] Windows OS Type is: Client\n");
+                  printf("Windows OS Type is: Client\n");
+                }
+                else
+                {
+                  fprintf(LogHndl, "[*] Windows OS Type is: Server - Not: Client\n");
+                  printf("Windows OS Type is: Server - Not: Client\n");
+                }
+              }
+              else
               if (strnicmp(shortWinVer, Inrec+4, 10) != 0)
               {
                 fprintf(LogHndl, "[*] Windows OS is: %s - Not: %s\n", shortWinVer, Inrec+4);
@@ -3147,8 +3177,22 @@ int main(int argc, char *argv[])
               }
             }         
             else
-            if (strnicmp(shortWinVer, Inrec+4, 10) != 0)
-              RunMe++;
+            {
+              if (strnicmp(Inrec+4, "Server", 6) == 0)
+              {
+                if(iIsServer != 1)
+                 RunMe++;
+              }
+              else
+              if (strnicmp(Inrec+4, "Client", 6) == 0)
+              {
+                if(iIsServer != 0)
+                 RunMe++;
+              }
+              else
+              if (strnicmp(shortWinVer, Inrec+4, 10) != 0)
+                RunMe++;
+            }
           }
           else
           if (strnicmp(Inrec, "RC=:", 4) == 0)

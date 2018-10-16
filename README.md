@@ -38,14 +38,14 @@ Achoir is a Framework/Scripting Tool to standardize and simplify that process.
 * AChoir v0.22 - New ARN: Action - Parse the Run Key and copy the Autorun EXEs
 * AChoir v0.23 - New /MNU Switch - Run the Menu.ACQ script
 * AChoir v0.24 - Expand the ARN: routine to recognize WOW64
-* ............    and System32/sysnative wierdness
+* ............ and System32/sysnative wierdness
 * AChoir v0.25 - More improvements to Run Key Extract
 * Achoir v0.25b - Add WinAudit and GPResult to Scripts
 * AChoir v0.26 - Expand system variables %variable%
 * AChoir v0.27 - More improvements in remote acquisition (Map)
 * AChoir v0.28 - Add /MAP:  /USR:  and  /PWD:  command lines
-* ............   and MAP:  USR:  and  PWD:  INI file Actions
-* ............   to enable Mapping for Remote Acquisition
+* ............ - and MAP:  USR:  and  PWD:  INI file Actions
+* ............ - to enable Mapping for Remote Acquisition
 * AChoir v0.29 - Add ADM:Check and ADM:Force to check OR enforce that AChoir be run from an ADMIN ID
 * ............ - Converted to MSVC 
 * ............ - Also replaced libCurl with MS WinHTTP APIs
@@ -57,7 +57,7 @@ Achoir is a Framework/Scripting Tool to standardize and simplify that process.
 * AChoir v0.35 - Add DRV: Action to Set &Drv
 * AChoir v0.36 - Add Variables 0-9 (VR0: - VR9:) (&VR0 - &VR9)
 * ............ - Fix wierd Win7 "Application Data" Path
-* ............   Recursion Anomoly
+* ............ - Recursion Anomoly
 * AChoir v0.37 - Remove DST Calculation - Add Checks to CPY:
 * AChoir v0.38 - New DST Convergence Code
 * AChoir v0.39 - Add LBL: and JMP: for Conditional Execution
@@ -82,22 +82,22 @@ Achoir is a Framework/Scripting Tool to standardize and simplify that process.
 * AChoir v0.91 - Edge case exit Bug Fix
 * AChoir v0.92 - Sig:<Typ=xxxx> Load File Type, Hex Signature
 * ............ - NCS: NTFS Copy by Signature
-* ............   (Used together to copy Files by Signature)
+* ............ - (Used together to copy Files by Signature)
 * AChoir v0.93 - Refactored some SQLite Code to avoid random
-* ............   Heap Corruption issues
+* ............ - Heap Corruption issues
 * AChoir v0.95 - FINALLY Fix Abend Bug in Large File Support
 * AChoir v0.96 - Clean Up some of the code, improve output.
 * AChoir v0.96a- Cosmetic changes to Index.htm
 * AChoir v0.97 - Add Colors, Minor Bug Fixes
 * AChoir v0.98 - CPS: Copy by Signature (Standard Win32 API)
-* ............   (Used with SIG: to copy Files by Signature)
-* ............    - Not Recommended for Locked/System Files 
+* ............ - (Used with SIG: to copy Files by Signature)
+* ............ -  - Not Recommended for Locked/System Files 
 * ............ - Tighten Application Data recursion to 2 lvls
 * ............ - /Con or /ini:Console - Console as Input File
 * AChoir v0.98a- Various improvements to Interactive Mode
-* ............   - Replace conditional statements with messages
-* ............   - add INI:Console to Scripting
-* ............   - Improve switching between Script and Interactive Modes
+* ............ - Replace conditional statements with messages
+* ............ - add INI:Console to Scripting
+* ............ - Improve switching between Script and Interactive Modes
 * AChoir v1.0  - Cosmetic USB Message Changes
 * ............ - HTTP Get Bug Fixes, Fix &Acq dblSlash
 * ............ - Add Optional Case & Evidence Name/Number Input
@@ -109,7 +109,7 @@ Achoir is a Framework/Scripting Tool to standardize and simplify that process.
 * ............ - NEQ:<s1> <s2> - Are S1 and S2 NOT Equal?
 * ............ - Support Indenting (spaces or Tabs)
 * ............ - DSK:<type>  Set &DSK looping variable to
-* ............   - Types: Removable, Fixed, Remote, CDROM
+* ............ - Types: Removable, Fixed, Remote, CDROM
 * ............ - &DSK - Looping Var Contains Disk that match 
 * AChoir v1.1  - Peppered Flush STDOUT buffers for better
 * ............ - PSExec Display (Remote Acq)
@@ -130,6 +130,32 @@ Achoir is a Framework/Scripting Tool to standardize and simplify that process.
 * ............ - When BaseDir changes, change Windows CWD too
 * ............ - New Redaction Routine for PWD: EXE: CMD:
 * AChoir v1.6  - Add EXA: and EXB:  (Asyn & Background EXe)
+* AChoir v1.7  - Fix DSK: &DSK bug for Remote Collections 
+* ............ - File not being properly closed causes loop.  
+* AChoir v1.8  - Recognize Compressed Files, and allow them to 
+* ............ -  be copied by the OS API to DeCompress them
+* ............ -  The Flag for this behaviour is:  
+* ............ -  SET:NCP=OSCOPY or SET:NCP=RAWONLY
+* ............ - Also Added built in Support for WOW64 file 
+* ............ -  redirection of X86 binCopy of SYSTEM32 
+* ............ -  (sub) directories. This was needed for 
+* ............ -  switching from rawcopy to bincopy - plus its 
+* ............ -  a good general feature anyway.
+* AChoir v1.9  - Recognize Compressed Size
+* AChoir v1.9a - More Comressed Files Support
+* AChoir v2.0  - Add LZNT1 Decompress Routine
+* ............ - Flag behaviors have changed:  
+* ............ -  SET:NCP=NODCMP - NoDecompression 
+* ............ -  SET:NCP=DECOMP/RAWONLY - LZNT1 Decompress 
+* ............ -  SET:NCP=OSCOPY - Do OS/API copy on Decomp Err
+* AChoir v2.1  - Add App Compat Manifest - For 8.1 and above
+* ............ -  comaptibility  
+* ............ - Add new Conditional Logic on Windows Version  
+* ............ - VER:WinXP, WinXP64, Vista, Win7, Win8, Win8.1 
+* ............ -  Win10 
+* ............ -  Win2000, Win2003, Win2008, Win2008R2,  
+* ............ -  Win2012, Win2012R2, Win2016
+* AChoir v2.2  - Add Ver: Client, and Server checks
 
 
 # Quick Start (tl;dr):

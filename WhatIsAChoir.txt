@@ -1,4 +1,4 @@
-AChoir - v2.1
+AChoir - v2.2
 
 AChoir
 ======
@@ -285,7 +285,8 @@ VER:<verkeyword>
           OS version is running.  If so, run the statements until END:
          Note: the valid <verkeyword> keywords are:
                 WinXP, WinXP64, Vista, Win7, Win8, Win8.1, Win10
-                Win2000, Win2003, Win2008, Win2008R2, Win2012, Win2012R2, Win2016
+                Win2000, Win2003, Win2008, Win2008R2, Win2012, Win2012R2, 
+                Win2016, Server, Client
          Note2: Use this function with Caution - For various reasons Windows
                  CAN report the wrong version.  This is a limitation of the 
                  Windows Platform and APIs
