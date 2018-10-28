@@ -5991,13 +5991,14 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
     while ((inSize = fread(InLzbuf, 1, iLZNTSz, FrmHndl)) > 0)
     {
       consPrefix("[+] ", consGre);
-      printf("LZNT1 64K Block: %d\r", NBlox++);
+      printf("LZNT1 64K Block: %d\n", NBlox++);
 
       //Make sure we have a chunk Header 
       chunk_hdr_test = *(WORD *)(InLzbuf);
       if (!chunk_hdr_test) 
       {
         //Bad Chunk Header - Zero Out the Chunk (This is the Observed Windows Behavior)
+        //May not always be bad, sometimes source data is all zeroes, usually at the end of the file //YK
         consPrefix("[!] ", consRed);
         printf("Invalid Chunk Header...  Zeroing Chunk: %d\n", NBlox);
         fprintf(LogHndl, "[!] Invalid Chunk Header...  Zeroing Chunk %d\n", NBlox);
@@ -6761,7 +6762,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           consPrefix("[*] ", consYel);
           printf("LZNT1 Decompress:\n     In: %s\n     Out: %s\n", From_Fname, Tooo_Fname);
 
-          lzRetcd = lznCopy(From_Fname, Tooo_Fname, last_rawdLen);
+          lzRetcd = lznCopy(From_Fname, Tooo_Fname, maxDataSize /*last_rawdLen*/); //YK
 
 
           /****************************************************************/
@@ -8671,7 +8672,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         // Go dump Data from Attribute Data Record (0x80)
         if (attrdata->AttributeType == AttributeData)
         {
-          pointData = (LONG)attrdata->FileReferenceNumber;
+          pointData = (LONG)attrdata->FileReferenceNumber; // it should be 6 bytes not 4  // YK
 
           if(gotData == 0)
           {
@@ -8725,13 +8726,16 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     //Try to get the file size
     // If it is 0 - See if we are in Append and Get the number of bytes
     //  Left in the File (leftSize)
-    rawdLen = AttributeLengthDataSize(attr);
-    attrLen = AttributeLengthAllocated(attr);
-    //Test: Remove all Compress Sizes and Set To same as Uncompress
-    //      LZNT1 appears to pad each 64K block chunk, making file size the same whether compressed or not
-    //cmprLen = AttributeLengthCompressed(attr);
-    cmprLen = AttributeLengthAllocated(attr);  //Test setting the InFile Compression size to the whole Buffer Size 
-
+	
+	// YK edit, Data size will only be available if LowestVCN==0, adding check for that here
+	if (PNONRESIDENT_ATTRIBUTE(attr)->LowVcn == 0) {
+		rawdLen = AttributeLengthDataSize(attr);
+		attrLen = AttributeLengthAllocated(attr);
+		//Test: Remove all Compress Sizes and Set To same as Uncompress
+		//      LZNT1 appears to pad each 64K block chunk, making file size the same whether compressed or not
+		//cmprLen = AttributeLengthCompressed(attr);
+		cmprLen = AttributeLengthAllocated(attr);  //Test setting the InFile Compression size to the whole Buffer Size 
+	}
 
     //Global Last Data Length - Used to pass to LZNCopy Routine for the Size check (Sparse Data)
     last_rawdLen = rawdLen;
