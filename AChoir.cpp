@@ -155,6 +155,7 @@
 /*                    Win2000, Win2003, Win2008, Win2008R2,     */
 /*                    Win2012, Win2012R2, Win2016               */
 /* AChoir v2.2  - Add Ver: Client, and Server checks            */
+/* AChoir v2.3  - LZNT1 Bug fixes by Yogesh Katri               */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -250,7 +251,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v2.2\0";
+char Version[10] = "v2.3\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -5991,7 +5992,7 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
     while ((inSize = fread(InLzbuf, 1, iLZNTSz, FrmHndl)) > 0)
     {
       consPrefix("[+] ", consGre);
-      printf("LZNT1 64K Block: %d\n", NBlox++);
+      printf("LZNT1 64K Block: %d\r", NBlox++);
 
       //Make sure we have a chunk Header 
       chunk_hdr_test = *(WORD *)(InLzbuf);
