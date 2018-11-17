@@ -106,7 +106,8 @@ SAY:
 SAY: 5. Gathering AutoRun Information...
 SAY:
 ACQ:\Arn
-SYS:for /d %%z in (&Drv\Users\*) do &Dir\Sys\Autorunsc.exe -c -z &Drv\Windows %%z >> &Acq\Arn.csv
+SYS:&Dir\Sys\Autorunsc.exe -c -z &Drv\Windows &Drv\Users\default >> &Acq\Autorun.dat
+SYS:for /d %%z in (&Drv\Users\*) do &Dir\Sys\Autorunsc.exe -c -z &Drv\Windows %%z >> &Acq\AutorunAll.dat
 ***:EXE:\SYS\Autoruns.exe
 SAY:
 SAY: 6a. Parsing EventViewer Logs Hives...
@@ -131,7 +132,8 @@ SAY:
 SAY: 7. Now Extracting Browser History...
 SAY:
 ACQ:\Brw
-EXE:\SYS\BrowsingHistoryView.exe /HistorySource 3 /HistorySourceFolder "&Drv\Users" /VisitTimeFilterType 1 /scomma "&Acq\BrowserHistory.csv" 
+EXE:\SYS\BrowsingHistoryView.exe /HistorySource 3 /HistorySourceFolder "&Drv\Users" /VisitTimeFilterType 1 /scomma "&Acq\BrowseHist.csv" 
+EXE:\SYS\BrowsingHistoryView.exe /HistorySource 3 /HistorySourceFolder "&Drv\Users" /VisitTimeFilterType 1 /shtml "&Acq\BrowseHist.htm" 
 SAY:
 SAY: 8. Parsing Offline Registry AutoRun Keys
 SAY:
