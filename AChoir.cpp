@@ -156,6 +156,8 @@
 /*                    Win2012, Win2012R2, Win2016               */
 /* AChoir v2.2  - Add Ver: Client, and Server checks            */
 /* AChoir v2.3  - LZNT1 Bug fixes by Yogesh Katri               */
+/* AChoir v2.4  - Update Offreg, and fix Edge Case of Short FN  */
+/*                 without a Long FN in $MFT record.            */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -251,7 +253,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v2.3\0";
+char Version[10] = "v2.4\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -346,6 +348,7 @@ BOOT_BLOCK bootb;
 PFILE_RECORD_HEADER MFT;
 int readRetcd = 1; // Global read Return Code - When something goes real bad.
 char Str_Temp[1024] = "\0";
+char Str_Short[256] = "\0";
 CHAR driveLetter[] = "C\0\0\0\0";
 CHAR rootDrive[] = "C:\\\0\0\0";
 
@@ -646,6 +649,8 @@ char descrWinVer[50] = "Unknown\0";
 char shortWinVer[15] = "Win\0";
 int  iIsServer = 0;
 
+//Offline Registry 
+DWORD ORRetcd ;
 
 int main(int argc, char *argv[])
 {
@@ -2587,11 +2592,12 @@ int main(int argc, char *argv[])
             /****************************************************************/
             /* Open the Offline Registry Hive                               */
             /****************************************************************/
-            if (OROpenHive(lpORFName, &ORhKey) != ERROR_SUCCESS)
+            ORRetcd = OROpenHive(lpORFName, &ORhKey) ;
+            if (ORRetcd != ERROR_SUCCESS)
             {
-              fprintf(LogHndl, "ARN: COULD NOT Open Offline Registry: %ls\n", lpORFName);
+              fprintf(LogHndl, "ARN: COULD NOT Open Offline Registry: %ls (RC: %d)\n", lpORFName, ORRetcd);
               consPrefix("ARN: ", consRed);
-              printf("COULD NOT Open Offline Registry: %ls\n", lpORFName);
+              printf("COULD NOT Open Offline Registry: %ls (RC: %d)\n", lpORFName, ORRetcd);
               break;
             }
               
@@ -8093,11 +8099,11 @@ int FindActive()
   char Ftmp_Fname[2048] = "\0";
   char Str_Temp1[15] = "\0";
   char Str_Temp2[15] = "\0";
-  int Str_Len, Max_Files;
+  int Str_Len, Max_Files, Short_Len;
   int Progress, ProgUnit;
   int File_RecNum, Dir_PrevNum, File_RecID;
   int MoreDirs;
-  int iLinkCount, iLink;
+  int iLinkCount, iLink, iGotOne;
 
 
   char Text_CreDate[30] = "\0";
@@ -8152,6 +8158,9 @@ int FindActive()
        iLinkCount = 1 ;
 
       // Bump Through Attributes and Add them to the SQLite Table
+      //  Note: Save the Short Name & Length in case it is the only one
+      iGotOne = Short_Len = 0;
+      memset(Str_Short, 0, 256);
       for(iLink=0; iLink <= iLinkCount; iLink++)
       {
         // Get 0x30 (FN) Attribute
@@ -8171,7 +8180,15 @@ int FindActive()
 
         // Type 0=POSIX, Type 1=Long FN, Type 2=Short FN (Ignore type 2)
         if (name->NameType == 2)
+        {
+          //Type 2 is a Short FN - Save it, in case we only have this FN. This is an ODD
+          // Edge case, where the Short FN is the ONLY FN (Track this via variable iGotOne)
+          Short_Len = int(name->NameLength);
+          wcstombs(Str_Short, name->Name, Short_Len);
+          Str_Short[Short_Len] = '\0'; // Null Terminate the String... Sigh...
           continue;
+        }
+
 
         Str_Len = int(name->NameLength);
         wcstombs(Str_Temp, name->Name, Str_Len);
@@ -8181,15 +8198,20 @@ int FindActive()
         // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
         attr3 = FindAttributeX(file, AttributeStandardInformation, 0, 0);
         if (attr3 != 0)
-        {
-          name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
-        }
+         name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
 
 
         if (file->Flags == 1)
         {
           // Active File Entry 
+          iGotOne = 1;
           Max_Files++;
+        // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
+        attr3 = FindAttributeX(file, AttributeStandardInformation, 0, 0);
+        if (attr3 != 0)
+        {
+          name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
+        }
 
           if (attr3 == 0)
             dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileDateTyp, FNCreDate, FNAccDate, FNModDate, SICreDate, SIAccDate, SIModDate, Compress) VALUES ('%ld', '%ld', '%q', 'FN', '%llu', '%llu', '%llu', '0', '0', '0', '%ld')\0",
@@ -8207,6 +8229,7 @@ int FindActive()
         else
         {
           // Active Directory Entries
+          iGotOne = 1;
           dbMQuery = sqlite3_mprintf("INSERT INTO MFTDirs (MFTRecID, MFTPrvID, DirsName) VALUES ('%ld', '%ld', '%q')\0", i, int(name->DirectoryFileReferenceNumber), Str_Temp);
         }
 
@@ -8242,7 +8265,86 @@ int FindActive()
 
       }
 
+
+      /*****************************************************************/
+      /* See if we wrote anything for this record.  If not, there may  */
+      /*  may only be a Short FN - Which we typically ignore.  So go   */
+      /*  ahead and write out the ShortFN - This is especially         */
+      /*  critical if it is a Directory - so we dont break the chain   */
+      /*  ... Chaiiin, Keep us together...  Runnin in the shadow...    */
+      /*****************************************************************/
+      if (iGotOne == 0)
+      {
+        //Nothing Written - Probably the Short FN Only Edge Case
+        if (Short_Len > 0)
+        {
+          // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
+          attr3 = FindAttributeX(file, AttributeStandardInformation, 0, 0);
+          if (attr3 != 0)
+           name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
+
+
+          if (file->Flags == 1)
+          {
+            // Active File Entry 
+            iGotOne = 1;
+            Max_Files++;
+
+            if (attr3 == 0)
+              dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileDateTyp, FNCreDate, FNAccDate, FNModDate, SICreDate, SIAccDate, SIModDate, Compress) VALUES ('%ld', '%ld', '%q', 'FN', '%llu', '%llu', '%llu', '0', '0', '0', '%ld')\0",
+                i, int(name->DirectoryFileReferenceNumber), Str_Short,
+                ULONGLONG(name->CreationTime), ULONGLONG(name->LastAccessTime), ULONGLONG(name->LastWriteTime),
+                ULONGLONG(name->CreationTime), ULONGLONG(name->LastAccessTime), ULONGLONG(name->LastWriteTime),
+                iIsCompressed);
+            else
+              dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileDateTyp, FNCreDate, FNAccDate, FNModDate, SICreDate, SIAccDate, SIModDate, Compress) VALUES ('%ld', '%ld', '%q', 'SI', '%llu', '%llu', '%llu', '%llu', '%llu', '%llu', '%ld')\0",
+                i, int(name->DirectoryFileReferenceNumber), Str_Short,
+                ULONGLONG(name3->CreationTime), ULONGLONG(name3->LastAccessTime), ULONGLONG(name3->LastWriteTime),
+                ULONGLONG(name->CreationTime), ULONGLONG(name->LastAccessTime), ULONGLONG(name->LastWriteTime),
+                iIsCompressed);
+          }
+          else
+          {
+            // Active Directory Entries
+            iGotOne = 1;
+            dbMQuery = sqlite3_mprintf("INSERT INTO MFTDirs (MFTRecID, MFTPrvID, DirsName) VALUES ('%ld', '%ld', '%q')\0", i, int(name->DirectoryFileReferenceNumber), Str_Short);
+          }
+
+          SpinLock = 0;
+          while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
+          {
+            if (dbMrc == SQLITE_BUSY)
+              Sleep(100); // In windows.h
+            else
+            if (dbMrc == SQLITE_LOCKED)
+              Sleep(100); // In windows.h
+            else
+            if (dbMrc == SQLITE_ERROR)
+            {
+              consPrefix("[!] ", consRed);
+              printf("MFTError: Error Adding Entry to MFT SQLite Table\n%s\n", errmsg);
+              MFT_Status = 2;
+              break;
+            }
+            else
+              Sleep(100); // In windows.h
+
+           /*****************************************************************/
+           /* Check if we are stuck in a loop.                              */
+           /*****************************************************************/
+            SpinLock++;
+
+            if (SpinLock > 25)
+              break;
+          }
+
+          sqlite3_free(dbMQuery);
+
+        }
+      }
+
       fflush(stdout); //More PSExec Friendly
+
     }
 
     fflush(stdout); //More PSExec Friendly
@@ -8476,6 +8578,7 @@ int FindActive()
 
   fflush(stdout); //More PSExec Friendly
 
+  return 0;
 }
 
 

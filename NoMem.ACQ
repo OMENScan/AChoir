@@ -174,6 +174,12 @@ ACQ:\Brw
 EXE:\SYS\BrowsingHistoryView.exe /scomma &Acq\BrowseHist.csv
 EXE:\SYS\BrowsingHistoryView.exe /shtml &Acq\BrowseHist.htm
 SAY:
+SAY: 24. Gathering $Recycle.Bin entries...
+SAY:
+DSK:Fixed
+ACQ:\RBin
+NCP:"&Dsk:\$Recycle.Bin\*" "&Acq"
+SAY:
 SAY: Acquisition Complete...
 SAY:
 SAY: Now Hashing Artifacts...

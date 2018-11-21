@@ -78,21 +78,21 @@ SAY: --- Unzipping PSTools ---
 SAY:
 EXE:\unzip.exe -o &Dir\&Fil -d &Dir
 CKN:&Dir\PsLogList.exe
-SAY:
-SAY: --- PSTools Did Not Download Correctly - Trying a Different (blob) Name ---
-SAY:
-EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\PSTools2.txt https://download.sysinternals.com/files/pstools.zip
-EXE:\unzip.exe -o &Dir\&Fil -d &Dir
-CKN:&Dir\PsLogList.exe
-SAY:
-SAY: --- PSTools STILL Did Not Download Correctly - Just Letting You Know ---
-SAY:
-END:
-CKY:&Dir\PsLogList.exe
-SAY:
-SAY: --- PSTools Downloaded Correctly ---
-SAY:
-END:
+  SAY:
+  SAY: --- PSTools Did Not Download Correctly - Trying a Different (blob) Name ---
+  SAY:
+  EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\PSTools2.txt https://download.sysinternals.com/files/pstools.zip
+  EXE:\unzip.exe -o &Dir\&Fil -d &Dir
+  CKN:&Dir\PsLogList.exe
+    SAY:
+    SAY: --- PSTools STILL Did Not Download Correctly - Just Letting You Know ---
+    SAY:
+  END:
+  CKY:&Dir\PsLogList.exe
+    SAY:
+    SAY: --- PSTools Downloaded Correctly ---
+    SAY:
+  END:
 END:
 SAY:
 SAY: --- Getting Prefetch Parser (From Red Wolf) ---
@@ -123,21 +123,21 @@ SAY: --- Unzipping AutoRuns ---
 SAY:
 EXE:\unzip.exe -o &Dir\&Fil -d &Dir
 CKN:&Dir\AutoRuns.exe
-SAY:
-SAY: --- Autoruns Did Not Download Correctly - Trying a Different (blob) Name ---
-SAY:
-EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\AutoRuns2.txt https://download.sysinternals.com/files/autoruns.zip
-EXE:\unzip.exe -o &Dir\&Fil -d &Dir
-CKY:&Dir\Autoruns.exe
-SAY:
-SAY: --- Autoruns Downloaded Correctly ---
-SAY:
-END:
-CKN:&Dir\Autoruns.exe
-SAY:
-SAY: --- Autoruns STILL Did Not Download Correctly - Just Letting You Know ---
-SAY:
-END:
+  SAY:
+  SAY: --- Autoruns Did Not Download Correctly - Trying a Different (blob) Name ---
+  SAY:
+  EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\AutoRuns2.txt https://download.sysinternals.com/files/autoruns.zip
+  EXE:\unzip.exe -o &Dir\&Fil -d &Dir
+  CKY:&Dir\Autoruns.exe
+    SAY:
+    SAY: --- Autoruns Downloaded Correctly ---
+    SAY:
+  END:
+  CKN:&Dir\Autoruns.exe
+    SAY:
+    SAY: --- Autoruns STILL Did Not Download Correctly - Just Letting You Know ---
+    SAY:
+  END:
 END:
 SAY:
 SAY: --- Getting Handle (from Microsoft SysInternals) ---
@@ -149,21 +149,21 @@ SAY: --- Unzipping Handle ---
 SAY:
 EXE:\unzip.exe -o &Dir\&Fil -d &Dir
 CKN:&Dir\Handle.exe
-SAY:
-SAY: --- Handle Did Not Download Correctly - Trying a Different (blob) Name ---
-SAY:
-EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\Handle2.txt https://download.sysinternals.com/files/handle.zip
-EXE:\unzip.exe -o &Dir\&Fil -d &Dir
-CKY:&Dir\Handle.exe
-SAY:
-SAY: --- Handle Downloaded Correctly ---
-SAY:
-END:
-CKN:&Dir\Handle.exe
-SAY:
-SAY: --- Handle STILL Did Not Download Correctly - Just Letting You Know ---
-SAY:
-END:
+  SAY:
+  SAY: --- Handle Did Not Download Correctly - Trying a Different (blob) Name ---
+  SAY:
+  EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\Handle2.txt https://download.sysinternals.com/files/handle.zip
+  EXE:\unzip.exe -o &Dir\&Fil -d &Dir
+  CKY:&Dir\Handle.exe
+    SAY:
+    SAY: --- Handle Downloaded Correctly ---
+    SAY:
+  END:
+  CKN:&Dir\Handle.exe
+    SAY:
+    SAY: --- Handle STILL Did Not Download Correctly - Just Letting You Know ---
+    SAY:
+  END:
 END:
 SAY:
 SAY: --- Getting CurrPorts (From NirSoft) ---
@@ -220,6 +220,17 @@ SAY:
 FIL:Winaudit.exe
 EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\Winaudit.txt https://github.com/OMENScan/AChoir/blob/master/Tools/WinAudit.exe?raw=true
 SAY:
+SAY: --- Getting Recycle Bin artifact (INFO2/$I) parser (From Eric Zimmerman) ---
+SAY:
+FIL:RBCmd.zip
+EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\RBCmd.txt https://ericzimmerman.github.io/Software/RBCmd.zip
+SAY:
+SAY: --- Unzipping RBCmd ---
+SAY:
+EXE:\unzip.exe -o &Dir\&Fil -d &Dir
+SAY:
+SAY: --- Getting RegRipper 2.8 (from GitHub/Keydet89) ---
+SAY:
 DIR:\SYS\64Bit
 SAY:
 SAY: --- Getting CurrPorts (From NirSoft) ---
@@ -248,8 +259,6 @@ SAY:
 SAY: --- Unzipping WinPrefetchView (64 Bit) ---
 SAY:
 EXE:\unzip.exe -o &Dir\&Fil -d &Dir
-SAY:
-SAY: --- Getting RegRipper 2.8 (from GitHub/Keydet89) ---
 SAY:
 DIR:\RRV
 FIL:master.zip
