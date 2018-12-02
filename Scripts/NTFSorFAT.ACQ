@@ -476,6 +476,35 @@ EQU:&VCK NTFS
   ACQ:\RBin
   NCP:"&Dsk:\$Recycle.Bin\*" "&Acq"
 END:
+****************************************************
+* Is this a FAT32 Volume - API Copy and Reg Export *
+****************************************************
+EQU:&VCK FAT32
+  FOR:C:\$Recycle.Bin\*
+  CPY:"&For" "&Acq\&Fnm"
+END:
+***********************************
+* Is it a CD - I know, Not Likely *
+***********************************
+EQU:&VCK CDFS
+  FOR:C:\$Recycle.Bin\*
+  CPY:"&For" "&Acq\&Fnm"
+END:
+*****************************************************
+* Is this an Other Volume - API Copy and Reg Export *
+*****************************************************
+EQU:&VCK Other
+  FOR:C:\$Recycle.Bin\*
+  CPY:"&For" "&Acq\&Fnm"
+END:
+***********************************
+* NO Volume - Just try Reg Export *
+***********************************
+EQU:&VCK None
+  SAY:No Volume Found... Attempting to Copy Recycle Bin Entries
+  FOR:C:\$Recycle.Bin\*
+  CPY:"&For" "&Acq\&Fnm"
+END:
 SAY:
 SAY: Acquisition Complete...
 SAY:

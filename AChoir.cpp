@@ -158,6 +158,8 @@
 /* AChoir v2.3  - LZNT1 Bug fixes by Yogesh Katri               */
 /* AChoir v2.4  - Update Offreg, and fix Edge Case of Short FN  */
 /*                 without a Long FN in $MFT record.            */
+/* AChoir v2.5  - Partial Back out of LZNT1 mod that negatively */
+/*                 impacted $MFT Resident File extraction       */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -253,7 +255,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v2.4\0";
+char Version[10] = "v2.5\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -7945,6 +7947,14 @@ VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
 
   if (attr->Nonresident == FALSE)
   {
+
+
+
+
+printf("Resident File\n");
+
+
+
     rattr = PRESIDENT_ATTRIBUTE(attr);
     memcpy(buffer, Padd(rattr, rattr->ValueOffset), rattr->ValueLength);
   }
@@ -8830,16 +8840,26 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     //Try to get the file size
     // If it is 0 - See if we are in Append and Get the number of bytes
     //  Left in the File (leftSize)
-	
-	// YK edit, Data size will only be available if LowestVCN==0, adding check for that here
-	if (PNONRESIDENT_ATTRIBUTE(attr)->LowVcn == 0) {
-		rawdLen = AttributeLengthDataSize(attr);
+
+    // Ver 2.3
+	  // YK edit, Data size will only be available if LowestVCN==0, adding check for that here
+
+    // Ver 2.5
+    // Remove (Comment Out) Mod from Ver 2.3 - To check LowestVCN
+    //  The Mod caused issues with Resident Files - DP
+    //
+	  //if (PNONRESIDENT_ATTRIBUTE(attr)->LowVcn == 0) 
+    //{
+
+    rawdLen = AttributeLengthDataSize(attr);
 		attrLen = AttributeLengthAllocated(attr);
 		//Test: Remove all Compress Sizes and Set To same as Uncompress
 		//      LZNT1 appears to pad each 64K block chunk, making file size the same whether compressed or not
 		//cmprLen = AttributeLengthCompressed(attr);
 		cmprLen = AttributeLengthAllocated(attr);  //Test setting the InFile Compression size to the whole Buffer Size 
-	}
+
+	  //}
+    // End Ver 2.3 LZNT1 Mod, and End Ver 2.5 removal
 
     //Global Last Data Length - Used to pass to LZNCopy Routine for the Size check (Sparse Data)
     last_rawdLen = rawdLen;
