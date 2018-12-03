@@ -69,10 +69,9 @@ SAY:
 SAY: 6. Copying EventViewer Logs...
 SAY:
 ACQ:\Evt
-ACQ:\Evt\Sys32
 NCP:"&Win\System32\winevt\Logs\*" "&Acq"
 SAY:
-SAY: 7. Parsing Etc directory, and SRUM...
+SAY: 7. Parsing Hosts And Services Directory...
 SAY:
 ACQ:\SYS
 ACQ:\SYS\Sys32
@@ -161,6 +160,12 @@ SAY:
 ACQ:\Brw
 EXE:\SYS\BrowsingHistoryView.exe /scomma &Acq\BrowseHist.csv
 EXE:\SYS\BrowsingHistoryView.exe /shtml &Acq\BrowseHist.htm
+SAY:
+SAY: 24. Gathering $Recycle.Bin entries...
+SAY:
+DSK:Fixed
+ACQ:\RBin
+NCP:"&Dsk:\$Recycle.Bin\*" "&Acq"
 SAY:
 SAY: Acquisition Complete...
 SAY:

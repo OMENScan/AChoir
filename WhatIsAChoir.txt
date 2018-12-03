@@ -1,4 +1,4 @@
-AChoir - v2.2
+AChoir - v2.4
 
 AChoir
 ======
@@ -434,9 +434,9 @@ it can.
 
 A note about LZNT1 Decompression
 ----------
-Building a working LZNT1 decompressor has been a huge challenge.  I would say the
-LZNT1 decompress in AChoir MOSTLY works. To ensure that you get your artifacts, the 
-LZNT1 decompressor has a fallback:
+Building a working LZNT1 decompressor has been a huge challenge.  With the addition of 
+Yogesh Khatri's bug fixes, I believe it is now stable.  Nonetheless, I am leaving in the 
+LZNT1 decompressor fallback:
 
 1. If an NTFS file is compressed AChoir will identify it and copy the raw data file
    preserving the compression.  It will append an (LZ) extention to the file to identify it as 
@@ -451,13 +451,9 @@ You can therefore have up to 3 copies of the same file:
 * Uncompressed file created by AChoir LZNT1 decompressor (LX)
 * Uncompressed file using standard OS Copy (decompress through the OS)
 
-If you are concerned with Forensic soundness, you can TURN OFF the OS Copy 
-routine using the SET:NCP=RAWONLY option in AChoir.  This may mean that 
-you will not have a working/readable file, and you will need to extract
-that file using another means.
+If you are concerned with Forensic soundness, you can TURN OFF the OS Copy routine using the SET:NCP=RAWONLY option in AChoir.  This may mean that you will not have a working/readable file, and you will need to extract that file using another means.
 
-I am continually working on the LZNT1 decompressor to make it more 
-resilient to errors.
+I am continually working on the LZNT1 decompressor to make it more resilient to errors.
 
 
 Artifacts that AChoir itself generates:

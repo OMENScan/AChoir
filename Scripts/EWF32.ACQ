@@ -148,6 +148,11 @@ SAY:
 ACQ:\Arn
 ARN:&Drv\Windows\System32\Config\SOFTWARE
 SAY:
+SAY: 9. Gathering $Recycle.Bin entries...
+SAY:
+ACQ:\RBin
+NCP:"&Drv:\$Recycle.Bin\*" "&Acq"
+SAY:
 SAY: Acquisition Complete...
 SAY:
 SAY: Now Hashing Artifacts...
