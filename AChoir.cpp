@@ -7947,6 +7947,14 @@ VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
 
   if (attr->Nonresident == FALSE)
   {
+
+
+
+
+printf("Resident File\n");
+
+
+
     rattr = PRESIDENT_ATTRIBUTE(attr);
     memcpy(buffer, Padd(rattr, rattr->ValueOffset), rattr->ValueLength);
   }
@@ -8154,9 +8162,6 @@ int FindActive()
 
     if (file->Ntfs.Type == 'ELIF' && (file->Flags == 1 || file->Flags == 3))
     {
-      // YK - adding check for only Active (not deleted) entries
-      if (file->Flags & 1 == 0)
-        continue;
       // See How Many Links we have - Make sure we have at least two (Short & Long FN)
       iLinkCount = file->LinkCount;
       if(iLinkCount < 1)
@@ -8176,6 +8181,12 @@ int FindActive()
 
         // Fell Through, So we got one.  Ee Said Ee already Got One!
         name = PFILENAME_ATTRIBUTE(Padd(attr, PRESIDENT_ATTRIBUTE(attr)->ValueOffset));
+
+        // Check to see if Compress Bit is on if the FileAttributes Field.
+        if (name->FileAttributes & (1 << ULONG(11)))
+         iIsCompressed = 1;
+        else
+         iIsCompressed = 0;
 
         // Type 0=POSIX, Type 1=Long FN, Type 2=Short FN (Ignore type 2)
         if (name->NameType == 2)
@@ -8197,21 +8208,20 @@ int FindActive()
         // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
         attr3 = FindAttributeX(file, AttributeStandardInformation, 0, 0);
         if (attr3 != 0)
-        {
-          name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
+         name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
 
-          // Check to see if Compress Bit is on in the FileAttributes Field. //YK- moved to StdInfo, this gives correct current value of compressed
-          if (name3->FileAttributes & (1 << ULONG(11)))
-            iIsCompressed = 1;
-          else
-            iIsCompressed = 0;
-        }
 
         if (file->Flags == 1)
         {
           // Active File Entry 
           iGotOne = 1;
           Max_Files++;
+        // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
+        attr3 = FindAttributeX(file, AttributeStandardInformation, 0, 0);
+        if (attr3 != 0)
+        {
+          name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
+        }
 
           if (attr3 == 0)
             dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileDateTyp, FNCreDate, FNAccDate, FNModDate, SICreDate, SIAccDate, SIModDate, Compress) VALUES ('%ld', '%ld', '%q', 'FN', '%llu', '%llu', '%llu', '0', '0', '0', '%ld')\0",
@@ -8831,21 +8841,25 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     // If it is 0 - See if we are in Append and Get the number of bytes
     //  Left in the File (leftSize)
 
-    // YK - adding check for resident $DATA attribute
-    if (attr->Nonresident == FALSE) {
-        rawdLen = AttributeLengthDataSize(attr);
-        if (iIsCompressed == 1)
-            iIsCompressed = 0;  // if data is only in MFT (resident), it is not compressed (even if compression is ON)
-    }
-    // YK edit, Data size will only be available if LowestVCN==0, adding check for that here
-    else if (PNONRESIDENT_ATTRIBUTE(attr)->LowVcn == 0) {
-        rawdLen = AttributeLengthDataSize(attr);
-        attrLen = AttributeLengthAllocated(attr);
-        //Test: Remove all Compress Sizes and Set To same as Uncompress
-        //      LZNT1 appears to pad each 64K block chunk, making file size the same whether compressed or not
-        //cmprLen = AttributeLengthCompressed(attr);
-        cmprLen = AttributeLengthAllocated(attr);  //Test setting the InFile Compression size to the whole Buffer Size 
-    }
+    // Ver 2.3
+	  // YK edit, Data size will only be available if LowestVCN==0, adding check for that here
+
+    // Ver 2.5
+    // Remove (Comment Out) Mod from Ver 2.3 - To check LowestVCN
+    //  The Mod caused issues with Resident Files - DP
+    //
+	  //if (PNONRESIDENT_ATTRIBUTE(attr)->LowVcn == 0) 
+    //{
+
+    rawdLen = AttributeLengthDataSize(attr);
+		attrLen = AttributeLengthAllocated(attr);
+		//Test: Remove all Compress Sizes and Set To same as Uncompress
+		//      LZNT1 appears to pad each 64K block chunk, making file size the same whether compressed or not
+		//cmprLen = AttributeLengthCompressed(attr);
+		cmprLen = AttributeLengthAllocated(attr);  //Test setting the InFile Compression size to the whole Buffer Size 
+
+	  //}
+    // End Ver 2.3 LZNT1 Mod, and End Ver 2.5 removal
 
     //Global Last Data Length - Used to pass to LZNCopy Routine for the Size check (Sparse Data)
     last_rawdLen = rawdLen;
