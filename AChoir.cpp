@@ -160,6 +160,8 @@
 /*                 without a Long FN in $MFT record.            */
 /* AChoir v2.5  - Partial Back out of LZNT1 mod that negatively */
 /*                 impacted $MFT Resident File extraction       */
+/* AChoir v2.6  - Fix Duplicate File copy due to multiple MFT   */
+/*                 Records for a file (Hard Links)              */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -255,7 +257,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v2.5\0";
+char Version[10] = "v2.6\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -6428,7 +6430,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 
 
     SpinLock = 0;
-    while ((dbMrc = sqlite3_exec(dbMFTHndl, "CREATE TABLE FileNames (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, FullFileName)", 0, 0, &errmsg)) != SQLITE_OK)
+    while ((dbMrc = sqlite3_exec(dbMFTHndl, "CREATE TABLE FileNames (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTFilesRecID INTEGER, MFTRecID INTEGER, FullFileName)", 0, 0, &errmsg)) != SQLITE_OK)
     {
       if (dbMrc == SQLITE_BUSY)
         Sleep(100); // In windows.h
@@ -6530,7 +6532,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   /************************************************************/
   /* Search for the File using SQLite                         */
   /************************************************************/
-  dbMQuery = sqlite3_mprintf("Select * FROM FileNames AS T1, MFTFiles AS T2 WHERE T1.FullFileName LIKE '%q' AND T1.MFTRecID=T2.MFTRecID\0", FrmFile);
+  dbMQuery = sqlite3_mprintf("Select * FROM FileNames AS T1, MFTFiles AS T2 WHERE T1.FullFileName LIKE '%q' AND T1.MFTFilesRecID=T2.RecID\0", FrmFile);
 
   dbMrc = sqlite3_prepare(dbMFTHndl, dbMQuery, -1, &dbMFTStmt, 0);
   if (dbMrc == SQLITE_OK)
@@ -8104,6 +8106,7 @@ int FindActive()
   int Str_Len, Max_Files, Short_Len;
   int Progress, ProgUnit;
   int File_RecNum, Dir_PrevNum, File_RecID;
+  int MFTFiles_RecNum, MFTFiles_RecID;
   int MoreDirs;
   int iLinkCount, iLink, iGotOne;
 
@@ -8154,9 +8157,6 @@ int FindActive()
 
     if (file->Ntfs.Type == 'ELIF' && (file->Flags == 1 || file->Flags == 3))
     {
-      // YK - adding check for only Active (not deleted) entries
-      if (file->Flags & 1 == 0)
-        continue;
       // See How Many Links we have - Make sure we have at least two (Short & Long FN)
       iLinkCount = file->LinkCount;
       if(iLinkCount < 1)
@@ -8176,6 +8176,12 @@ int FindActive()
 
         // Fell Through, So we got one.  Ee Said Ee already Got One!
         name = PFILENAME_ATTRIBUTE(Padd(attr, PRESIDENT_ATTRIBUTE(attr)->ValueOffset));
+
+        // Check to see if Compress Bit is on if the FileAttributes Field.
+        if (name->FileAttributes & (1 << ULONG(11)))
+         iIsCompressed = 1;
+        else
+         iIsCompressed = 0;
 
         // Type 0=POSIX, Type 1=Long FN, Type 2=Short FN (Ignore type 2)
         if (name->NameType == 2)
@@ -8197,21 +8203,20 @@ int FindActive()
         // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
         attr3 = FindAttributeX(file, AttributeStandardInformation, 0, 0);
         if (attr3 != 0)
-        {
-          name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
+         name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
 
-          // Check to see if Compress Bit is on in the FileAttributes Field. //YK- moved to StdInfo, this gives correct current value of compressed
-          if (name3->FileAttributes & (1 << ULONG(11)))
-            iIsCompressed = 1;
-          else
-            iIsCompressed = 0;
-        }
 
         if (file->Flags == 1)
         {
           // Active File Entry 
           iGotOne = 1;
           Max_Files++;
+        // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
+        attr3 = FindAttributeX(file, AttributeStandardInformation, 0, 0);
+        if (attr3 != 0)
+        {
+          name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
+        }
 
           if (attr3 == 0)
             dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileDateTyp, FNCreDate, FNAccDate, FNModDate, SICreDate, SIAccDate, SIModDate, Compress) VALUES ('%ld', '%ld', '%q', 'FN', '%llu', '%llu', '%llu', '0', '0', '0', '%ld')\0",
@@ -8411,6 +8416,12 @@ int FindActive()
             strncpy(Full_Fname, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 255);
         }
         else
+        if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "RecID", 5) == 0)
+        {
+          MFTFiles_RecNum = sqlite3_column_int(dbMFTStmt, dbi);
+          MFTFiles_RecID = MFTFiles_RecNum; //Save it for the Built Index
+        }
+        else
         if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "MFTRecID", 8) == 0)
         {
           File_RecNum = sqlite3_column_int(dbMFTStmt, dbi);
@@ -8511,7 +8522,7 @@ int FindActive()
       }
 
       //Now Insert the Full Path FileName and MFT Record ID
-      dbXQuery = sqlite3_mprintf("INSERT INTO FileNames (MFTRecID, FullFileName) VALUES ('%ld', '%q')\0", File_RecID, Full_Fname);
+      dbXQuery = sqlite3_mprintf("INSERT INTO FileNames (MFTRecID, MFTFilesRecID, FullFileName) VALUES ('%ld', '%ld', '%q')\0", File_RecID, MFTFiles_RecID, Full_Fname);
 
       SpinLock = 0;
       while ((dbXrc = sqlite3_exec(dbMFTHndl, dbXQuery, 0, 0, &errmsg)) != SQLITE_OK)
@@ -8831,21 +8842,25 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     // If it is 0 - See if we are in Append and Get the number of bytes
     //  Left in the File (leftSize)
 
-    // YK - adding check for resident $DATA attribute
-    if (attr->Nonresident == FALSE) {
-        rawdLen = AttributeLengthDataSize(attr);
-        if (iIsCompressed == 1)
-            iIsCompressed = 0;  // if data is only in MFT (resident), it is not compressed (even if compression is ON)
-    }
-    // YK edit, Data size will only be available if LowestVCN==0, adding check for that here
-    else if (PNONRESIDENT_ATTRIBUTE(attr)->LowVcn == 0) {
-        rawdLen = AttributeLengthDataSize(attr);
-        attrLen = AttributeLengthAllocated(attr);
-        //Test: Remove all Compress Sizes and Set To same as Uncompress
-        //      LZNT1 appears to pad each 64K block chunk, making file size the same whether compressed or not
-        //cmprLen = AttributeLengthCompressed(attr);
-        cmprLen = AttributeLengthAllocated(attr);  //Test setting the InFile Compression size to the whole Buffer Size 
-    }
+    // Ver 2.3
+	  // YK edit, Data size will only be available if LowestVCN==0, adding check for that here
+
+    // Ver 2.5
+    // Remove (Comment Out) Mod from Ver 2.3 - To check LowestVCN
+    //  The Mod caused issues with Resident Files - DP
+    //
+	  //if (PNONRESIDENT_ATTRIBUTE(attr)->LowVcn == 0) 
+    //{
+
+    rawdLen = AttributeLengthDataSize(attr);
+		attrLen = AttributeLengthAllocated(attr);
+		//Test: Remove all Compress Sizes and Set To same as Uncompress
+		//      LZNT1 appears to pad each 64K block chunk, making file size the same whether compressed or not
+		//cmprLen = AttributeLengthCompressed(attr);
+		cmprLen = AttributeLengthAllocated(attr);  //Test setting the InFile Compression size to the whole Buffer Size 
+
+	  //}
+    // End Ver 2.3 LZNT1 Mod, and End Ver 2.5 removal
 
     //Global Last Data Length - Used to pass to LZNCopy Routine for the Size check (Sparse Data)
     last_rawdLen = rawdLen;
