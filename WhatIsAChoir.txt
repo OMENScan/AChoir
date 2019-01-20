@@ -1,4 +1,4 @@
-AChoir - v2.6
+AChoir - v2.7
 
 AChoir
 ======

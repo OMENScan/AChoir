@@ -162,6 +162,7 @@
 /*                 impacted $MFT Resident File extraction       */
 /* AChoir v2.6  - Fix Duplicate File copy due to multiple MFT   */
 /*                 Records for a file (Hard Links)              */
+/* AChoir v2.7  - Additional Messages for Looping               */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -257,7 +258,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v2.6\0";
+char Version[10] = "v2.7\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -4269,15 +4270,33 @@ int main(int argc, char *argv[])
           fflush(stdout); //More PSExec Friendly
           
         }
-
+               
         if ((ForMe == 1) && (ForHndl != NULL))
+        {
+          consPrefix("\n[+] ", consGre);
+          fprintf(LogHndl, "\n[+] Total Files (Loop): %d\n", LoopNum);
+          printf("Total Files (Loop): %d\n", LoopNum);
+
           fclose(ForHndl);
+        }
 
         if ((LstMe == 1) && (LstHndl != NULL))
+        {
+          consPrefix("\n[+] ", consGre);
+          fprintf(LogHndl, "\n[+] Total List Entries (Loop): %d\n", LoopNum);
+          printf("Total List Entries (Loop): %d\n", LoopNum);
+
           fclose(LstHndl);
+        }
 
         if ((DskMe == 1) && (DskHndl != NULL))
+        {
+          consPrefix("\n[+] ", consGre);
+          fprintf(LogHndl, "\n[+] Total Disks (Loop): %d\n", LoopNum);
+          printf("Total Disks (Loop): %d\n", LoopNum);
+
           fclose(DskHndl);
+        }
 
         fflush(stdout); //More PSExec Friendly
 
@@ -6321,7 +6340,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   char Tooo_Fname[2048] = "\0";
   int  Full_MFTID;
   int  SQL_MFT = 0;
-  int  i;
+  int  i, TotFilesFound;
 
   FILETIME File_Create, File_Access, File_Modify;
   char Text_FNCreDate[30] = "\0";
@@ -6532,6 +6551,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   /************************************************************/
   /* Search for the File using SQLite                         */
   /************************************************************/
+  TotFilesFound = 0;
   dbMQuery = sqlite3_mprintf("Select * FROM FileNames AS T1, MFTFiles AS T2 WHERE T1.FullFileName LIKE '%q' AND T1.MFTFilesRecID=T2.RecID\0", FrmFile);
 
   dbMrc = sqlite3_prepare(dbMFTHndl, dbMQuery, -1, &dbMFTStmt, 0);
@@ -6560,6 +6580,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         {
           if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FullFileName", 12) == 0)
           {
+            TotFilesFound++;
             if (sqlite3_column_text(dbMFTStmt, dbi) != NULL)
               strncpy(Full_Fname, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 2000);
           }
@@ -6852,6 +6873,14 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   //UnLoad MFT Info - Disabled for now - Sometimes causes a crash
   //UnloadMFT();
 
+  if (TotFilesFound == 0)
+   consPrefix("\n[!] ", consRed);
+  else
+   consPrefix("\n[+] ", consGre);
+
+  fprintf(LogHndl, "\n[+] Total Files Found: %d\n", TotFilesFound);
+  printf("Total Files Found: %d\n", TotFilesFound);
+  
   fflush(stdout); //More PSExec Friendly
   return 0;
 }
