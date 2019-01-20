@@ -7978,14 +7978,6 @@ VOID ReadAttribute(PATTRIBUTE attr, PVOID buffer)
 
   if (attr->Nonresident == FALSE)
   {
-
-
-
-
-printf("Resident File\n");
-
-
-
     rattr = PRESIDENT_ATTRIBUTE(attr);
     memcpy(buffer, Padd(rattr, rattr->ValueOffset), rattr->ValueLength);
   }
