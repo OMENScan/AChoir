@@ -154,6 +154,17 @@
 /*                    Win10                                     */
 /*                    Win2000, Win2003, Win2008, Win2008R2,     */
 /*                    Win2012, Win2012R2, Win2016               */
+/* AChoir v2.2  - Add Ver: Client, and Server checks            */
+/* AChoir v2.3  - LZNT1 Bug fixes by Yogesh Katri               */
+/* AChoir v2.4  - Update Offreg, and fix Edge Case of Short FN  */
+/*                 without a Long FN in $MFT record.            */
+/* AChoir v2.5  - Partial Back out of LZNT1 mod that negatively */
+/*                 impacted $MFT Resident File extraction       */
+/* AChoir v2.6  - Fix Duplicate File copy due to multiple MFT   */
+/*                 Records for a file (Hard Links)              */
+/* AChoir v2.7  - Additional Messages for Looping               */
+/* AChoir v2.8  - Add ability to preserve Paths in CPY: and NCP:*/
+/*                Set:CopyPath=Full/Partial/None                */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -249,7 +260,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v2.1\0";
+char Version[10] = "v2.8\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -261,6 +272,7 @@ int  iExec = 0;
 int  iIsCompressed = 0;
 char cIsCompressed[15] = "\0";
 int  setNCP = 2;  // 0=NODCMP, 1=DECOMP/RAWONLY, 2=OSCOPY (Default)
+int  setCPath = 0;  // 0=None, 1=Partial, 2=Full
 
 int  iNative = 0; // Are we Native 64Bit on 64Bit (Native = 1, NonNative = 0)
 char sNative[10] = "\0";
@@ -334,6 +346,7 @@ VOID UnloadMFT();
 int FindActive();
 int rawCopy(char *FrmFile, char *TooFile, int binLog);
 int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime, int binLog, int Append);
+int ExpandDirs(CHAR* FullDirName);
 //int spinOnChange(char* SpinFileName);
 
 
@@ -344,6 +357,7 @@ BOOT_BLOCK bootb;
 PFILE_RECORD_HEADER MFT;
 int readRetcd = 1; // Global read Return Code - When something goes real bad.
 char Str_Temp[1024] = "\0";
+char Str_Short[256] = "\0";
 CHAR driveLetter[] = "C\0\0\0\0";
 CHAR rootDrive[] = "C:\\\0\0\0";
 
@@ -644,6 +658,8 @@ char descrWinVer[50] = "Unknown\0";
 char shortWinVer[15] = "Win\0";
 int  iIsServer = 0;
 
+//Offline Registry 
+DWORD ORRetcd ;
 
 int main(int argc, char *argv[])
 {
@@ -2585,11 +2601,12 @@ int main(int argc, char *argv[])
             /****************************************************************/
             /* Open the Offline Registry Hive                               */
             /****************************************************************/
-            if (OROpenHive(lpORFName, &ORhKey) != ERROR_SUCCESS)
+            ORRetcd = OROpenHive(lpORFName, &ORhKey) ;
+            if (ORRetcd != ERROR_SUCCESS)
             {
-              fprintf(LogHndl, "ARN: COULD NOT Open Offline Registry: %ls\n", lpORFName);
+              fprintf(LogHndl, "ARN: COULD NOT Open Offline Registry: %ls (RC: %d)\n", lpORFName, ORRetcd);
               consPrefix("ARN: ", consRed);
-              printf("COULD NOT Open Offline Registry: %ls\n", lpORFName);
+              printf("COULD NOT Open Offline Registry: %ls (RC: %d)\n", lpORFName, ORRetcd);
               break;
             }
               
@@ -3776,6 +3793,30 @@ int main(int argc, char *argv[])
             setNCP = 2;
           }
           else
+          if (strnicmp(Inrec, "SET:CopyPath=None", 17) == 0)
+          {
+            /****************************************************************/
+            /* Set CPY: and NCP Paths to None (Flat Output Directory)       */
+            /****************************************************************/
+            setCPath = 0;
+          }
+          else
+          if (strnicmp(Inrec, "SET:CopyPath=Part", 17) == 0)
+          {
+            /****************************************************************/
+            /* Set CPY: and NCP Paths to Partial (Relative Output Directory)*/
+            /****************************************************************/
+            setCPath = 1;
+          }
+          else
+          if (strnicmp(Inrec, "SET:CopyPath=Full", 17) == 0)
+          {
+            /****************************************************************/
+            /* Set CPY: and NCP Paths to Full (Full Output Directory)       */
+            /****************************************************************/
+            setCPath = 2;
+          }
+          else
           if (strnicmp(Inrec, "XIT:", 4) == 0)
           {
             /****************************************************************/
@@ -4257,15 +4298,33 @@ int main(int argc, char *argv[])
           fflush(stdout); //More PSExec Friendly
           
         }
-
+               
         if ((ForMe == 1) && (ForHndl != NULL))
+        {
+          consPrefix("\n[+] ", consGre);
+          fprintf(LogHndl, "\n[+] Total Files (Loop): %d\n", LoopNum);
+          printf("Total Files (Loop): %d\n", LoopNum);
+
           fclose(ForHndl);
+        }
 
         if ((LstMe == 1) && (LstHndl != NULL))
+        {
+          consPrefix("\n[+] ", consGre);
+          fprintf(LogHndl, "\n[+] Total List Entries (Loop): %d\n", LoopNum);
+          printf("Total List Entries (Loop): %d\n", LoopNum);
+
           fclose(LstHndl);
+        }
 
         if ((DskMe == 1) && (DskHndl != NULL))
+        {
+          consPrefix("\n[+] ", consGre);
+          fprintf(LogHndl, "\n[+] Total Disks (Loop): %d\n", LoopNum);
+          printf("Total Disks (Loop): %d\n", LoopNum);
+
           fclose(DskHndl);
+        }
 
         fflush(stdout); //More PSExec Friendly
 
@@ -5997,6 +6056,7 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       if (!chunk_hdr_test) 
       {
         //Bad Chunk Header - Zero Out the Chunk (This is the Observed Windows Behavior)
+        //May not always be bad, sometimes source data is all zeroes, usually at the end of the file //YK
         consPrefix("[!] ", consRed);
         printf("Invalid Chunk Header...  Zeroing Chunk: %d\n", NBlox);
         fprintf(LogHndl, "[!] Invalid Chunk Header...  Zeroing Chunk %d\n", NBlox);
@@ -6308,7 +6368,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   char Tooo_Fname[2048] = "\0";
   int  Full_MFTID;
   int  SQL_MFT = 0;
-  int  i;
+  int  i, TotFilesFound;
 
   FILETIME File_Create, File_Access, File_Modify;
   char Text_FNCreDate[30] = "\0";
@@ -6333,6 +6393,14 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 
   int DDRetcd = 0;
   int lzRetcd = 0;
+
+  //Partial Path Variables
+  int iPartIn, iPartOut, iPartLen;
+  char TempPath[2048] = "\0";
+  char PartPath[2048] = "\0";
+  char FullPath[2048] = "\0";
+  char *ForSlash;
+
 
   // Get The Drive Letter
   drive[4] = FrmFile[0];
@@ -6417,7 +6485,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 
 
     SpinLock = 0;
-    while ((dbMrc = sqlite3_exec(dbMFTHndl, "CREATE TABLE FileNames (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTRecID INTEGER, FullFileName)", 0, 0, &errmsg)) != SQLITE_OK)
+    while ((dbMrc = sqlite3_exec(dbMFTHndl, "CREATE TABLE FileNames (RecID INTEGER PRIMARY KEY AUTOINCREMENT, MFTFilesRecID INTEGER, MFTRecID INTEGER, FullFileName)", 0, 0, &errmsg)) != SQLITE_OK)
     {
       if (dbMrc == SQLITE_BUSY)
         Sleep(100); // In windows.h
@@ -6519,7 +6587,8 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   /************************************************************/
   /* Search for the File using SQLite                         */
   /************************************************************/
-  dbMQuery = sqlite3_mprintf("Select * FROM FileNames AS T1, MFTFiles AS T2 WHERE T1.FullFileName LIKE '%q' AND T1.MFTRecID=T2.MFTRecID\0", FrmFile);
+  TotFilesFound = 0;
+  dbMQuery = sqlite3_mprintf("Select * FROM FileNames AS T1, MFTFiles AS T2 WHERE T1.FullFileName LIKE '%q' AND T1.MFTFilesRecID=T2.RecID\0", FrmFile);
 
   dbMrc = sqlite3_prepare(dbMFTHndl, dbMQuery, -1, &dbMFTStmt, 0);
   if (dbMrc == SQLITE_OK)
@@ -6547,6 +6616,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         {
           if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FullFileName", 12) == 0)
           {
+            TotFilesFound++;
             if (sqlite3_column_text(dbMFTStmt, dbi) != NULL)
               strncpy(Full_Fname, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 2000);
           }
@@ -6659,6 +6729,87 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           }
         }
 
+
+        /****************************************************************/
+        /* Figure out the partial path:                                 */
+        /*  The original Path Minus the Expanded File Path              */
+        /* Stop as soon as any Wilcards are encountered                 */
+        /****************************************************************/
+        if (setCPath != 0)
+        {
+          memset(TempPath, 0, 2048);
+          memset(FullPath, 0, 2048);
+          memset(PartPath, 0, 2048);
+
+          iPartOut = 0;
+          for (iPartIn = 0; iPartIn < strlen(FrmFile); iPartIn++)
+          {
+            if (FrmFile[iPartIn] == '%')
+              break;
+            else
+            {
+              TempPath[iPartOut] = FrmFile[iPartIn];
+              iPartOut++;
+              TempPath[iPartOut] = '\0';
+            }
+          }
+
+          // Now go back to the last backslash
+          if ((ForSlash = strrchr(TempPath, '\\')) != NULL)
+            strncpy(ForSlash, "\0\0\0\0\0", 5);
+          else
+            strncpy(TempPath, "\0\0\0\0\0", 5);
+
+          if (setCPath == 1)
+          {
+            // Parse out Just the Partial Path
+            iPartLen = strlen(TempPath);
+            strncpy(PartPath, Full_Fname + iPartLen, 2000);
+
+            if ((ForSlash = strrchr(PartPath, '\\')) != NULL)
+              strncpy(ForSlash, "\0\0\0\0\0", 5);
+            else
+              strncpy(PartPath, "\0\0\0\0\0", 5);
+
+            // Go Create all the Sub Directories
+            memset(TempPath, 0, 2048);
+            snprintf(TempPath, 2000, "%s%s", TooFile, PartPath);
+            ExpandDirs(TempPath);
+
+            // printf("Part Path: *%s*\n", PartPath);
+            // printf("Too File: *%s*\n", TempPath);
+          }
+          else
+          if (setCPath == 2)
+          {
+            // Parse out the Full Path
+            strncpy(FullPath, Full_Fname, 2000);
+
+            // Now go back to the last backslash
+            if ((ForSlash = strrchr(FullPath, '\\')) != NULL)
+              strncpy(ForSlash, "\0\0\0\0\0", 5);
+            else
+              strncpy(FullPath, "\0\0\0\0\0", 5);
+
+            // Get Rid of he Colon if we have one
+            if ((strlen(FullPath) > 1) && (FullPath[1] == ':'))
+            {
+              for (iPartIn = 1; iPartIn < strlen(FullPath); iPartIn++)
+                FullPath[iPartIn] = FullPath[iPartIn + 1];
+            }
+
+            // Go Create all the Sub Directories
+            memset(TempPath, 0, 2048);
+            snprintf(TempPath, 2000, "%s\\%s", TooFile, FullPath);
+            ExpandDirs(TempPath);
+
+            //printf("Full Path: *%s*\n", FullPath);
+            //printf("Too File: *%s*\n", TempPath);
+          }
+          
+        }
+
+
         consPrefix("\n[+] ", consGre);
         printf("Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
         printf("    %s\n", Full_Fname);
@@ -6671,7 +6822,11 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         maxFileSize = leftFileSize = iDepth = 0 ;
 
         // Return 0 if the File Copy Worked - 1 if it didnt
-        DDRetcd = DumpDataII(Full_MFTID, Full_Fname + i + 1, TooFile, File_Create, File_Modify, File_Access, 1, 0);
+        if (setCPath == 0)
+          DDRetcd = DumpDataII(Full_MFTID, Full_Fname + i + 1, TooFile, File_Create, File_Modify, File_Access, 1, 0);
+        else 
+          DDRetcd = DumpDataII(Full_MFTID, Full_Fname + i + 1, TempPath, File_Create, File_Modify, File_Access, 1, 0);
+        
         iDepth--;    //We Returned 
         
         if (DDRetcd == 0)
@@ -6760,7 +6915,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           consPrefix("[*] ", consYel);
           printf("LZNT1 Decompress:\n     In: %s\n     Out: %s\n", From_Fname, Tooo_Fname);
 
-          lzRetcd = lznCopy(From_Fname, Tooo_Fname, last_rawdLen);
+          lzRetcd = lznCopy(From_Fname, Tooo_Fname, maxDataSize /*last_rawdLen*/); //YK
 
 
           /****************************************************************/
@@ -6791,7 +6946,11 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
             /* Identify the Filename from the Full_Fname and create Tooo_Fname */
             /*******************************************************************/
             memset(Tooo_Fname, 0, 2048) ;
-            strncpy(Tooo_Fname, TooFile, 2000) ;
+            if(setCPath == 0)
+             strncpy(Tooo_Fname, TooFile, 2000) ;
+            else
+             strncpy(Tooo_Fname, TempPath, 2000);
+
             if ((Slash = strrchr(Full_Fname, '\\')) != NULL)
             {
               if (strlen(Slash) > 2)
@@ -6839,6 +6998,14 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   //UnLoad MFT Info - Disabled for now - Sometimes causes a crash
   //UnloadMFT();
 
+  if (TotFilesFound == 0)
+   consPrefix("\n[!] ", consRed);
+  else
+   consPrefix("\n[+] ", consGre);
+
+  fprintf(LogHndl, "\n[+] Total Files Found: %d\n", TotFilesFound);
+  printf("Total Files Found: %d\n", TotFilesFound);
+  
   fflush(stdout); //More PSExec Friendly
   return 0;
 }
@@ -8090,11 +8257,12 @@ int FindActive()
   char Ftmp_Fname[2048] = "\0";
   char Str_Temp1[15] = "\0";
   char Str_Temp2[15] = "\0";
-  int Str_Len, Max_Files;
+  int Str_Len, Max_Files, Short_Len;
   int Progress, ProgUnit;
   int File_RecNum, Dir_PrevNum, File_RecID;
+  int MFTFiles_RecNum, MFTFiles_RecID;
   int MoreDirs;
-  int iLinkCount, iLink;
+  int iLinkCount, iLink, iGotOne;
 
 
   char Text_CreDate[30] = "\0";
@@ -8149,6 +8317,9 @@ int FindActive()
        iLinkCount = 1 ;
 
       // Bump Through Attributes and Add them to the SQLite Table
+      //  Note: Save the Short Name & Length in case it is the only one
+      iGotOne = Short_Len = 0;
+      memset(Str_Short, 0, 256);
       for(iLink=0; iLink <= iLinkCount; iLink++)
       {
         // Get 0x30 (FN) Attribute
@@ -8168,7 +8339,15 @@ int FindActive()
 
         // Type 0=POSIX, Type 1=Long FN, Type 2=Short FN (Ignore type 2)
         if (name->NameType == 2)
+        {
+          //Type 2 is a Short FN - Save it, in case we only have this FN. This is an ODD
+          // Edge case, where the Short FN is the ONLY FN (Track this via variable iGotOne)
+          Short_Len = int(name->NameLength);
+          wcstombs(Str_Short, name->Name, Short_Len);
+          Str_Short[Short_Len] = '\0'; // Null Terminate the String... Sigh...
           continue;
+        }
+
 
         Str_Len = int(name->NameLength);
         wcstombs(Str_Temp, name->Name, Str_Len);
@@ -8178,15 +8357,20 @@ int FindActive()
         // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
         attr3 = FindAttributeX(file, AttributeStandardInformation, 0, 0);
         if (attr3 != 0)
-        {
-          name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
-        }
+         name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
 
 
         if (file->Flags == 1)
         {
           // Active File Entry 
+          iGotOne = 1;
           Max_Files++;
+        // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
+        attr3 = FindAttributeX(file, AttributeStandardInformation, 0, 0);
+        if (attr3 != 0)
+        {
+          name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
+        }
 
           if (attr3 == 0)
             dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileDateTyp, FNCreDate, FNAccDate, FNModDate, SICreDate, SIAccDate, SIModDate, Compress) VALUES ('%ld', '%ld', '%q', 'FN', '%llu', '%llu', '%llu', '0', '0', '0', '%ld')\0",
@@ -8204,6 +8388,7 @@ int FindActive()
         else
         {
           // Active Directory Entries
+          iGotOne = 1;
           dbMQuery = sqlite3_mprintf("INSERT INTO MFTDirs (MFTRecID, MFTPrvID, DirsName) VALUES ('%ld', '%ld', '%q')\0", i, int(name->DirectoryFileReferenceNumber), Str_Temp);
         }
 
@@ -8239,7 +8424,86 @@ int FindActive()
 
       }
 
+
+      /*****************************************************************/
+      /* See if we wrote anything for this record.  If not, there may  */
+      /*  may only be a Short FN - Which we typically ignore.  So go   */
+      /*  ahead and write out the ShortFN - This is especially         */
+      /*  critical if it is a Directory - so we dont break the chain   */
+      /*  ... Chaiiin, Keep us together...  Runnin in the shadow...    */
+      /*****************************************************************/
+      if (iGotOne == 0)
+      {
+        //Nothing Written - Probably the Short FN Only Edge Case
+        if (Short_Len > 0)
+        {
+          // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
+          attr3 = FindAttributeX(file, AttributeStandardInformation, 0, 0);
+          if (attr3 != 0)
+           name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
+
+
+          if (file->Flags == 1)
+          {
+            // Active File Entry 
+            iGotOne = 1;
+            Max_Files++;
+
+            if (attr3 == 0)
+              dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileDateTyp, FNCreDate, FNAccDate, FNModDate, SICreDate, SIAccDate, SIModDate, Compress) VALUES ('%ld', '%ld', '%q', 'FN', '%llu', '%llu', '%llu', '0', '0', '0', '%ld')\0",
+                i, int(name->DirectoryFileReferenceNumber), Str_Short,
+                ULONGLONG(name->CreationTime), ULONGLONG(name->LastAccessTime), ULONGLONG(name->LastWriteTime),
+                ULONGLONG(name->CreationTime), ULONGLONG(name->LastAccessTime), ULONGLONG(name->LastWriteTime),
+                iIsCompressed);
+            else
+              dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileDateTyp, FNCreDate, FNAccDate, FNModDate, SICreDate, SIAccDate, SIModDate, Compress) VALUES ('%ld', '%ld', '%q', 'SI', '%llu', '%llu', '%llu', '%llu', '%llu', '%llu', '%ld')\0",
+                i, int(name->DirectoryFileReferenceNumber), Str_Short,
+                ULONGLONG(name3->CreationTime), ULONGLONG(name3->LastAccessTime), ULONGLONG(name3->LastWriteTime),
+                ULONGLONG(name->CreationTime), ULONGLONG(name->LastAccessTime), ULONGLONG(name->LastWriteTime),
+                iIsCompressed);
+          }
+          else
+          {
+            // Active Directory Entries
+            iGotOne = 1;
+            dbMQuery = sqlite3_mprintf("INSERT INTO MFTDirs (MFTRecID, MFTPrvID, DirsName) VALUES ('%ld', '%ld', '%q')\0", i, int(name->DirectoryFileReferenceNumber), Str_Short);
+          }
+
+          SpinLock = 0;
+          while ((dbMrc = sqlite3_exec(dbMFTHndl, dbMQuery, 0, 0, &errmsg)) != SQLITE_OK)
+          {
+            if (dbMrc == SQLITE_BUSY)
+              Sleep(100); // In windows.h
+            else
+            if (dbMrc == SQLITE_LOCKED)
+              Sleep(100); // In windows.h
+            else
+            if (dbMrc == SQLITE_ERROR)
+            {
+              consPrefix("[!] ", consRed);
+              printf("MFTError: Error Adding Entry to MFT SQLite Table\n%s\n", errmsg);
+              MFT_Status = 2;
+              break;
+            }
+            else
+              Sleep(100); // In windows.h
+
+           /*****************************************************************/
+           /* Check if we are stuck in a loop.                              */
+           /*****************************************************************/
+            SpinLock++;
+
+            if (SpinLock > 25)
+              break;
+          }
+
+          sqlite3_free(dbMQuery);
+
+        }
+      }
+
       fflush(stdout); //More PSExec Friendly
+
     }
 
     fflush(stdout); //More PSExec Friendly
@@ -8304,6 +8568,12 @@ int FindActive()
         {
           if (sqlite3_column_text(dbMFTStmt, dbi) != NULL)
             strncpy(Full_Fname, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 255);
+        }
+        else
+        if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "RecID", 5) == 0)
+        {
+          MFTFiles_RecNum = sqlite3_column_int(dbMFTStmt, dbi);
+          MFTFiles_RecID = MFTFiles_RecNum; //Save it for the Built Index
         }
         else
         if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "MFTRecID", 8) == 0)
@@ -8406,7 +8676,7 @@ int FindActive()
       }
 
       //Now Insert the Full Path FileName and MFT Record ID
-      dbXQuery = sqlite3_mprintf("INSERT INTO FileNames (MFTRecID, FullFileName) VALUES ('%ld', '%q')\0", File_RecID, Full_Fname);
+      dbXQuery = sqlite3_mprintf("INSERT INTO FileNames (MFTRecID, MFTFilesRecID, FullFileName) VALUES ('%ld', '%ld', '%q')\0", File_RecID, MFTFiles_RecID, Full_Fname);
 
       SpinLock = 0;
       while ((dbXrc = sqlite3_exec(dbMFTHndl, dbXQuery, 0, 0, &errmsg)) != SQLITE_OK)
@@ -8473,6 +8743,7 @@ int FindActive()
 
   fflush(stdout); //More PSExec Friendly
 
+  return 0;
 }
 
 
@@ -8670,7 +8941,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         // Go dump Data from Attribute Data Record (0x80)
         if (attrdata->AttributeType == AttributeData)
         {
-          pointData = (LONG)attrdata->FileReferenceNumber;
+          pointData = (LONG)attrdata->FileReferenceNumber; // it should be 6 bytes not 4  // YK
 
           if(gotData == 0)
           {
@@ -8724,13 +8995,26 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     //Try to get the file size
     // If it is 0 - See if we are in Append and Get the number of bytes
     //  Left in the File (leftSize)
-    rawdLen = AttributeLengthDataSize(attr);
-    attrLen = AttributeLengthAllocated(attr);
-    //Test: Remove all Compress Sizes and Set To same as Uncompress
-    //      LZNT1 appears to pad each 64K block chunk, making file size the same whether compressed or not
-    //cmprLen = AttributeLengthCompressed(attr);
-    cmprLen = AttributeLengthAllocated(attr);  //Test setting the InFile Compression size to the whole Buffer Size 
 
+    // Ver 2.3
+	  // YK edit, Data size will only be available if LowestVCN==0, adding check for that here
+
+    // Ver 2.5
+    // Remove (Comment Out) Mod from Ver 2.3 - To check LowestVCN
+    //  The Mod caused issues with Resident Files - DP
+    //
+	  //if (PNONRESIDENT_ATTRIBUTE(attr)->LowVcn == 0) 
+    //{
+
+    rawdLen = AttributeLengthDataSize(attr);
+		attrLen = AttributeLengthAllocated(attr);
+		//Test: Remove all Compress Sizes and Set To same as Uncompress
+		//      LZNT1 appears to pad each 64K block chunk, making file size the same whether compressed or not
+		//cmprLen = AttributeLengthCompressed(attr);
+		cmprLen = AttributeLengthAllocated(attr);  //Test setting the InFile Compression size to the whole Buffer Size 
+
+	  //}
+    // End Ver 2.3 LZNT1 Mod, and End Ver 2.5 removal
 
     //Global Last Data Length - Used to pass to LZNCopy Routine for the Size check (Sparse Data)
     last_rawdLen = rawdLen;
@@ -9775,4 +10059,30 @@ BOOL CompareWindowsVersion(DWORD dwMajorVersion, DWORD dwMinorVersion)
     VER_SET_CONDITION(dwlConditionMask, VER_MINORVERSION, VER_EQUAL);
 
     return VerifyVersionInfo(&ver, VER_MAJORVERSION | VER_MINORVERSION, dwlConditionMask);
+}
+
+
+/***********************************************************************/
+/* Expand out Directories if they do not exist                         */
+/***********************************************************************/
+int ExpandDirs(CHAR* FullDirName)
+{
+  int  iDir;
+  char TempDirName[2040];
+
+  for (iDir = 0; iDir < strlen(FullDirName); iDir++)
+  {
+    if (FullDirName[iDir] == '\\')
+    {
+      strncpy(TempDirName, FullDirName, iDir);
+      strncpy(TempDirName + iDir, "\0\0\0\0\0", 5);
+
+      if (access(TempDirName, 0) != 0)
+       mkdir(TempDirName);
+    }
+  }
+
+  mkdir(FullDirName);
+  return 0;
+
 }
