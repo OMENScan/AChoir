@@ -165,6 +165,7 @@
 /* AChoir v2.7  - Additional Messages for Looping               */
 /* AChoir v2.8  - Add ability to preserve Paths in CPY: and NCP:*/
 /*                Set:CopyPath=Full/Partial/None                */
+/*              - Allow ACQ: and DIR: to create nested paths    */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -2027,7 +2028,8 @@ int main(int argc, char *argv[])
 
               consPrefix("SET: ", consBlu);
               printf("Creating Acquisition Sub-Directory: %s\n", ACQDir);
-              mkdir(TempDir);
+              //mkdir(TempDir);
+              ExpandDirs(TempDir);
 
               if (iHtmMode == 1)
               {
@@ -2090,7 +2092,8 @@ int main(int argc, char *argv[])
               fprintf(LogHndl, "SET: Creating Directory: %s\n", CurrDir);
               consPrefix("SET: ", consBlu);
               printf("Creating Directory: %s\n", CurrDir);
-              mkdir(TempDir);
+              //mkdir(TempDir);
+              ExpandDirs(TempDir);
             }
 
             fprintf(LogHndl, "SET: Directory Has Been Set To: %s\n", CurrDir);
@@ -2119,7 +2122,9 @@ int main(int argc, char *argv[])
               fprintf(LogHndl, "SET: Creating Directory: %s\n", CurrDir);
               consPrefix("SET: ", consBlu);
               printf("Creating Directory: %s\n", CurrDir);
-              mkdir(TempDir);
+              //mkdir(TempDir);
+              ExpandDirs(TempDir);
+
             }
 
             fprintf(LogHndl, "SET: File Has Been Set To: %s\n", CurrFil);
