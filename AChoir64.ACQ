@@ -4,6 +4,7 @@
 * - Created by D0n Quix0te/OMENScan (May 2015)    *
 * - Inspired by many other tools                  *
 ***************************************************
+SET:CopyPath=Part
 SAY:
 SAY: AChoir will scan the Hard drive and pull forensics for investigation.
 SAY:

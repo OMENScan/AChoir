@@ -20,6 +20,7 @@ CMD:icacls "&ACQ" /setowner "CREATOR OWNER" /T /Q
 CMD:icacls "&ACQ" /grant:r "CREATOR OWNER":(OI)(CI)F 
 CMD:icacls "&ACQ" /remove:g "Users" /Q
 CMD:icacls "&ACQ" /remove:g "Authenticated Users" /Q
+SET:CopyPath=Part
 SAY:
 SAY:
 SAY: 1. Memory Dump Will Not Be Run...

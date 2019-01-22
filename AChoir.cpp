@@ -163,6 +163,9 @@
 /* AChoir v2.6  - Fix Duplicate File copy due to multiple MFT   */
 /*                 Records for a file (Hard Links)              */
 /* AChoir v2.7  - Additional Messages for Looping               */
+/* AChoir v2.8  - Add ability to preserve Paths in CPY: and NCP:*/
+/*                Set:CopyPath=Full/Partial/None                */
+/*              - Allow ACQ: and DIR: to create nested paths    */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -258,7 +261,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v2.7\0";
+char Version[10] = "v2.8\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -270,6 +273,7 @@ int  iExec = 0;
 int  iIsCompressed = 0;
 char cIsCompressed[15] = "\0";
 int  setNCP = 2;  // 0=NODCMP, 1=DECOMP/RAWONLY, 2=OSCOPY (Default)
+int  setCPath = 0;  // 0=None, 1=Partial, 2=Full
 
 int  iNative = 0; // Are we Native 64Bit on 64Bit (Native = 1, NonNative = 0)
 char sNative[10] = "\0";
@@ -343,6 +347,7 @@ VOID UnloadMFT();
 int FindActive();
 int rawCopy(char *FrmFile, char *TooFile, int binLog);
 int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime, int binLog, int Append);
+int ExpandDirs(CHAR* FullDirName);
 //int spinOnChange(char* SpinFileName);
 
 
@@ -2023,7 +2028,8 @@ int main(int argc, char *argv[])
 
               consPrefix("SET: ", consBlu);
               printf("Creating Acquisition Sub-Directory: %s\n", ACQDir);
-              mkdir(TempDir);
+              //mkdir(TempDir);
+              ExpandDirs(TempDir);
 
               if (iHtmMode == 1)
               {
@@ -2086,7 +2092,8 @@ int main(int argc, char *argv[])
               fprintf(LogHndl, "SET: Creating Directory: %s\n", CurrDir);
               consPrefix("SET: ", consBlu);
               printf("Creating Directory: %s\n", CurrDir);
-              mkdir(TempDir);
+              //mkdir(TempDir);
+              ExpandDirs(TempDir);
             }
 
             fprintf(LogHndl, "SET: Directory Has Been Set To: %s\n", CurrDir);
@@ -2115,7 +2122,9 @@ int main(int argc, char *argv[])
               fprintf(LogHndl, "SET: Creating Directory: %s\n", CurrDir);
               consPrefix("SET: ", consBlu);
               printf("Creating Directory: %s\n", CurrDir);
-              mkdir(TempDir);
+              //mkdir(TempDir);
+              ExpandDirs(TempDir);
+
             }
 
             fprintf(LogHndl, "SET: File Has Been Set To: %s\n", CurrFil);
@@ -2496,9 +2505,9 @@ int main(int argc, char *argv[])
             }
             else
             {
-              fprintf(LogHndl, "\nCPY: %s\n     %s\n", Cpyrec + iPrm1, Cpyrec + iPrm2);
+              fprintf(LogHndl, "\nCPY: %s\n", Cpyrec + iPrm1);
               consPrefix("\nCPY: ", consBlu);
-              printf("%s\n     %s\n", Cpyrec + iPrm1, Cpyrec + iPrm2);
+              printf("%s\n", Cpyrec + iPrm1);
 
               binCopy(Cpyrec + iPrm1, Cpyrec + iPrm2, 1);
             }
@@ -3787,6 +3796,30 @@ int main(int argc, char *argv[])
             /* Set Raw NTFS Copy to RAW ONLY                                */
             /****************************************************************/
             setNCP = 2;
+          }
+          else
+          if (strnicmp(Inrec, "SET:CopyPath=None", 17) == 0)
+          {
+            /****************************************************************/
+            /* Set CPY: and NCP Paths to None (Flat Output Directory)       */
+            /****************************************************************/
+            setCPath = 0;
+          }
+          else
+          if (strnicmp(Inrec, "SET:CopyPath=Part", 17) == 0)
+          {
+            /****************************************************************/
+            /* Set CPY: and NCP Paths to Partial (Relative Output Directory)*/
+            /****************************************************************/
+            setCPath = 1;
+          }
+          else
+          if (strnicmp(Inrec, "SET:CopyPath=Full", 17) == 0)
+          {
+            /****************************************************************/
+            /* Set CPY: and NCP Paths to Full (Full Output Directory)       */
+            /****************************************************************/
+            setCPath = 2;
           }
           else
           if (strnicmp(Inrec, "XIT:", 4) == 0)
@@ -5276,8 +5309,10 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   unsigned char Cpybuf[8192];
   int NBlox = 0;
 
+  char TooTooFile[4096];
   char tmpFrmFile[4096];
   char tmpTooFile[4096];
+  char tmpTooDir[4096];
   int iFileCount = 0;
   int iFileFound = 0;
   int TimeNotGood = 0;
@@ -5291,19 +5326,74 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   DWORD SecLen, LenSec;
   PSID pSidOwner = NULL;
   BOOL pFlag = FALSE;
-  
+
   // Signature Checking Variables
   int i;
   CHAR filetype[11] = "\0";
   char *dotPos;
 
+  //Partial Path Variables
+  int iPartIn, iPartOut;
+  char *ForSlash;
 
+  
   /****************************************************************/
-  /* Make Sure the File is Not There - Don't Overwrite!           */
+  /* BinCopy supports FullPath, but does not support PartPath yet */
   /****************************************************************/
-  memset(tmpTooFile, 0, 4096);
-  snprintf(tmpTooFile, 4090, "%s", TooFile);
+  if (setCPath != 0)
+  {
+    // Parse out the Full Output Path
+    memset(tmpTooFile, 0, 4096);
+    strncpy(tmpTooFile, TooFile, 4000);
 
+    // Now go back to the last backslash
+    if ((ForSlash = strrchr(tmpTooFile, '\\')) != NULL)
+      strncpy(ForSlash, "\0\0\0\0\0", 5);
+    else
+      strncpy(tmpTooFile, "\0\0\0\0\0", 5);
+
+    // Now Append the Input File Full Path
+    strcat(tmpTooFile, "\\");
+
+    // Append the FrmFile, but ignore any colons.
+    iPartOut = strlen(tmpTooFile);
+    for (iPartIn = 0; iPartIn < strlen(FrmFile); iPartIn++)
+    {
+      if (FrmFile[iPartIn] == ':');
+      else
+      {
+        tmpTooFile[iPartOut] = FrmFile[iPartIn];
+        iPartOut++;
+        tmpTooFile[iPartOut] = '\0';
+      }
+    }
+
+    // Go Create all the Sub Directories
+    strncpy(tmpTooDir, tmpTooFile,4000);
+    if ((ForSlash = strrchr(tmpTooDir, '\\')) != NULL)
+     strncpy(ForSlash, "\0\0\0\0\0", 5);
+    else
+     strncpy(tmpTooDir, "\0\0\0\0\0", 5);
+
+    ExpandDirs(tmpTooDir);
+
+  }
+  else
+  {
+    /****************************************************************/
+    /* Make Sure the File is Not There - Don't Overwrite!           */
+    /****************************************************************/
+    memset(tmpTooFile, 0, 4096);
+    snprintf(tmpTooFile, 4090, "%s", TooFile);
+  }
+
+  memset(TooTooFile, 0, 4096);
+  strncpy(TooTooFile, tmpTooFile, 4000);
+
+  printf("     %s\n", tmpTooFile);
+  if(binLog == 1)
+   fprintf(LogHndl, "     %s\n", tmpTooFile);
+  
   memset(tmpFrmFile, 0, 4096);
   snprintf(tmpFrmFile, 4090, "%s", FrmFile);
 
@@ -5317,7 +5407,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
       iFileCount++;
 
       memset(tmpTooFile, 0, 4096);
-      snprintf(tmpTooFile, 4090, "%s(%d)", TooFile, iFileCount);
+      snprintf(tmpTooFile, 4090, "%s(%d)", TooTooFile, iFileCount);
     } while (access(tmpTooFile, 0) == 0);
   }
 
@@ -5638,7 +5728,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         /****************************************************************/
         if (gotOwner == 1)
         {
-          setOwner = SetFileSecurity(TooFile, OWNER_SECURITY_INFORMATION, SecDesc);
+          setOwner = SetFileSecurity(tmpTooFile, OWNER_SECURITY_INFORMATION, SecDesc);
                 
           if (setOwner)
           {
@@ -6366,6 +6456,14 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   int DDRetcd = 0;
   int lzRetcd = 0;
 
+  //Partial Path Variables
+  int iPartIn, iPartOut, iPartLen;
+  char TempPath[2048] = "\0";
+  char PartPath[2048] = "\0";
+  char FullPath[2048] = "\0";
+  char *ForSlash;
+
+
   // Get The Drive Letter
   drive[4] = FrmFile[0];
   driveLetter[0] = FrmFile[0];
@@ -6693,6 +6791,89 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           }
         }
 
+
+        /****************************************************************/
+        /* Figure out the partial path:                                 */
+        /*  The original Path Minus the Expanded File Path              */
+        /* Stop as soon as any Wilcards are encountered                 */
+        /****************************************************************/
+        if (setCPath != 0)
+        {
+          memset(TempPath, 0, 2048);
+          memset(FullPath, 0, 2048);
+          memset(PartPath, 0, 2048);
+
+          iPartOut = 0;
+          for (iPartIn = 0; iPartIn < strlen(FrmFile); iPartIn++)
+          {
+            if (FrmFile[iPartIn] == '%')
+              break;
+            if (FrmFile[iPartIn] == '_')
+              break;
+            else
+            {
+              TempPath[iPartOut] = FrmFile[iPartIn];
+              iPartOut++;
+              TempPath[iPartOut] = '\0';
+            }
+          }
+
+          // Now go back to the last backslash
+          if ((ForSlash = strrchr(TempPath, '\\')) != NULL)
+            strncpy(ForSlash, "\0\0\0\0\0", 5);
+          else
+            strncpy(TempPath, "\0\0\0\0\0", 5);
+
+          if (setCPath == 1)
+          {
+            // Parse out Just the Partial Path
+            iPartLen = strlen(TempPath);
+            strncpy(PartPath, Full_Fname + iPartLen, 2000);
+
+            if ((ForSlash = strrchr(PartPath, '\\')) != NULL)
+              strncpy(ForSlash, "\0\0\0\0\0", 5);
+            else
+              strncpy(PartPath, "\0\0\0\0\0", 5);
+
+            // Go Create all the Sub Directories
+            memset(TempPath, 0, 2048);
+            snprintf(TempPath, 2000, "%s%s", TooFile, PartPath);
+            ExpandDirs(TempPath);
+
+            // printf("Part Path: *%s*\n", PartPath);
+            // printf("Too File: *%s*\n", TempPath);
+          }
+          else
+          if (setCPath == 2)
+          {
+            // Parse out the Full Path
+            strncpy(FullPath, Full_Fname, 2000);
+
+            // Now go back to the last backslash
+            if ((ForSlash = strrchr(FullPath, '\\')) != NULL)
+              strncpy(ForSlash, "\0\0\0\0\0", 5);
+            else
+              strncpy(FullPath, "\0\0\0\0\0", 5);
+
+            // Get Rid of he Colon if we have one
+            if ((strlen(FullPath) > 1) && (FullPath[1] == ':'))
+            {
+              for (iPartIn = 1; iPartIn < strlen(FullPath); iPartIn++)
+                FullPath[iPartIn] = FullPath[iPartIn + 1];
+            }
+
+            // Go Create all the Sub Directories
+            memset(TempPath, 0, 2048);
+            snprintf(TempPath, 2000, "%s\\%s", TooFile, FullPath);
+            ExpandDirs(TempPath);
+
+            //printf("Full Path: *%s*\n", FullPath);
+            //printf("Too File: *%s*\n", TempPath);
+          }
+          
+        }
+
+
         consPrefix("\n[+] ", consGre);
         printf("Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
         printf("    %s\n", Full_Fname);
@@ -6705,7 +6886,11 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         maxFileSize = leftFileSize = iDepth = 0 ;
 
         // Return 0 if the File Copy Worked - 1 if it didnt
-        DDRetcd = DumpDataII(Full_MFTID, Full_Fname + i + 1, TooFile, File_Create, File_Modify, File_Access, 1, 0);
+        if (setCPath == 0)
+          DDRetcd = DumpDataII(Full_MFTID, Full_Fname + i + 1, TooFile, File_Create, File_Modify, File_Access, 1, 0);
+        else 
+          DDRetcd = DumpDataII(Full_MFTID, Full_Fname + i + 1, TempPath, File_Create, File_Modify, File_Access, 1, 0);
+        
         iDepth--;    //We Returned 
         
         if (DDRetcd == 0)
@@ -6825,7 +7010,11 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
             /* Identify the Filename from the Full_Fname and create Tooo_Fname */
             /*******************************************************************/
             memset(Tooo_Fname, 0, 2048) ;
-            strncpy(Tooo_Fname, TooFile, 2000) ;
+            if(setCPath == 0)
+             strncpy(Tooo_Fname, TooFile, 2000) ;
+            else
+             strncpy(Tooo_Fname, TempPath, 2000);
+
             if ((Slash = strrchr(Full_Fname, '\\')) != NULL)
             {
               if (strlen(Slash) > 2)
@@ -7589,6 +7778,8 @@ void cleanUp_Exit(int exitRC)
     //Very Last Log Entry - Close Log now, and copy WITHOUT LOGGING
     fclose(LogHndl);
 
+    //Reset setCPath to Relative and copy Log
+    setCPath = 0;
     sprintf(CpyFile, "%s\\ACQ-IR-%04d%02d%02d-%02d%02d.Log\0", BACQDir, iYYYY, iMonth, iDay, iHour, iMin);
     binCopy(LogFile, CpyFile, 0);
   }
@@ -8709,7 +8900,8 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         iFileCount++;
 
         memset(Tooo_Fname, 0, 2048);
-        snprintf(Tooo_Fname, 2040, "%s\\%s\\%s(%d)\0", BACQDir, ACQDir, filename, iFileCount);
+        snprintf(Tooo_Fname, 2040, "%s\\%s(%d)\0", outdir, filename, iFileCount);
+        //snprintf(Tooo_Fname, 2040, "%s\\%s\\%s(%d)\0", BACQDir, ACQDir, filename, iFileCount);
       } while (access(Tooo_Fname, 0) == 0);
     }
 
@@ -9934,4 +10126,30 @@ BOOL CompareWindowsVersion(DWORD dwMajorVersion, DWORD dwMinorVersion)
     VER_SET_CONDITION(dwlConditionMask, VER_MINORVERSION, VER_EQUAL);
 
     return VerifyVersionInfo(&ver, VER_MAJORVERSION | VER_MINORVERSION, dwlConditionMask);
+}
+
+
+/***********************************************************************/
+/* Expand out Directories if they do not exist                         */
+/***********************************************************************/
+int ExpandDirs(CHAR* FullDirName)
+{
+  int  iDir;
+  char TempDirName[2040];
+
+  for (iDir = 0; iDir < strlen(FullDirName); iDir++)
+  {
+    if (FullDirName[iDir] == '\\')
+    {
+      strncpy(TempDirName, FullDirName, iDir);
+      strncpy(TempDirName + iDir, "\0\0\0\0\0", 5);
+
+      if (access(TempDirName, 0) != 0)
+       mkdir(TempDirName);
+    }
+  }
+
+  mkdir(FullDirName);
+  return 0;
+
 }

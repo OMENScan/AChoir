@@ -3,6 +3,7 @@
 * - Pulls Common Media File Types from disk       *
 * - Created by D0n Quix0te/OMENScan (May 2015)    *
 ***************************************************
+SET:CopyPath=Part
 SAY:
 SAY: * * *   Please MAKE SURE you are running this as an Administrator  * * * 
 SAY: * * * Administrator right are required for many of these utilities * * * 

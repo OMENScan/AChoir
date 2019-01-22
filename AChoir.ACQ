@@ -4,6 +4,7 @@
 * - Created by D0n Quix0te/OMENScan (May 2015)    *
 * - Inspired by many other tools                  *
 ***************************************************
+SET:CopyPath=Part
 64B:
 SAY:
 SAY: AChoir - 64 Bit Detected...  Switching to 64 Bit Script...

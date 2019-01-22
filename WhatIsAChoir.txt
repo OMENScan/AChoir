@@ -1,4 +1,4 @@
-AChoir - v2.7
+AChoir - v2.8
 
 AChoir
 ======
@@ -164,6 +164,17 @@ SET:NCP=OSCOPY  Sets the NCP: (NTFS Raw Copy) to
                 a "(LX)" appended, and a THIRD copy of the file
                 written through OSCopying with the original file 
                 name.
+SET:CopyPath=None Set the NCP: and CPY: Copy Path to None.
+                  This will ignore the paths of the source files
+                  and copy everything into the directory destination.
+SET:CopyPath=Full Set the NCP: and CPY: Copy Path to Full.
+                  This will append the source file's copy path
+                  to the output directory.  This allows the examiner
+                  to quickly see exactly where the source file came from
+SET:CopyPath=Full Set the NCP: Copy Path to Partial and CPY: Copy Path to Full.
+                  This only works for NCP: Copy, and will copy ONLY the path
+                  after any wildcards.  This allows the examiner to see the 
+                  RELATIVE path the the source files were in
 SAY:     Echo Text and Objects to the Screen and Logfile
 CON:Hide Hide The Console Screen - For quiet Acquisition
          DO NOT USE IF YOU HAVE SCREEN INPUT - For any 

@@ -9,6 +9,7 @@ ADM:Force
 * Create the Acquisition Directory and RESTRICT   *
 *  PERMISSIONS to only THAT user                  *
 ***************************************************
+SET:CopyPath=Part
 ACQ:
 64B:
 SAY:
