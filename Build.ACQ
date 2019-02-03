@@ -223,7 +223,7 @@ SAY:
 SAY: --- Getting Recycle Bin artifact (INFO2/$I) parser (From Eric Zimmerman) ---
 SAY:
 FIL:RBCmd.zip
-EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\RBCmd.txt https://ericzimmerman.github.io/Software/RBCmd.zip
+EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\RBCmd.txt https://f001.backblazeb2.com/file/EricZimmermanTools/RBCmd.zip
 SAY:
 SAY: --- Unzipping RBCmd ---
 SAY:
@@ -284,6 +284,13 @@ SAY: --- Unzipping OSFMount 64 Bit ---
 SAY:
 EXE:\unzip.exe -o &Dir\&Fil -d &Dir\64Bit
 SAY:
+SAY: --- Getting PSCP 32 and 64 Bit (from the.earth.li) ---
+SAY:
+DIR:\XFR
+FIL:pscp.exe
+EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\pscp.txt https://the.earth.li/~sgtatham/putty/latest/w32/pscp.exe
+FIL:pscp64.exe
+EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\pscp64.txt https://the.earth.li/~sgtatham/putty/latest/w64/pscp.exe
 SAY: Download and Build Complete...
 SAY:
 SAY: Now Hashing The Files...

@@ -1,4 +1,4 @@
-AChoir - v2.8
+AChoir - v2.9
 
 AChoir
 ======
@@ -352,6 +352,11 @@ Here are the Command Line Options:
         Note: This is a simple Menu Script for selecting an AChoir script to run.
 /CON  - Run In Interactive Mode (Same as /Ini:Console)
 /CSE  - Interactive/Console Query for Case Information
+
+/GET:<URL> Get a file using HTTP, before doing the collection.
+         Note: The FileName will be set to the URL FileName (after last "/").
+               The File will be placed in the Root Directory of AChoir
+               ANY PRIOR VERSION OF THE FILE WILL BE DELETED
 /INI:Console - Run In Interactive Mode (Console Input)
 /INI:<File Name>  - Run the <File Name> script instead of AChoir.ACQ
         This Option WILL NOT Create a Base Acquisition Directory
@@ -441,6 +446,30 @@ simple: If we are running AChoir on an endpoint, we may be interested in BOTH th
 32Bit artifacts AND the 64Bit artifacts.  Since BOTH can be present, and BOTH may 
 be relevant to an investigation, AChoir will always try to get both artifacts if 
 it can.
+
+
+A note about /GET:
+------
+The /GET: Option will get a file using HTTP (HTTPS is not supported).  This is a way
+to get a file from a Web Server that will be used in the acquisition.  This can be
+used in a multitude of ways - but the most obvious is to host an AChoir Script on 
+a Web Server, download it and run it.  
+
+This would look like:
+achoir /get:http://192.168.1.1/Test1.txt /ini:Test1.txt
+
+
+A note about FOR:
+------
+In order to allow both current directory searches and current+subdirectory searches
+I have come up with the following nomenclature:
+
+* If a BackSlash is present (for instance FOR:.\files.*) AChoir will search the current
+  directory and all subdirectories
+* If a BackSlash IS NOT present (for instance FOR:Files.*) Achoir will ONLY SEARCH 
+  the CURRENT directory.
+
+I believe this is the easiest way to support both types ofsearches. 
 
 
 A note about LZNT1 Decompression

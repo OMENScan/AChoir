@@ -166,6 +166,10 @@
 /* AChoir v2.8  - Add ability to preserve Paths in CPY: and NCP:*/
 /*                Set:CopyPath=Full/Partial/None                */
 /*              - Allow ACQ: and DIR: to create nested paths    */
+/* AChoir v2.9  - Fix FOR: without backslash (Current Dir only) */
+/*                Move Get: to its own routine to allow new     */
+/*                 /Get: option - This will function as a way   */
+/*                 to allow AChoir to load an INI file remotely */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -261,7 +265,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v2.8\0";
+char Version[10] = "v2.9\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -348,6 +352,7 @@ int FindActive();
 int rawCopy(char *FrmFile, char *TooFile, int binLog);
 int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FILETIME ToModTime, FILETIME ToAccTime, int binLog, int Append);
 int ExpandDirs(CHAR* FullDirName);
+int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName);
 //int spinOnChange(char* SpinFileName);
 
 
@@ -867,6 +872,9 @@ int main(int argc, char *argv[])
       consPrefix(" /MAP:<Server\\Share> ", consGre);
       printf("- Map to a Remote Server\n");
 
+      consPrefix(" /GET:<URL/File> ", consGre);
+      printf("- Get a File using HTTP.\n");
+
       consPrefix(" /INI:<File Name> ", consGre);
       printf("- Run the <File Name> script instead of AChoir.ACQ\n");
 
@@ -955,6 +963,24 @@ int main(int argc, char *argv[])
         consPrefix("[!] ", consRed);
         printf("/INI:  Too Long (Greater than 254 chars)\n");
       }
+    }
+    else
+    if (strnicmp(argv[i], "/GET:", 5) == 0)
+    {
+      memset(WGetURL, 0, 1024);
+      strncpy(WGetURL, argv[i] + 5, 1000);
+
+      RootSlash = strrchr(WGetURL, '/');
+
+      if (RootSlash == NULL)
+        sprintf(CurrFil, "%s\\AChoir.Acq\0", CurrWorkDir);
+      else
+      if (strlen(RootSlash) < 2)
+        sprintf(CurrFil, "%s\\AChoir.Acq\0", CurrWorkDir);
+      else
+       sprintf(CurrFil, "%s\\%s\0", CurrWorkDir, RootSlash + 1);
+
+      HTTP_GetFile(WGetURL, CurrFil);
     }
     else
     if (strnicmp(argv[i], "/MAP:", 5) == 0)
@@ -4177,127 +4203,7 @@ int main(int argc, char *argv[])
             /* HTTP Get for both Building the Toolkit and Acquisition       */
             /* That means that CurrFil MUST BE A FULL PATH TO THE NEW FILE  */
             /****************************************************************/
-            //sprintf(WGetFile, "%s\\%s%s\0", BaseDir, CurrDir, CurrFil);
-            sprintf(WGetFile, "%s\0", CurrFil);
-            fprintf(LogHndl, "[+] Getting: %s\n", WGetFile);
-            consPrefix("[+] ", consGre);
-            printf("Getting: %s\n", WGetFile);
-
-            unlink(WGetFile);
-
-            WGetHndl = fopen(WGetFile, "wb");
-            if (WGetHndl != NULL)
-            {
-              hSession = WinHttpOpen(L"WinHTTP AChoir/1.0", 
-                WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
-                WINHTTP_NO_PROXY_NAME,
-                WINHTTP_NO_PROXY_BYPASS, 0);
-
-              if (hSession)
-              {
-                /****************************************************************/
-                /* Split The Domain from the File Structure                     */
-                /****************************************************************/
-                if (strnicmp("Get:http://", WGetURL, 11) == 0)
-                  strncpy(WGetURL, Inrec + 11, 1000);
-                else
-                if (strnicmp("Get:https://", WGetURL, 12) == 0)
-                  strncpy(WGetURL, Inrec + 12, 1000);
-                else
-                  strncpy(WGetURL, Inrec + 4, 1000);
-
-                iWGetFIL = strchr(WGetURL, '/');
-                iWGetFIL[0] = '\0';
-
-                MultiByteToWideChar(0, 0, WGetURL, 2000, w_WGetURL, 1000);
-                MultiByteToWideChar(0, 0, iWGetFIL+1, 2000, w_WGetFIL, 1000);
-                
-                hConnect = WinHttpConnect(hSession, lpWGetURL, INTERNET_DEFAULT_HTTP_PORT, 0);
-
-                if (hConnect)
-                {
-                  hRequest = WinHttpOpenRequest(hConnect, L"GET", lpWGetFIL, NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, NULL);
-                
-                  if (hRequest)
-                  {
-                    bResults = WinHttpSendRequest(hRequest,
-                      WINHTTP_NO_ADDITIONAL_HEADERS, 0,
-                      WINHTTP_NO_REQUEST_DATA, 0,
-                      0, 0);
-
-                    if (bResults)
-                    {
-                      bResults = WinHttpReceiveResponse(hRequest, NULL);
-
-                      // Keep checking for data until there is nothing left.
-                      if (bResults)
-                      {
-                        do
-                        {
-                          // Check for available data.
-                          dwSize = 0;
-                          if (!WinHttpQueryDataAvailable(hRequest, &dwSize))
-                          {
-                            consPrefix("[!] ", consRed);
-                            printf("Error %u in WinHttpQueryDataAvailable.\n", GetLastError());
-                            fprintf(LogHndl, "[!] Error %u in WinHttpQueryDataAvailable.\n", GetLastError());
-                          }
-
-                          if (dwSize > 0)
-                          {
-                            // Allocate space for the buffer.
-                            pszOutBuffer = new (std::nothrow) char[dwSize + 1];
-                            if (pszOutBuffer == NULL)
-                            {
-                              consPrefix("[!] ", consRed);
-                              printf("Ran Out Of Memory Reading HTTP\n");
-                              fprintf(LogHndl, "[!] Ran Out Of Memory Reading HTTP\n");
-                              dwSize = 0;
-                            }
-                            else
-                            {
-                              // Read the data.
-                              ZeroMemory(pszOutBuffer, dwSize + 1);
-
-                              if (!WinHttpReadData(hRequest, (LPVOID)pszOutBuffer, dwSize, &dwDownloaded))
-                              {
-                                consPrefix("[!] ", consRed);
-                                printf("Error %u in WinHttpReadData.\n", GetLastError());
-                                fprintf(LogHndl, "[!] Error %u in WinHttpReadData.\n", GetLastError());
-                              }
-                              else
-                                fwrite(pszOutBuffer, 1, dwSize, WGetHndl);
-                
-                              // Free the memory allocated to the buffer.
-                              delete[] pszOutBuffer;
-                            }
-                          }
-                        } while (dwSize > 0);
-                      }
-
-
-                      // Report any errors.
-                      if (!bResults)
-                      {
-                        consPrefix("[!] ", consRed);
-                        printf("Error %d has occurred.\n", GetLastError());
-                        fprintf(LogHndl, "[!] Error %d has occurred.\n", GetLastError());
-                      }
-                    }
-                  }
-                }
-
-                // Close any open handles.
-                if (hRequest) WinHttpCloseHandle(hRequest);
-                if (hConnect) WinHttpCloseHandle(hConnect);
-                if (hSession) WinHttpCloseHandle(hSession);
-
-              }
-
-              fclose(WGetHndl);
-
-            }
-
+            HTTP_GetFile(Inrec+4 , CurrFil);
           }
 
           fflush(stdout); //More PSExec Friendly
@@ -5132,15 +5038,24 @@ int ListDir(char *DirName, char *LisType)
 
     strncpy(Slash, "\\\0", 2);
   }
-
+  else
+  {
+    /****************************************************************/
+    /* If NO DIRECTORY was specified, list ONLY the current         */
+    /*  Directory Files, if you want the Current AND Subdir files   */
+    /*  use FOR:.\<wildcard>                                        */
+    /****************************************************************/
+    memset(RootDir, 0, 250);
+  }
 
 
   /****************************************************************/
-  /* Search Twice.                                                */
+  /* If we got a a backslash (subdir) - Search Twice.             */
   /*  First Search ALL to parse the directories                   */
   /*  Second Search for just File Names                           */
   /****************************************************************/
-  sprintf(SrchDName, "%s*.*\0", RootDir);
+  if(strlen(RootDir) > 0)
+   sprintf(SrchDName, "%s*.*\0", RootDir);
 
 
   /****************************************************************/
@@ -10153,3 +10068,198 @@ int ExpandDirs(CHAR* FullDirName)
   return 0;
 
 }
+
+
+/***********************************************************************/
+/* Get a file using HTTP                                               */
+/***********************************************************************/
+int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName)
+{
+  struct stat stat_record;
+
+  DWORD dwSize = sizeof(DWORD);
+  DWORD dwStatusCode = 0;
+  DWORD dwDownloaded = 0;
+  LPSTR pszOutBuffer;
+  BOOL  bResults = FALSE;
+
+  HINTERNET hSession = NULL, hConnect = NULL, hRequest = NULL;
+
+  sprintf(WGetFile, "%s\0", HTTPGet_FileName);
+  sprintf(WGetURL, "%s\0", HTTPGet_URL);
+
+  if (iLogOpen == 1)
+  {
+    fprintf(LogHndl, "[+] Getting URL: %s\n", WGetURL);
+    fprintf(LogHndl, "[+] Getting File: %s\n", WGetFile);
+  }
+
+  consPrefix("[+] ", consGre);
+  printf("Getting URL: %s\n", WGetURL);
+
+  consPrefix("[+] ", consGre);
+  printf("Getting File: %s\n", WGetFile);
+
+  unlink(WGetFile);
+
+  WGetHndl = fopen(WGetFile, "wb");
+  if (WGetHndl != NULL)
+  {
+    hSession = WinHttpOpen(L"WinHTTP AChoir/2.9",
+      WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+      WINHTTP_NO_PROXY_NAME,
+      WINHTTP_NO_PROXY_BYPASS, 0);
+
+    if (hSession)
+    {
+      /****************************************************************/
+      /* Split The Domain from the File Structure                     */
+      /****************************************************************/
+      if (strnicmp(WGetURL, "http://", 7) == 0)
+       strncpy(WGetURL, HTTPGet_URL + 7, 1000);
+      else
+      if (strnicmp(WGetURL, "https://", 8) == 0)
+       strncpy(WGetURL, HTTPGet_URL + 8, 1000);
+      else
+       strncpy(WGetURL, HTTPGet_URL, 1000);
+
+      iWGetFIL = strchr(WGetURL, '/');
+
+      if (iWGetFIL != NULL)
+        iWGetFIL[0] = '\0';
+      else
+      {
+        iWGetFIL = WGetURL;
+        iWGetFIL += strlen(WGetURL);
+
+        strncpy(iWGetFIL, "\0/AChoir.dat\0", 13);
+      }
+
+      MultiByteToWideChar(0, 0, WGetURL, 2000, w_WGetURL, 1000);
+      MultiByteToWideChar(0, 0, iWGetFIL + 1, 2000, w_WGetFIL, 1000);
+
+      hConnect = WinHttpConnect(hSession, lpWGetURL, INTERNET_DEFAULT_HTTP_PORT, 0);
+
+      if (hConnect)
+      {
+        hRequest = WinHttpOpenRequest(hConnect, L"GET", lpWGetFIL, NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, NULL);
+
+        if (hRequest)
+        {
+          bResults = WinHttpSendRequest(hRequest,
+            WINHTTP_NO_ADDITIONAL_HEADERS, 0,
+            WINHTTP_NO_REQUEST_DATA, 0,
+            0, 0);
+
+          if (bResults)
+          {
+            bResults = WinHttpReceiveResponse(hRequest, NULL);
+
+            // Keep checking for data until there is nothing left.
+            if (bResults)
+            {
+              do
+              {
+                // Check for available data.
+                dwSize = 0;
+                if (!WinHttpQueryDataAvailable(hRequest, &dwSize))
+                {
+                  consPrefix("[!] ", consRed);
+                  printf("Error %u in WinHttpQueryDataAvailable.\n", GetLastError());
+
+                  if (iLogOpen == 1)
+                   fprintf(LogHndl, "[!] Error %u in WinHttpQueryDataAvailable.\n", GetLastError());
+                }
+
+                if (dwSize > 0)
+                {
+                  // Allocate space for the buffer.
+                  pszOutBuffer = new (std::nothrow) char[dwSize + 1];
+                  if (pszOutBuffer == NULL)
+                  {
+                    consPrefix("[!] ", consRed);
+                    printf("Ran Out Of Memory Reading HTTP\n");
+
+                    if (iLogOpen == 1)
+                     fprintf(LogHndl, "[!] Ran Out Of Memory Reading HTTP\n");
+                    dwSize = 0;
+                  }
+                  else
+                  {
+                    // Read the data.
+                    ZeroMemory(pszOutBuffer, dwSize + 1);
+
+                    if (!WinHttpReadData(hRequest, (LPVOID)pszOutBuffer, dwSize, &dwDownloaded))
+                    {
+                      consPrefix("[!] ", consRed);
+                      printf("Error %u in WinHttpReadData.\n", GetLastError());
+
+                      if (iLogOpen == 1)
+                       fprintf(LogHndl, "[!] Error %u in WinHttpReadData.\n", GetLastError());
+                    }
+                    else
+                      fwrite(pszOutBuffer, 1, dwSize, WGetHndl);
+
+                    // Free the memory allocated to the buffer.
+                    delete[] pszOutBuffer;
+                  }
+                }
+              } while (dwSize > 0);
+            }
+
+
+            // Report any errors.
+            if (!bResults)
+            {
+              consPrefix("[!] ", consRed);
+              printf("Error %d has occurred.\n", GetLastError());
+
+              if (iLogOpen == 1)
+               fprintf(LogHndl, "[!] Error %d has occurred.\n", GetLastError());
+            }
+          }
+        }
+      }
+
+      // Close any open handles.
+      if (hRequest) WinHttpCloseHandle(hRequest);
+      if (hConnect) WinHttpCloseHandle(hConnect);
+      if (hSession) WinHttpCloseHandle(hSession);
+
+    }
+
+    fclose(WGetHndl);
+
+  }
+
+
+  /****************************************************************/
+  /* Did we get the File?                                         */
+  /****************************************************************/
+  if (stat(WGetFile, &stat_record))
+  {
+    // printf("%s", strerror(errno));
+
+    consPrefix("[!] ", consRed);
+    printf("Error Getting File: %s\n", strerror(errno));
+
+    if (iLogOpen == 1)
+      fprintf(LogHndl, "[!] Error Getting File: %s\n", strerror(errno));
+  }
+  else
+  if (stat_record.st_size <= 1)
+  {
+    //printf("File is empty\n");
+    consPrefix("[!] ", consRed);
+    printf("Error Getting File: File is Empty\n");
+
+    if (iLogOpen == 1)
+      fprintf(LogHndl, "[!] Error Getting File: File is Empty\n");
+
+  }
+
+
+  fflush(stdout); //More PSExec Friendly
+  return 0;
+}
+
