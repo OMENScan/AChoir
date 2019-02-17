@@ -1,4 +1,4 @@
-AChoir - v2.9
+AChoir - v3.0
 
 AChoir
 ======
@@ -199,6 +199,15 @@ EQU:<string1> <string2> - Is <string1> equal to <string2>
 NEQ:<string1> <string2> - Is <string1> NOT Equal to <string2>
                if True run the statements until an END:
                Note: Use "" to use strings with spaces in them
+N>>:<Number1> <Number2> - Is <Number1> Greater Than <Number2>
+               if True run the statements until an END:
+               Note: THIS MUST BE A NUMBER
+N<<:<Number1> <Number2> - Is <Number1> Less Than <Number2>
+               if True run the statements until an END:
+               Note: THIS MUST BE A NUMBER
+N==:<Number1> <Number2> - Is <Number1> Equal to <Number2>
+               if True run the statements until an END:
+               Note: THIS MUST BE A NUMBER
 INI:     SWITCH to another Script File (INI:F:\NewScript.Acq)
          Note: This WILL NOT RETURN to the calling script.
 INI:Console - Switch to Interactive Console Mode
@@ -337,6 +346,8 @@ Objects:
 &FNM     Each &FOR File Name (Without Path)
 &VR0 - &VR9  Variables set by the VR0: - VR9: Actions
 &VCK     Results of last Volume Check (VCK:<x:\>
+&MEM     System Memory 
+&DSA     Disk Space Available
 
 %<variable>% - AChoir can also expand the native DOS/Windows Environment Variables
  Note: To use a native % (prevent expansion) in a script, use %% 
