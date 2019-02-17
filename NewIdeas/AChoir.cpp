@@ -170,6 +170,13 @@
 /*                Move Get: to its own routine to allow new     */
 /*                 /Get: option - This will function as a way   */
 /*                 to allow AChoir to load an INI file remotely */
+/* AChoir v3.0  - Added &MEM (Total memory), &DSA (Disk Avail)  */
+/*                Added N>>:, N<<:, and N==: For NUMBERS ONLY   */
+/*                 comparison. Note: All numbers are converted  */
+/*                 internally to longlong (atoll)               */
+/*                These can be used together to see if we have  */
+/*                 enough disk space to capture memory i.e.     */
+/*                 N>>:&DSA &MEM                                */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -265,7 +272,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v2.9\0";
+char Version[10] = "v3.0\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -354,6 +361,8 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 int ExpandDirs(CHAR* FullDirName);
 int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName);
 //int spinOnChange(char* SpinFileName);
+long long CheckDiskSpace(char *DiskToCheck);
+long long CheckMemSpace();
 
 
 // Global Variables For Raw NTFS Access
@@ -667,6 +676,10 @@ int  iIsServer = 0;
 //Offline Registry 
 DWORD ORRetcd ;
 
+//Global Disk And Memory Variables
+long long TotalMem, AvailDisk, longParm1, longParm2;
+
+
 int main(int argc, char *argv[])
 {
   int i;
@@ -872,10 +885,10 @@ int main(int argc, char *argv[])
       consPrefix(" /MAP:<Server\\Share> ", consGre);
       printf("- Map to a Remote Server\n");
 
-      consPrefix(" /INI:<URL/File> ", consGre);
+      consPrefix(" /GET:<URL/File> ", consGre);
       printf("- Get a File using HTTP.\n");
 
-      consPrefix(" /GET:<File Name> ", consGre);
+      consPrefix(" /INI:<File Name> ", consGre);
       printf("- Run the <File Name> script instead of AChoir.ACQ\n");
 
       consPrefix(" /CSE ", consGre);
@@ -1408,8 +1421,13 @@ int main(int argc, char *argv[])
     }
   }
 
-  printf("\n\n");
-  fprintf(LogHndl, "\n\n");
+  TotalMem = CheckMemSpace();
+  AvailDisk = CheckDiskSpace(BaseDir);
+
+  consPrefix("\n[+] ", consGre);
+  printf("Memory: %lld, Disk: %lld\n", TotalMem, AvailDisk);
+  fprintf(LogHndl, "\n[+] Memory: %lld, Disk: %lld\n", TotalMem, AvailDisk);
+
   fflush(stdout); //More PSExec Friendly
 
 
@@ -1417,6 +1435,7 @@ int main(int argc, char *argv[])
   fprintf(LogHndl, "[+] Input Script Set:\n     %s\n\n", IniFile);
 
 
+  
   /****************************************************************/
   /* If iRunMode=1 Create the BACQDir - Base Acquisition Dir      */
   /****************************************************************/
@@ -1512,6 +1531,15 @@ int main(int argc, char *argv[])
         else
         if (strnicmp(Tmprec, "RC<:", 4) == 0)
           RunMe++;
+        else
+        if (strnicmp(Tmprec, "N>>:", 4) == 0)
+         RunMe++;
+        else
+        if (strnicmp(Tmprec, "N<<:", 4) == 0)
+         RunMe++;
+        else
+        if (strnicmp(Tmprec, "N==:", 4) == 0)
+         RunMe++;
         else
         if (strnicmp(Tmprec, "END:", 4) == 0)
           RunMe--;
@@ -1850,6 +1878,20 @@ int main(int argc, char *argv[])
             if (strnicmp(o32VarRec + iPtr, "&Vck", 4) == 0)
             {
               sprintf(Inrec + oPtr, "%s", volType);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Mem", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%lld", CheckMemSpace());
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Dsa", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%lld", CheckDiskSpace(BaseDir));
               oPtr = strlen(Inrec);
               iPtr += 3;
             }
@@ -3128,6 +3170,101 @@ int main(int argc, char *argv[])
               else
               if(strnicmp(Cmprec + iPrm1, Cmprec + iPrm2, 255) != 0)
                RunMe++;
+            }
+          }
+          else
+          if ((strnicmp(Inrec, "N>>:", 4) == 0) || (strnicmp(Inrec, "N<<:", 4) == 0) || (strnicmp(Inrec, "N==:", 4) == 0))
+          {
+            /****************************************************************/
+            /* Check Last Return Code = n                                   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            memset(Cmprec, 0, 4096);
+            strncpy(Cmprec, Inrec + 4, 4092);
+            twoSplit(Cmprec);
+
+            if (iPrm2 == 0)
+            {
+              fprintf(LogHndl, "[!] Number Comparing Requires TWO Numbers\n");
+
+              consPrefix("[!] ", consRed);
+              printf("Number Comparing Requires TWO Numbers\n");
+            }
+            else
+            {
+              longParm1 = atoll(Cmprec + iPrm1);
+              longParm2 = atoll(Cmprec + iPrm2);
+
+              if (consOrFile == 1)
+               consPrefix("[*] ", consYel);
+
+              if (strnicmp(Inrec, "N>>:", 4) == 0)
+              {
+                if (longParm1 > longParm2)
+                {
+                  if (consOrFile == 1)
+                  {
+                    fprintf(LogHndl, "[*] %lld is Greater Than %lld\n", longParm1, longParm2);
+                    printf("%lld is Greater than %lld\n", longParm1, longParm2);
+                  }
+                }
+                else
+                {
+                  if (consOrFile == 1)
+                  {
+                    fprintf(LogHndl, "[*] %lld is NOT Greater than %lld\n", longParm1, longParm2);
+                    printf("%lld is NOT Greater than %lld\n", longParm1, longParm2);
+                  }
+                  else
+                    RunMe++;
+                }
+              }
+              else
+              if (strnicmp(Inrec, "N<<:", 4) == 0)
+              {
+                if (longParm1 < longParm2)
+                {
+                  if (consOrFile == 1)
+                  {
+                    fprintf(LogHndl, "[*] %lld is Less than %lld\n", longParm1, longParm2);
+                    printf("%lld is Less than %lld\n", longParm1, longParm2);
+                  }
+                }
+                else
+                {
+                  if (consOrFile == 1)
+                  {
+                    fprintf(LogHndl, "[*] %lld is NOT Less than %lld\n", longParm1, longParm2);
+                    printf("%lld is NOT Less than %lld\n", longParm1, longParm2);
+                  }
+                  else
+                    RunMe++;
+                }
+              }
+              else
+              if (strnicmp(Inrec, "N==:", 4) == 0)
+              {
+                if (longParm1 == longParm2)
+                {
+                  if (consOrFile == 1)
+                  {
+                    fprintf(LogHndl, "[*] Numbers are Equal: %lld\n", longParm1);
+                    printf("Numbers are Equal: %lld\n", longParm1);
+                  }
+                }
+                else
+                {
+                  if (consOrFile == 1)
+                  {
+                    fprintf(LogHndl, "[*] %lld is NOT Equal to %lld\n", longParm1, longParm2);
+                    printf("%lld is NOT Equal to %lld\n", longParm1, longParm2);
+                  }
+                  else
+                    RunMe++;
+                }
+              }
             }
           }
           else
@@ -10263,3 +10400,33 @@ int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName)
   return 0;
 }
 
+
+long long CheckDiskSpace(char *DiskToCheck)
+{
+  long long lpFreeBytesAvailable, lpTotalNumberOfBytes, lpTotalNumberOfFreeBytes;
+  BOOL FDResult;
+
+  // If the function succeeds, the return value is nonzero. If the function fails, the return value is 0 (zero).
+  FDResult = GetDiskFreeSpaceEx(DiskToCheck,
+             (PULARGE_INTEGER)&lpFreeBytesAvailable,
+             (PULARGE_INTEGER)&lpTotalNumberOfBytes,
+             (PULARGE_INTEGER)&lpTotalNumberOfFreeBytes);
+
+  if (FDResult == 0)
+   return FDResult;
+  else
+   return lpTotalNumberOfFreeBytes;
+}
+
+
+long long CheckMemSpace()
+{
+  #define WIDTH 7
+
+  MEMORYSTATUSEX statex;
+  statex.dwLength = sizeof(statex);
+
+  GlobalMemoryStatusEx(&statex);
+
+  return statex.ullTotalPhys;
+}
