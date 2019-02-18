@@ -177,6 +177,8 @@
 /*                These can be used together to see if we have  */
 /*                 enough disk space to capture memory i.e.     */
 /*                 N>>:&DSA &MEM                                */
+/* AChoir v3.1  - Expand Available Disk Checking into File      */
+/*                 Copy/Extract                                 */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -272,7 +274,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v3.0\0";
+char Version[10] = "v3.1\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -678,7 +680,7 @@ DWORD ORRetcd ;
 
 //Global Disk And Memory Variables
 long long TotalMem, AvailDisk, longParm1, longParm2;
-
+int iOutOfDiskSpace = 0;
 
 int main(int argc, char *argv[])
 {
@@ -747,6 +749,7 @@ int main(int argc, char *argv[])
   iIsAdmin = 0;
   iXitCmd = 0;
   iLogOpen = 0;
+  iOutOfDiskSpace = 0;
 
   memset(CurrDir, 0, 1024);
   memset(CurrWorkDir, 0, 1024);
@@ -5365,6 +5368,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   char tmpFrmFile[4096];
   char tmpTooFile[4096];
   char tmpTooDir[4096];
+  char tmpTooRoot[5];
   int iFileCount = 0;
   int iFileFound = 0;
   int TimeNotGood = 0;
@@ -5542,6 +5546,23 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
     /****************************************************************/
     _stat(tmpFrmFile, &Frmstat);
 
+    
+    //See if we have adequate disk space!
+    AvailDisk = CheckDiskSpace(tmpTooFile);
+    if (AvailDisk < Frmstat.st_size)
+    {
+      iOutOfDiskSpace = 1;
+
+      if (binLog == 1)
+        fprintf(LogHndl, "[!] Not Enough Disk Space Available: %lld of %ld\n", AvailDisk, Frmstat.st_size);
+
+      consPrefix("[!] ", consRed);
+      printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, Frmstat.st_size);
+
+      fflush(stdout); //More PSExec Friendly
+      return 1;
+    }
+    
 
     /****************************************************************/
     /* Get the SID (File Owner) of the file - Security Descripter   */
@@ -6070,6 +6091,23 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
     /* Get the original TimeStamps                                  */
     /****************************************************************/
     _stat(tmpFrmFile, &Frmstat);
+    
+
+    //See if we have adequate disk space!
+    AvailDisk = CheckDiskSpace(tmpTooFile);
+    if (AvailDisk < Frmstat.st_size)
+    {
+      iOutOfDiskSpace = 1;
+
+      if (iLogOpen == 1)
+        fprintf(LogHndl, "[!] Not Enough Disk Space Available: %lld of %ld\n", AvailDisk, Frmstat.st_size);
+
+      consPrefix("[!] ", consRed);
+      printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, Frmstat.st_size);
+
+      fflush(stdout); //More PSExec Friendly
+      return 1;
+    }
 
 
     /****************************************************************/
@@ -7790,6 +7828,27 @@ void cleanUp_Exit(int exitRC)
   }
 
 
+  /****************************************************************/
+  /* Cleanup - Did we run out of Disk Space?                      */
+  /****************************************************************/
+  if (iOutOfDiskSpace == 1)
+  {
+    consPrefix("\n[!] ", consRed);
+    printf("WARNING: Files Copied During this Acquisition RAN OUT OF DISK SPACE\n");
+    consPrefix("[!] ", consRed);
+    printf("WARNING: This Acquisition MAY BE INCOMPLETE - Check the Log File for Details\n\n");
+
+    if (iLogOpen == 1)
+    {
+      fprintf(LogHndl, "\n[!] WARNING: Files Copied During this Acquisition RAN OUT OF DISK SPACE\n");
+      fprintf(LogHndl, "\n[!] WARNING: This Acquisition MAY BE INCOMPLETE - Check the Log File for Details\n\n");
+    }
+  }
+
+
+  /****************************************************************/
+  /* Cleanup - Normal Run (RunMode 1)                             */
+  /****************************************************************/
   if (iRunMode == 1)
   {
     fprintf(LogHndl, "[+] Setting All Artifacts to Read-Only.\n");
@@ -9288,6 +9347,24 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       }
       else
       {
+        //See if we have adequate disk space!
+        AvailDisk = CheckDiskSpace(outdir);
+        if (AvailDisk < dataLen)
+        {
+          iOutOfDiskSpace = 1;
+
+          if (binLog == 1)
+            fprintf(LogHndl, "[!] Not Enough Disk Space Available: %lld of %ld\n", AvailDisk, iDataSize);
+
+          consPrefix("[!] ", consRed);
+          printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, iDataSize);
+
+          delete[] file;
+          fflush(stdout); //More PSExec Friendly
+          return 1;
+        }
+
+
         // MaxMem Exceeded! Just Use a Cluster at a Time - Also Show us the size.
         bufD  = (UCHAR *) malloc(bootb.BytesPerSector * bootb.SectorsPerCluster)  ;
 
@@ -9318,6 +9395,25 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       //In cases where the file is Resident use maxDataSize
       if(totdata > maxDataSize)
        totdata = maxDataSize;
+
+
+      //See if we have adequate disk space!
+      AvailDisk = CheckDiskSpace(outdir);
+      if (AvailDisk < iDataSize)
+      {
+        iOutOfDiskSpace = 1;
+
+        if (binLog == 1)
+         fprintf(LogHndl, "[!] Not Enough Disk Space Available: %lld of %ld\n", AvailDisk, iDataSize);
+
+        consPrefix("[!] ", consRed);
+        printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, iDataSize);
+
+        free(bufD);
+        delete[] file;
+        fflush(stdout); //More PSExec Friendly
+        return 1;
+      }
 
 
       //Now show the iData Size since we didn't show the dataLen
@@ -9466,9 +9562,9 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         if (setOwner)
         {
           if (binLog == 1)
-            fprintf(LogHndl, "     (out)File Owner was Set Succesfully.\n");
+            fprintf(LogHndl, "     (Out)File Owner was Set Succesfully.\n");
 
-          printf("     (out)File Owner was Set Succesfully.\n");
+          printf("     (Out)File Owner was Set Succesfully.\n");
         }
         else
         {
@@ -9502,15 +9598,15 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
       if (binLog == 1)
       {
-        fprintf(LogHndl, "     (out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
-        fprintf(LogHndl, "     (out)Size: %llu %s\n", ftSize.QuadPart, cIsCompressed);
-        fprintf(LogHndl, "     (out)File MD5: %s\n", MD5Out);
+        fprintf(LogHndl, "     (Out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
+        fprintf(LogHndl, "     (Out)Size: %llu %s\n", ftSize.QuadPart, cIsCompressed);
+        fprintf(LogHndl, "     (Out)File MD5: %s\n", MD5Out);
       }
-      printf("     (out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
-      printf("     (out)Size: %llu ", ftSize.QuadPart);
+      printf("     (Out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
+      printf("     (Out)Size: %llu ", ftSize.QuadPart);
       consPrefix(cIsCompressed, consYel);
       printf("\n");
-      printf("     (out)File MD5: %s\n", MD5Out);
+      printf("     (Out)File MD5: %s\n", MD5Out);
 
       if ((CompareFileTime(&ToCreTime, &ftCreate) != 0) || (CompareFileTime(&ToAccTime, &ftAccess) != 0) || (CompareFileTime(&ToModTime, &ftWrite) != 0))
       {
@@ -10405,9 +10501,13 @@ long long CheckDiskSpace(char *DiskToCheck)
 {
   long long lpFreeBytesAvailable, lpTotalNumberOfBytes, lpTotalNumberOfFreeBytes;
   BOOL FDResult;
+  char RootToCheck[5] = "\0";
+
+  memset(RootToCheck, 0, 5);
+  strncpy(RootToCheck, DiskToCheck, 3);
 
   // If the function succeeds, the return value is nonzero. If the function fails, the return value is 0 (zero).
-  FDResult = GetDiskFreeSpaceEx(DiskToCheck,
+  FDResult = GetDiskFreeSpaceEx(RootToCheck,
              (PULARGE_INTEGER)&lpFreeBytesAvailable,
              (PULARGE_INTEGER)&lpTotalNumberOfBytes,
              (PULARGE_INTEGER)&lpTotalNumberOfFreeBytes);
