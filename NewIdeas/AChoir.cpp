@@ -177,6 +177,7 @@
 /*                These can be used together to see if we have  */
 /*                 enough disk space to capture memory i.e.     */
 /*                 N>>:&DSA &MEM                                */
+/* AChoir v3.1  - Expand Disk Checking into File Copy/Extract   */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -1425,7 +1426,7 @@ int main(int argc, char *argv[])
   AvailDisk = CheckDiskSpace(BaseDir);
 
   consPrefix("\n[+] ", consGre);
-  printf("Memory: %lld, Disk: %lld\n", TotalMem, AvailDisk);
+  printf("Memory: %lld, Free Disk: %lld\n", TotalMem, AvailDisk);
   fprintf(LogHndl, "\n[+] Memory: %lld, Disk: %lld\n", TotalMem, AvailDisk);
 
   fflush(stdout); //More PSExec Friendly
@@ -5365,6 +5366,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   char tmpFrmFile[4096];
   char tmpTooFile[4096];
   char tmpTooDir[4096];
+  char tmpTooRoot[5];
   int iFileCount = 0;
   int iFileFound = 0;
   int TimeNotGood = 0;
@@ -5542,6 +5544,21 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
     /****************************************************************/
     _stat(tmpFrmFile, &Frmstat);
 
+    
+    //See if we have adequate disk space!
+    AvailDisk = CheckDiskSpace(tmpTooFile);
+    if (AvailDisk < Frmstat.st_size)
+    {
+      if (binLog == 1)
+        fprintf(LogHndl, "[!] Not Enough Disk Space Available: %lld of %ld\n", AvailDisk, Frmstat.st_size);
+
+      consPrefix("[!] ", consRed);
+      printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, Frmstat.st_size);
+
+      fflush(stdout); //More PSExec Friendly
+      return 1;
+    }
+    
 
     /****************************************************************/
     /* Get the SID (File Owner) of the file - Security Descripter   */
@@ -6070,6 +6087,21 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
     /* Get the original TimeStamps                                  */
     /****************************************************************/
     _stat(tmpFrmFile, &Frmstat);
+    
+
+    //See if we have adequate disk space!
+    AvailDisk = CheckDiskSpace(tmpTooFile);
+    if (AvailDisk < Frmstat.st_size)
+    {
+      if (iLogOpen == 1)
+        fprintf(LogHndl, "[!] Not Enough Disk Space Available: %lld of %ld\n", AvailDisk, Frmstat.st_size);
+
+      consPrefix("[!] ", consRed);
+      printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, Frmstat.st_size);
+
+      fflush(stdout); //More PSExec Friendly
+      return 1;
+    }
 
 
     /****************************************************************/
@@ -9288,6 +9320,22 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       }
       else
       {
+        //See if we have adequate disk space!
+        AvailDisk = CheckDiskSpace(outdir);
+        if (AvailDisk < dataLen)
+        {
+          if (binLog == 1)
+            fprintf(LogHndl, "[!] Not Enough Disk Space Available: %lld of %ld\n", AvailDisk, iDataSize);
+
+          consPrefix("[!] ", consRed);
+          printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, iDataSize);
+
+          delete[] file;
+          fflush(stdout); //More PSExec Friendly
+          return 1;
+        }
+
+
         // MaxMem Exceeded! Just Use a Cluster at a Time - Also Show us the size.
         bufD  = (UCHAR *) malloc(bootb.BytesPerSector * bootb.SectorsPerCluster)  ;
 
@@ -9318,6 +9366,23 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       //In cases where the file is Resident use maxDataSize
       if(totdata > maxDataSize)
        totdata = maxDataSize;
+
+
+      //See if we have adequate disk space!
+      AvailDisk = CheckDiskSpace(outdir);
+      if (AvailDisk < iDataSize)
+      {
+        if (binLog == 1)
+         fprintf(LogHndl, "[!] Not Enough Disk Space Available: %lld of %ld\n", AvailDisk, iDataSize);
+
+        consPrefix("[!] ", consRed);
+        printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, iDataSize);
+
+        free(bufD);
+        delete[] file;
+        fflush(stdout); //More PSExec Friendly
+        return 1;
+      }
 
 
       //Now show the iData Size since we didn't show the dataLen
@@ -10405,9 +10470,13 @@ long long CheckDiskSpace(char *DiskToCheck)
 {
   long long lpFreeBytesAvailable, lpTotalNumberOfBytes, lpTotalNumberOfFreeBytes;
   BOOL FDResult;
+  char RootToCheck[5] = "\0";
+
+  memset(RootToCheck, 0, 5);
+  strncpy(RootToCheck, DiskToCheck, 3);
 
   // If the function succeeds, the return value is nonzero. If the function fails, the return value is 0 (zero).
-  FDResult = GetDiskFreeSpaceEx(DiskToCheck,
+  FDResult = GetDiskFreeSpaceEx(RootToCheck,
              (PULARGE_INTEGER)&lpFreeBytesAvailable,
              (PULARGE_INTEGER)&lpTotalNumberOfBytes,
              (PULARGE_INTEGER)&lpTotalNumberOfFreeBytes);
