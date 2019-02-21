@@ -20,12 +20,13 @@ SAY:  You've been warned ;-)
 SAY:
 SAY: Checking for available Disk Space (Min Required: &MEM)
 SAY:
+N<<:&Dsa &Mem
+ SAY: Not Enough disk space in &ACQ to Capture Memory: &MEM ... 
+ SAY: Bypassing Memory Capture!
+END:
 N>>:&Dsa &Mem
  ACQ:\MemDump
  EXE:\MEM\WinPmem.exe &Acq\WinPmemDump.Raw
-END:
-N<<:&Dsa &Mem
- SAY: Not Enough disk space in &ACQ to Capture Memory: &MEM...  Bypassing Memory Capture!
 END:
 SAY:
 SAY: 2. Extracting Prefetch Directory...
@@ -77,6 +78,7 @@ SAY:
 SAY: 6. Copying EventViewer Logs...
 SAY:
 ACQ:\Evt
+ACQ:\Evt\Sys32
 NCP:"&Win\System32\winevt\Logs\*" "&Acq"
 SAY:
 SAY: 7. Parsing Hosts And Services Directory...
