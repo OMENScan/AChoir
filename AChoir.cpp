@@ -179,6 +179,13 @@
 /*                 N>>:&DSA &MEM                                */
 /* AChoir v3.1  - Expand Available Disk Checking into File      */
 /*                 Copy/Extract                                 */
+/* AChoir v3.2  - &DSA Should Really Point to the &ACQ Drive    */
+/*                 in case we use MAP:                          */
+/*                Added Experimental Sysloog Output and new     */
+/*                 Settings:                                    */
+/*                 SET:SYSLOGS=<Syslog Server IP>               */
+/*                 SET:SYSLOGP=<Syslog Port>                    */
+/*                 SET:SYSLOGL=None, Min, Max                   */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -274,7 +281,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v3.1\0";
+char Version[10] = "v3.2\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -365,6 +372,7 @@ int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName);
 //int spinOnChange(char* SpinFileName);
 long long CheckDiskSpace(char *DiskToCheck);
 long long CheckMemSpace();
+int AChSyslog(char* SendLogMSG);
 
 
 // Global Variables For Raw NTFS Access
@@ -682,6 +690,13 @@ DWORD ORRetcd ;
 long long TotalMem, AvailDisk, longParm1, longParm2;
 int iOutOfDiskSpace = 0;
 
+
+//Global Syslog Variables
+char   Syslogd[255] = "127.0.0.1\0";
+char   Syslogp[10] = "514\0";
+char   SyslogTMSG[2048] = "AChoir Syslog Started.\0";
+int    iSyslogp, iSyslogLvl;
+
 int main(int argc, char *argv[])
 {
   int i;
@@ -701,7 +716,7 @@ int main(int argc, char *argv[])
 
   DWORD dwSize = 0;
   DWORD dwDownloaded = 0;
-  LPSTR pszOutBuffer;
+  //LPSTR pszOutBuffer;
   BOOL bResults = FALSE;
   HINTERNET hSession = NULL, hConnect = NULL, hRequest = NULL;
     
@@ -750,6 +765,7 @@ int main(int argc, char *argv[])
   iXitCmd = 0;
   iLogOpen = 0;
   iOutOfDiskSpace = 0;
+  iSyslogLvl = 0;
 
   memset(CurrDir, 0, 1024);
   memset(CurrWorkDir, 0, 1024);
@@ -1196,7 +1212,7 @@ int main(int argc, char *argv[])
   }
 
   iLogOpen = 1;
-
+  
   consPrefix("[+] ", consGre);
   printf("AChoir ver: %s, Mode: %s\n", Version, RunMode);
   fprintf(LogHndl, "[+] AChoir ver: %s, Mode: %s\n", Version, RunMode);
@@ -1449,6 +1465,13 @@ int main(int argc, char *argv[])
 
     consPrefix("[+] ", consGre);
     printf("Creating Base Acquisition Directory: %s\n", BACQDir);
+
+    if (iSyslogLvl > 0)
+    {
+      memset(SyslogTMSG, 0, 2048);
+      sprintf(SyslogTMSG, "Creating Base Acquisition Directory: %s\0", BACQDir);
+      AChSyslog(SyslogTMSG);
+    }
 
     if (access(BACQDir, 0) != 0)
     {
@@ -1894,7 +1917,7 @@ int main(int argc, char *argv[])
             else
             if (strnicmp(o32VarRec + iPtr, "&Dsa", 4) == 0)
             {
-              sprintf(Inrec + oPtr, "%lld", CheckDiskSpace(BaseDir));
+              sprintf(Inrec + oPtr, "%lld", CheckDiskSpace(BACQDir));
               oPtr = strlen(Inrec);
               iPtr += 3;
             }
@@ -2563,6 +2586,13 @@ int main(int argc, char *argv[])
 
             Squish(Inrec);
 
+            if (iSyslogLvl > 0)
+            {
+              memset(SyslogTMSG, 0, 2048);
+              sprintf(SyslogTMSG, "%s\0", Inrec);
+              AChSyslog(SyslogTMSG);
+            }
+
             memset(Cpyrec, 0, 4096);
             strncpy(Cpyrec, Inrec + 4, 4092);
             twoSplit(Cpyrec);
@@ -2619,6 +2649,13 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\r");
 
             Squish(Inrec);
+
+            if (iSyslogLvl > 0)
+            {
+              memset(SyslogTMSG, 0, 2048);
+              sprintf(SyslogTMSG, "%s\0", Inrec);
+              AChSyslog(SyslogTMSG);
+            }
 
             memset(Cpyrec, 0, 4096);
             strncpy(Cpyrec, Inrec + 4, 4092);
@@ -2871,6 +2908,13 @@ int main(int argc, char *argv[])
             fprintf(LogHndl, "\nARN: Parsing Live Registry AutoRun Keys\n");
             consPrefix("\nARN: ", consBlu);
             printf("Parsing Live Registry AutoRun Keys\n");
+
+            if (iSyslogLvl > 0)
+            {
+              memset(SyslogTMSG, 0, 2048);
+              sprintf(SyslogTMSG, "ARN: Parsing Live Registry AutoRun Keys");
+              AChSyslog(SyslogTMSG);
+            }
 
 
             /****************************************************************/
@@ -3644,6 +3688,9 @@ int main(int argc, char *argv[])
 
             fprintf(LogHndl, "%s\n", Inrec + 4);
             printf("%s\n", Inrec + 4);
+
+            if ((iSyslogLvl > 0) && (strlen(Inrec) > 4))
+              AChSyslog(Inrec);
           }
           else
           if (strnicmp(Inrec, "PZZ:", 4) == 0)
@@ -3988,6 +4035,67 @@ int main(int argc, char *argv[])
             setCPath = 2;
           }
           else
+          if (strnicmp(Inrec, "SET:SyslogS=", 12) == 0)
+          {
+            /****************************************************************/
+            /* Set Syslog Server IP Address                                 */
+            /****************************************************************/
+            memset(Syslogd, 0, 255);
+            strncpy(Syslogd, Inrec + 12, 250);
+
+            //If  Logging Level was already set, Leave it. Otherwise Set to min
+            if(iSyslogLvl < 1)
+             iSyslogLvl = 1;
+
+            memset(SyslogTMSG, 0, 2048);
+            sprintf(SyslogTMSG, "AChoir Version: %s Syslogging Started.  Level: %d", Version, iSyslogLvl);
+            AChSyslog(SyslogTMSG);
+
+            memset(SyslogTMSG, 0, 2048);
+            sprintf(SyslogTMSG, "Windows Ver: %s Name: %s Memory: %lld  Avail Disk: %lld", descrWinVer, cName, TotalMem, AvailDisk);
+            AChSyslog(SyslogTMSG);
+          }
+          else
+          if (strnicmp(Inrec, "SET:SyslogP=", 12) == 0)
+          {
+            /****************************************************************/
+            /* Set Syslog Server Port                                       */
+            /****************************************************************/
+            memset(Syslogp, 0, 10);
+            strncpy(Syslogp, Inrec + 12, 5);
+            iSyslogp = atoi(Syslogp);
+          }
+          else
+          if (strnicmp(Inrec, "SET:SyslogL=none", 16) == 0)
+          {
+            /****************************************************************/
+            /* Set Syslogging Level                                         */
+            /****************************************************************/
+            if (iSyslogLvl > 0)
+            {
+              sprintf(SyslogTMSG, "AChoir Version: %s Syslogging Stopped.  Old Level = %d", Version, iSyslogLvl);
+              AChSyslog(SyslogTMSG);
+            }
+
+            iSyslogLvl = 0; 
+          }
+          else
+          if (strnicmp(Inrec, "SET:SyslogL=min", 15) == 0)
+          {
+            /****************************************************************/
+            /* Set Syslogging Level                                         */
+            /****************************************************************/
+            iSyslogLvl = 1;
+          }
+          else
+          if (strnicmp(Inrec, "SET:SyslogL=max", 16) == 0)
+          {
+            /****************************************************************/
+            /* Set Syslogging Level                                         */
+            /****************************************************************/
+            iSyslogLvl = 2;
+          }
+          else
           if (strnicmp(Inrec, "XIT:", 4) == 0)
           {
             /****************************************************************/
@@ -4038,6 +4146,14 @@ int main(int argc, char *argv[])
             fprintf(LogHndl, "\nSYS: %s\n", TempDir);
             consPrefix("\nSYS: ", consBlu);
             printf("%s\n", TempDir);
+            
+            if (iSyslogLvl > 0)
+            {
+              memset(SyslogTMSG, 0, 2048);
+              sprintf(SyslogTMSG, "SYS: %s\0", TempDir);
+              AChSyslog(SyslogTMSG);
+            }
+            
             LastRC = system(TempDir);
             fprintf(LogHndl, "Return Code: %d\n", LastRC);
           }
@@ -4065,6 +4181,14 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\r");
 
             Squish(Inrec);
+            
+            if (iSyslogLvl > 0)
+            {
+              memset(SyslogTMSG, 0, 2048);
+              sprintf(SyslogTMSG, "%s\0", Inrec);
+              AChSyslog(SyslogTMSG);
+            }
+            
             memset(Exerec, 0, 4096);
             strncpy(Exerec, Inrec + 4, 4092);
             twoSplit(Exerec);
@@ -4236,6 +4360,14 @@ int main(int argc, char *argv[])
               else
               {
                 Squish(Inrec);
+
+                if (iSyslogLvl > 0)
+                {
+                  memset(SyslogTMSG, 0, 2048);
+                  sprintf(SyslogTMSG, "%s\0", Inrec);
+                  AChSyslog(SyslogTMSG);
+                }
+
                 memset(Exerec, 0, 4096);
                 strncpy(Exerec, Inrec + 4, 4092);
                 twoSplit(Exerec);
@@ -5368,7 +5500,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   char tmpFrmFile[4096];
   char tmpTooFile[4096];
   char tmpTooDir[4096];
-  char tmpTooRoot[5];
+  //char tmpTooRoot[5];
   int iFileCount = 0;
   int iFileFound = 0;
   int TimeNotGood = 0;
@@ -7906,6 +8038,17 @@ void cleanUp_Exit(int exitRC)
 
   consPrefix("[+] ", consGre);
   printf("Exit Return Code: %d\n", exitRC);
+
+
+  /****************************************************************/
+  /* Final Syslog Out                                             */
+  /****************************************************************/
+  if (iSyslogLvl > 0)
+  {
+    memset(SyslogTMSG, 0, 2048);
+    sprintf(SyslogTMSG, "AChoir Version: %s Acquisition Completed.  Return Code: %d", Version, exitRC);
+    AChSyslog(SyslogTMSG);
+  }
 
   fflush(stdout); //More PSExec Friendly
   //exit(exitRC) ;
@@ -10530,3 +10673,114 @@ long long CheckMemSpace()
 
   return statex.ullTotalPhys;
 }
+
+
+
+/************************************************************/
+/* Send out log info to SYSLOG                              */
+/************************************************************/
+int AChSyslog(char* SendLogMSG)
+{
+  struct  sockaddr_in SockA;
+  WSADATA WData;
+  SOCKET  Sockit;
+
+  int i, SockRC;
+  int RetCd, CleanRc;
+  //struct hostent *Host;
+  //int i, ccode, SockRC;
+
+  char host_name[255];
+  char * days[] = { "Sun","Mon","Tue","Wed","Thu","Fri","Sat" };
+  char * months[] = { "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec" };
+  char WhatZone[255];
+  time_t ltimeval;
+  struct tm *llclTime;
+  int lMonth, lDay, lYear, lHour, lMin, lSec, lWday;
+  char SyslogMSG[2048] = "\0";
+  char SysLTime[1024] = "Mon, 29 Jun 94 02:15:23 GMT\0";
+
+  SYSTEMTIME lcurtime;
+  TIME_ZONE_INFORMATION ltzinfo;
+
+  DWORD retval;
+
+  time(&ltimeval);
+  llclTime = localtime(&ltimeval);
+  lMonth = llclTime->tm_mon + 1;
+  lDay = llclTime->tm_mday;
+  lYear = llclTime->tm_year + 1900;
+  if (lYear < 1950) lYear += 100;
+  lHour = llclTime->tm_hour;
+  lMin = llclTime->tm_min;
+  lSec = llclTime->tm_sec;
+  lWday = llclTime->tm_wday;
+
+  GetLocalTime(&lcurtime);
+  retval = GetTimeZoneInformation(&ltzinfo);
+
+  for (i = 0; i<32; i++)
+  {
+    if (retval == TIME_ZONE_ID_STANDARD)
+      WhatZone[i] = (char)ltzinfo.StandardName[i];
+    else
+      WhatZone[i] = (char)ltzinfo.DaylightName[i];
+  }
+
+  sprintf(SysLTime, "%s %.2d %.2d:%.2d:%.2d", months[lMonth - 1], lDay, lHour, lMin, lSec);
+
+  strtok(SendLogMSG, "\n");
+
+  WSAStartup(0x101, &WData);
+  Sockit = socket(AF_INET, SOCK_DGRAM, 0);
+
+  if (Sockit == -1)
+   return(1);
+
+
+  iSyslogp = atoi(Syslogp);
+
+  SockA.sin_family = AF_INET;
+  SockA.sin_port = htons(iSyslogp);
+  SockA.sin_addr.s_addr = inet_addr(Syslogd);
+
+  if (SockA.sin_addr.s_addr == -1)
+  {
+    //Could not connect to Syslog Server
+    CleanRc = closesocket(Sockit);
+    return(2);
+  }
+
+  SockRC = gethostname(host_name, 250);
+
+  if (SockRC != 0)
+  {
+    //Unable to get My Hostname
+    CleanRc = closesocket(Sockit);
+    return(3);
+  }
+
+  RetCd = connect(Sockit, (struct sockaddr *) &SockA, sizeof(SockA));
+
+  if (RetCd == -1)
+  {
+    //Could not connect to Syslog Daemon Server
+    CleanRc = closesocket(Sockit);
+    return(4);
+  }
+
+  memset(SyslogMSG, 0, 2048);
+  sprintf(SyslogMSG, "%s %s AChoir: %s\0", SysLTime, host_name, SendLogMSG);
+
+  RetCd = send(Sockit, SyslogMSG, strlen(SyslogMSG), 0);
+
+  if (RetCd == -1)
+  {
+    CleanRc = closesocket(Sockit);
+    return(5);
+  }
+
+  CleanRc = closesocket(Sockit);
+  return(0);
+}
+

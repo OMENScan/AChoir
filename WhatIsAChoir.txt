@@ -1,4 +1,4 @@
-AChoir - v3.0
+AChoir - v3.2
 
 AChoir
 ======
@@ -137,6 +137,13 @@ Here is a list of all the Actions and Objects:
 
 Actions:
 ========
+SET:SyslogL=<syslogging Level> Sets the Syslog Level.
+                Options are: none, min, max
+                The default is NONE (No Syslogging)
+SET:SyslogP=<syslog Server Port> Sets the Syslog Server Port
+SET:SyslogS=<syslog Server IP> Sets the Syslog Server
+                IP Address, and sets the Syslog Level to 1
+                Syslogging will immediately begin.
 SET:NCP=NODCMP  Sets the NCP: (NTFS Raw Copy) to NOT
                 DeCompress LZNT1 compressed files.
                 Instead, the RAW Compressed data will
@@ -394,6 +401,19 @@ Conditional Logic doesn't make much sense in Interactive Mode (/CON), but you ma
 these various conditions.  AChoir is coded to give the results of these comparisons in 
 Interactive Mode, and to take Conditional Action in regular Scripted Mode.  In Interactive Mode
 Achoir WILL NOT take conditional action.
+
+
+A note about Syslogging
+----------
+By default Syslogging is turned OFF - This is in keeping with my desire to keep the AChoir
+footprint minimal, and have as little impact on the target machine as possible.  In some cases
+however, the need run and track AChoir across many machines overides the above.
+
+To turn Syslogging on, simply set the Syslog Server IP (SET:SyslogS=nnn.nnn.nnn.nnn). Currently
+AChoir is currently written to syslog minimal information.  This may be expanded in the future.  
+Currently Syslogging is just a way to monitor the progress of AChoir, and does not log
+extensively like the local log.  Continue to use the local log to get a full picture of everything
+AChoir has done (including errors).
 
 
 A note about Case Information (/CSE, CSE:GET, CSE:SAY)
