@@ -1,4 +1,4 @@
-AChoir - v3.2
+AChoir - v3.3
 
 AChoir
 ======
@@ -409,9 +409,9 @@ By default Syslogging is turned OFF - This is in keeping with my desire to keep 
 footprint minimal, and have as little impact on the target machine as possible.  In some cases
 however, the need run and track AChoir across many machines overides the above.
 
-To turn Syslogging on, simply set the Syslog Server IP (SET:SyslogS=nnn.nnn.nnn.nnn). Currently
-AChoir is currently written to syslog minimal information.  This may be expanded in the future.  
-Currently Syslogging is just a way to monitor the progress of AChoir, and does not log
+To turn Syslogging on, simply set the Syslog Server IP (SET:SyslogS=nnn.nnn.nnn.nnn). AChoir 
+is currently written to have three logging levels (none, min, max). Please note that the current 
+Syslogging capability is just a way to monitor the progress of AChoir, and it does not log 
 extensively like the local log.  Continue to use the local log to get a full picture of everything
 AChoir has done (including errors).
 

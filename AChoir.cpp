@@ -186,6 +186,7 @@
 /*                 SET:SYSLOGS=<Syslog Server IP>               */
 /*                 SET:SYSLOGP=<Syslog Port>                    */
 /*                 SET:SYSLOGL=None, Min, Max                   */
+/* AChoir v3.3  - Expand syslogging                             */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -281,7 +282,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v3.2\0";
+char Version[10] = "v3.3\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -1469,7 +1470,7 @@ int main(int argc, char *argv[])
     if (iSyslogLvl > 0)
     {
       memset(SyslogTMSG, 0, 2048);
-      sprintf(SyslogTMSG, "Creating Base Acquisition Directory: %s\0", BACQDir);
+      sprintf(SyslogTMSG, "INF: Creating Base Acquisition Directory: %s", BACQDir);
       AChSyslog(SyslogTMSG);
     }
 
@@ -2358,6 +2359,14 @@ int main(int argc, char *argv[])
               consPrefix("[+] ", consGre);
               printf("Switching to INI File: %s\n", Inrec + 4);
 
+              if (iSyslogLvl > 0)
+              {
+                memset(SyslogTMSG, 0, 2048);
+                sprintf(SyslogTMSG, "INI: Switching to INI File: %s", Inrec + 4);
+                AChSyslog(SyslogTMSG);
+              }
+
+
               // Only close the handle if its not Console. If it is Console Set it back to File
               if(consOrFile == 0)
                fclose(IniHndl);
@@ -2589,7 +2598,7 @@ int main(int argc, char *argv[])
             if (iSyslogLvl > 0)
             {
               memset(SyslogTMSG, 0, 2048);
-              sprintf(SyslogTMSG, "%s\0", Inrec);
+              sprintf(SyslogTMSG, "%.3s: %s", Inrec, Inrec+4);
               AChSyslog(SyslogTMSG);
             }
 
@@ -2653,7 +2662,7 @@ int main(int argc, char *argv[])
             if (iSyslogLvl > 0)
             {
               memset(SyslogTMSG, 0, 2048);
-              sprintf(SyslogTMSG, "%s\0", Inrec);
+              sprintf(SyslogTMSG, "%.3s: %s", Inrec, Inrec + 4);
               AChSyslog(SyslogTMSG);
             }
 
@@ -3669,6 +3678,14 @@ int main(int argc, char *argv[])
               fprintf(LogHndl, "[!] Required File Not Found: %s - Exiting!\n", Inrec + 4);
               consPrefix("[!] ", consRed);
               printf("Required File Not Found: %s - Exiting!\n", Inrec + 4);
+
+              if (iSyslogLvl > 1)
+              {
+                memset(SyslogTMSG, 0, 2048);
+                sprintf(SyslogTMSG, "REQ: Required File Not Found: %s - Exiting!", Inrec + 4);
+                AChSyslog(SyslogTMSG);
+              }
+
               cleanUp_Exit(3);
               exit (3);
             }
@@ -3677,6 +3694,13 @@ int main(int argc, char *argv[])
               fprintf(LogHndl, "[+] Required File Found: %s\n", Inrec + 4);
               consPrefix("[+] ", consGre);
               printf("Required File Found: %s\n", Inrec + 4);
+
+              if (iSyslogLvl > 1)
+              {
+                memset(SyslogTMSG, 0, 2048);
+                sprintf(SyslogTMSG, "REQ: Required File Found: %s", Inrec + 4);
+                AChSyslog(SyslogTMSG);
+              }
             }
           }
           else
@@ -4048,11 +4072,11 @@ int main(int argc, char *argv[])
              iSyslogLvl = 1;
 
             memset(SyslogTMSG, 0, 2048);
-            sprintf(SyslogTMSG, "AChoir Version: %s Syslogging Started.  Level: %d", Version, iSyslogLvl);
+            sprintf(SyslogTMSG, "INF: AChoir Version: %s Syslogging Started.  Level: %d  ACQ: %s", Version, iSyslogLvl, ACQName);
             AChSyslog(SyslogTMSG);
 
             memset(SyslogTMSG, 0, 2048);
-            sprintf(SyslogTMSG, "Windows Ver: %s Name: %s Memory: %lld  Avail Disk: %lld", descrWinVer, cName, TotalMem, AvailDisk);
+            sprintf(SyslogTMSG, "INF: Windows Ver: %s Name: %s Memory: %lld  Avail Disk: %lld", descrWinVer, cName, TotalMem, AvailDisk);
             AChSyslog(SyslogTMSG);
           }
           else
@@ -4073,7 +4097,8 @@ int main(int argc, char *argv[])
             /****************************************************************/
             if (iSyslogLvl > 0)
             {
-              sprintf(SyslogTMSG, "AChoir Version: %s Syslogging Stopped.  Old Level = %d", Version, iSyslogLvl);
+              memset(SyslogTMSG, 0, 2048);
+              sprintf(SyslogTMSG, "INF: AChoir Version: %s Syslogging Stopped.  Old Level = %d", Version, iSyslogLvl);
               AChSyslog(SyslogTMSG);
             }
 
@@ -4086,14 +4111,22 @@ int main(int argc, char *argv[])
             /* Set Syslogging Level                                         */
             /****************************************************************/
             iSyslogLvl = 1;
+
+            memset(SyslogTMSG, 0, 2048);
+            sprintf(SyslogTMSG, "SET: Syslog Level Set To min: 1");
+            AChSyslog(SyslogTMSG);
           }
           else
-          if (strnicmp(Inrec, "SET:SyslogL=max", 16) == 0)
+          if (strnicmp(Inrec, "SET:SyslogL=max", 15) == 0)
           {
             /****************************************************************/
             /* Set Syslogging Level                                         */
             /****************************************************************/
             iSyslogLvl = 2;
+
+            memset(SyslogTMSG, 0, 2048);
+            sprintf(SyslogTMSG, "SET: Syslog Level Set To max: 2");
+            AChSyslog(SyslogTMSG);
           }
           else
           if (strnicmp(Inrec, "XIT:", 4) == 0)
@@ -4150,12 +4183,20 @@ int main(int argc, char *argv[])
             if (iSyslogLvl > 0)
             {
               memset(SyslogTMSG, 0, 2048);
-              sprintf(SyslogTMSG, "SYS: %s\0", TempDir);
+              sprintf(SyslogTMSG, "SYS: %s", TempDir);
               AChSyslog(SyslogTMSG);
             }
             
             LastRC = system(TempDir);
             fprintf(LogHndl, "Return Code: %d\n", LastRC);
+
+            if (iSyslogLvl > 1)
+            {
+              memset(SyslogTMSG, 0, 2048);
+              sprintf(SyslogTMSG, "SYS: Return Code: %d", LastRC);
+              AChSyslog(SyslogTMSG);
+            }
+
           }
           else
           if ((strnicmp(Inrec, "EXE:", 4) == 0) || (strnicmp(Inrec, "EXA:", 4) == 0) || (strnicmp(Inrec, "EXB:", 4) == 0))
@@ -4185,7 +4226,7 @@ int main(int argc, char *argv[])
             if (iSyslogLvl > 0)
             {
               memset(SyslogTMSG, 0, 2048);
-              sprintf(SyslogTMSG, "%s\0", Inrec);
+              sprintf(SyslogTMSG, "%.3s: %s", Inrec, Inrec + 4);
               AChSyslog(SyslogTMSG);
             }
             
@@ -4318,6 +4359,14 @@ int main(int argc, char *argv[])
                 printf("Spawn Error(%d): %s\n", errno, strerror(errno));
               }
               fprintf(LogHndl, "Return Code: %d\n", LastRC);
+
+              if (iSyslogLvl > 1)
+              {
+                memset(SyslogTMSG, 0, 2048);
+                sprintf(SyslogTMSG, "%.3s: Return Code: %d", Inrec, LastRC);
+                AChSyslog(SyslogTMSG);
+              }
+
             }
           }
           else
@@ -4364,7 +4413,7 @@ int main(int argc, char *argv[])
                 if (iSyslogLvl > 0)
                 {
                   memset(SyslogTMSG, 0, 2048);
-                  sprintf(SyslogTMSG, "%s\0", Inrec);
+                  sprintf(SyslogTMSG, "%.3s: %s", Inrec, Inrec + 4);
                   AChSyslog(SyslogTMSG);
                 }
 
@@ -4454,8 +4503,16 @@ int main(int argc, char *argv[])
                   consPrefix("[!] ", consRed);
                   printf("Spawn Error(%d): %s\n", errno, strerror(errno));
                 }
+
                 fprintf(LogHndl, "Return Code: %d\n", LastRC);
-               
+
+                if (iSyslogLvl > 1)
+                {
+                  memset(SyslogTMSG, 0, 2048);
+                  sprintf(SyslogTMSG, "CMD: Return Code: %d", LastRC);
+                  AChSyslog(SyslogTMSG);
+                }
+
               }
             }
           }
@@ -5579,6 +5636,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   strncpy(TooTooFile, tmpTooFile, 4000);
 
   printf("     %s\n", tmpTooFile);
+
   if(binLog == 1)
    fprintf(LogHndl, "     %s\n", tmpTooFile);
   
@@ -5604,6 +5662,14 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
     fprintf(LogHndl, "[*] Destination File Already Exists. \n     Renamed To: %s\n", tmpTooFile);
     consPrefix("[*] ", consYel);
     printf("Destination File Already Exists. \n     Renamed To: %s\n", tmpTooFile);
+
+    if (iSyslogLvl > 1)
+    {
+      memset(SyslogTMSG, 0, 2048);
+      sprintf(SyslogTMSG, "NCP: Destination File Already Exists. Renamed To: %s", tmpTooFile);
+      AChSyslog(SyslogTMSG);
+    }
+
   }
 
 
@@ -5690,6 +5756,13 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
 
       consPrefix("[!] ", consRed);
       printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, Frmstat.st_size);
+
+      if (iSyslogLvl > 1)
+      {
+        memset(SyslogTMSG, 0, 2048);
+        sprintf(SyslogTMSG, "NCP: Not Enough Disk Space Available : %lld of %ld", AvailDisk, Frmstat.st_size);
+        AChSyslog(SyslogTMSG);
+      }
 
       fflush(stdout); //More PSExec Friendly
       return 1;
@@ -6156,6 +6229,14 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
     fprintf(LogHndl, "[*] DeCompressed File Already Exists. \n     Renamed To: %s\n", tmpTooFile);
     consPrefix("[*] ", consYel);
     printf("Decompressed File Already Exists. \n     Renamed To: %s\n", tmpTooFile);
+
+    if (iSyslogLvl > 1)
+    {
+      memset(SyslogTMSG, 0, 2048);
+      sprintf(SyslogTMSG, "NCP: Decompressed File Already Exists. Renamed To: %s", tmpTooFile);
+      AChSyslog(SyslogTMSG);
+    }
+
   }
 
 
@@ -6236,6 +6317,13 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
 
       consPrefix("[!] ", consRed);
       printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, Frmstat.st_size);
+
+      if (iSyslogLvl > 1)
+      {
+        memset(SyslogTMSG, 0, 2048);
+        sprintf(SyslogTMSG, "NCP: Not Enough Disk Space Available : %lld of %ld", AvailDisk, Frmstat.st_size);
+        AChSyslog(SyslogTMSG);
+      }
 
       fflush(stdout); //More PSExec Friendly
       return 1;
@@ -7103,6 +7191,13 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         fprintf(LogHndl, "\n[+] Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
         fprintf(LogHndl, "    %s\n", Full_Fname);
 
+        if (iSyslogLvl > 1)
+        {
+          memset(SyslogTMSG, 0, 2048);
+          sprintf(SyslogTMSG, "NCP: Raw Copying MFT File: %s  MFTRecord: %d", Full_Fname, Full_MFTID);
+          AChSyslog(SyslogTMSG);
+        }
+
 
         // Set initial Variables - Maximum File Size, Btyes Left and Recursion Depth
         maxFileSize = leftFileSize = iDepth = 0 ;
@@ -7497,6 +7592,13 @@ long mapsDrive(char *mapString, int mapLog)
       if (mapLog == 1)
         fprintf(LogHndl, "[+] Successfully Mapped %s to drive %s\n", Conrec, szConnection);
 
+      if (iSyslogLvl > 0)
+      {
+        memset(SyslogTMSG, 0, 2048);
+        sprintf(SyslogTMSG, "MAP: Successfully Mapped %s to drive %s", Conrec, szConnection);
+        AChSyslog(SyslogTMSG);
+      }
+      
       strncpy(MapDrive, szConnection, 3);
 
       sprintf(BACQDir, "%s\\%s\0", szConnection, ACQName);
@@ -7641,6 +7743,14 @@ long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int 
 
       if (shrLog == 1)
         fprintf(LogHndl, "[+] Successfully Created Share on %s: %s -> %s\n", netServer, xnetSharePath, xnetShareName);
+
+      if (iSyslogLvl > 0)
+      {
+        memset(SyslogTMSG, 0, 2048);
+        sprintf(SyslogTMSG, "SHR: Successfully Created Share on %s: %s -> %s", netServer, xnetSharePath, xnetShareName);
+        AChSyslog(SyslogTMSG);
+      }
+
 
       fflush(stdout); //More PSExec Friendly
       return 0;
@@ -7970,6 +8080,13 @@ void cleanUp_Exit(int exitRC)
     consPrefix("[!] ", consRed);
     printf("WARNING: This Acquisition MAY BE INCOMPLETE - Check the Log File for Details\n\n");
 
+    if (iSyslogLvl > 0)
+    {
+      memset(SyslogTMSG, 0, 2048);
+      sprintf(SyslogTMSG, "ERR: Files Copied During this Acquisition RAN OUT OF DISK SPACE");
+      AChSyslog(SyslogTMSG);
+    }
+
     if (iLogOpen == 1)
     {
       fprintf(LogHndl, "\n[!] WARNING: Files Copied During this Acquisition RAN OUT OF DISK SPACE\n");
@@ -8046,7 +8163,7 @@ void cleanUp_Exit(int exitRC)
   if (iSyslogLvl > 0)
   {
     memset(SyslogTMSG, 0, 2048);
-    sprintf(SyslogTMSG, "AChoir Version: %s Acquisition Completed.  Return Code: %d", Version, exitRC);
+    sprintf(SyslogTMSG, "INF: AChoir Version: %s Acquisition Completed.  Return Code: %d  ACQ: %s", Version, exitRC, ACQName);
     AChSyslog(SyslogTMSG);
   }
 
@@ -9166,6 +9283,13 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
       consPrefix("[+] ", consGre);
       printf("Destination File Already Exists. \n     Renamed To: %s\n", Tooo_Fname);
+
+      if (iSyslogLvl > 1)
+      {
+        memset(SyslogTMSG, 0, 2048);
+        sprintf(SyslogTMSG, "NCP: Destination File Already Exists. Renamed To: %s", Tooo_Fname);
+        AChSyslog(SyslogTMSG);
+      }
     }
   }
 
@@ -9437,6 +9561,14 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
           consPrefix("     (Sig) ", consGre);
           printf("Header Signature Match Found in File (%s)\n", tmpSig);
           fprintf(LogHndl, "     (Sig)Header Signature Match Found in File (%s)\n", tmpSig);
+
+          if (iSyslogLvl > 1)
+          {
+            memset(SyslogTMSG, 0, 2048);
+            sprintf(SyslogTMSG, "NCS: Header Signature Match Found in File (%s)", tmpSig);
+            AChSyslog(SyslogTMSG);
+          }
+
           break;
         }
 
@@ -9446,6 +9578,14 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
           consPrefix("     (Sig) ", consGre);
           printf("File Extention Match Found (%s)\n", filetype);
           fprintf(LogHndl, "     (Sig)File Extention Match Found (%s)\n", filetype);
+
+          if (iSyslogLvl > 1)
+          {
+            memset(SyslogTMSG, 0, 2048);
+            sprintf(SyslogTMSG, "NCS: File Extension Match Found in File (%s)", filetype);
+            AChSyslog(SyslogTMSG);
+          }
+
           break;
         }
       }
@@ -9502,6 +9642,14 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
           consPrefix("[!] ", consRed);
           printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, iDataSize);
 
+          if (iSyslogLvl > 1)
+          {
+            memset(SyslogTMSG, 0, 2048);
+            sprintf(SyslogTMSG, "NCP: Not Enough Disk Space Available : %lld of %ld", AvailDisk, Frmstat.st_size);
+            AChSyslog(SyslogTMSG);
+          }
+
+
           delete[] file;
           fflush(stdout); //More PSExec Friendly
           return 1;
@@ -9551,6 +9699,14 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
         consPrefix("[!] ", consRed);
         printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, iDataSize);
+
+        if (iSyslogLvl > 1)
+        {
+          memset(SyslogTMSG, 0, 2048);
+          sprintf(SyslogTMSG, "NCP: Not Enough Disk Space Available : %lld of %ld", AvailDisk, iDataSize);
+          AChSyslog(SyslogTMSG);
+        }
+
 
         free(bufD);
         delete[] file;
@@ -10475,6 +10631,16 @@ int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName)
 
   consPrefix("[+] ", consGre);
   printf("Getting File: %s\n", WGetFile);
+
+  if (iSyslogLvl > 0)
+  {
+    memset(SyslogTMSG, 0, 2048);
+    sprintf(SyslogTMSG, "GET: Getting URL: %s  File: %s", WGetURL, WGetFile);
+    AChSyslog(SyslogTMSG);
+  }
+
+
+
 
   unlink(WGetFile);
 
