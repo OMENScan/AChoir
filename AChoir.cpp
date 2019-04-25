@@ -187,6 +187,7 @@
 /*                 SET:SYSLOGP=<Syslog Port>                    */
 /*                 SET:SYSLOGL=None, Min, Max                   */
 /* AChoir v3.3  - Expand syslogging                             */
+/* AChoir v3.4  - Add Set:MapErr=Continue, Fail, Query)         */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -282,7 +283,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v3.3\0";
+char Version[10] = "v3.4\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -293,8 +294,9 @@ int  iIsAdmin = 0;
 int  iExec = 0;
 int  iIsCompressed = 0;
 char cIsCompressed[15] = "\0";
-int  setNCP = 2;  // 0=NODCMP, 1=DECOMP/RAWONLY, 2=OSCOPY (Default)
+int  setNCP = 2;    // 0=NODCMP, 1=DECOMP/RAWONLY, 2=OSCOPY (Default)
 int  setCPath = 0;  // 0=None, 1=Partial, 2=Full
+int  setMapErr = 0; // 0=Continue, 1=Query, 2=Fail
 
 int  iNative = 0; // Are we Native 64Bit on 64Bit (Native = 1, NonNative = 0)
 char sNative[10] = "\0";
@@ -767,6 +769,7 @@ int main(int argc, char *argv[])
   iLogOpen = 0;
   iOutOfDiskSpace = 0;
   iSyslogLvl = 0;
+  setMapErr = 0;
 
   memset(CurrDir, 0, 1024);
   memset(CurrWorkDir, 0, 1024);
@@ -4001,6 +4004,30 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\r");
 
             netShareDel(Inrec + 4, 1);
+          }
+          else
+          if (strnicmp(Inrec, "SET:MAPERR=CONT", 15) == 0)
+          {
+            /****************************************************************/
+            /* Mapping Error Response to Continue                           */
+            /****************************************************************/
+            setMapErr = 0;
+          }
+          else
+          if (strnicmp(Inrec, "SET:MAPERR=QUER", 15) == 0)
+          {
+            /****************************************************************/
+            /* Mapping Error Response to Continue                           */
+            /****************************************************************/
+            setMapErr = 1;
+          }
+          else
+          if (strnicmp(Inrec, "SET:MAPERR=FAIL", 15) == 0)
+          {
+            /****************************************************************/
+            /* Mapping Error Response to Continue                           */
+            /****************************************************************/
+            setMapErr = 2;
           }
           else
           if (strnicmp(Inrec, "SET:NCP=NODCMP", 14) == 0)
@@ -7559,8 +7586,29 @@ long mapsDrive(char *mapString, int mapLog)
       if (mapLog == 1)
         fprintf(LogHndl, "[!] Error Mapping Resource: %s\n\n", Conrec);
 
+
+      /****************************************************************/
+      /* Check setMapErr (0=Continue, 1=Query, 2=Fail)                */
+      /****************************************************************/
+      if (setMapErr == 0)
+      {
+        // Continue but Set LastRC=1
+        LastRC = 1;
+        return(1);
+      }
+      else
+      if (setMapErr == 2)
+      {
+        // Exit with RC=1
+        cleanUp_Exit(1);
+        exit(1);
+      }
+
+      /****************************************************************/
+      /* Fell Through, so setMapErr must be 1 - Query                 */
+      /****************************************************************/
       consPrefix("[?] ", consYel);
-      printf("Please Re-Enter Server\\Drive or \"quit\".\n");
+      printf("Please Re-Enter Server\\Drive, \"quit\", or \"continue\".\n");
 
       memset(Conrec, 0, 255);
       consPrefix("[?] ", consYel);
@@ -7580,7 +7628,23 @@ long mapsDrive(char *mapString, int mapLog)
 
         fflush(stdout); //More PSExec Friendly
         exit (1);
+      }
+      else
+      if (strnicmp(Conrec, "cont", 4) == 0)
+      {
+        consPrefix("[!] ", consRed);
+        printf("Continuing without Mapped Drive.\n");
 
+        if (mapLog == 1)
+        {
+          fprintf(LogHndl, "[!] Continuing without Mapped Drive..\n");
+          LastRC = 1;
+          return(1);
+        }
+
+        fflush(stdout); //More PSExec Friendly
+        LastRC = 1;
+        return(1);
       }
     }
     else
@@ -7605,6 +7669,8 @@ long mapsDrive(char *mapString, int mapLog)
       sprintf(CachDir, "%s\\%s\\Cache\0", szConnection, ACQName);
 
       fflush(stdout); //More PSExec Friendly
+
+      LastRC = 0;
       return 0;
     }
   }

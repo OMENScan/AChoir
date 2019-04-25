@@ -1,4 +1,4 @@
-AChoir - v3.3
+AChoir - v3.4
 
 AChoir
 ======
@@ -137,6 +137,13 @@ Here is a list of all the Actions and Objects:
 
 Actions:
 ========
+SET:MapErr=Continue If a MAP: fails to Map a drive
+                Continue.  The Return code will be 
+                Set to 1 (This is the default behavior)
+SET:MapErr=Fail     If a MAP: fails to Map a drive
+                Fail and Exit out of AChoir
+SET:MapErr=Query    If a MAP: fails to Map a drive
+                Query for the server to be re-entered
 SET:SyslogL=<syslogging Level> Sets the Syslog Level.
                 Options are: none, min, max
                 The default is NONE (No Syslogging)
@@ -299,13 +306,13 @@ CKY:     Check if a File exists. If it does, run until an "END:"
          action
 CKN:     Check if a File does not exist. If it doesn't, run until 
          an "END:" action
-RC=:     If the Last GET:, SYS: or EXE: command was this return code
+RC=:     If the Last MAP:, GET:, SYS: or EXE: command was this return code
          run the statements until an END:
-RC!:     If the Last GET:, SYS: or EXE: command was NOT this return code
+RC!:     If the Last MAP:, GET:, SYS: or EXE: command was NOT this return code
          run the statements until an END:
-RC>:     If the Last GET:, SYS: or EXE: command return code was >
+RC>:     If the Last MAP:, GET:, SYS: or EXE: command return code was >
          run the statements until an END:
-RC<:     If the Last GET:, SYS: or EXE: command return code was <
+RC<:     If the Last MAP:, GET:, SYS: or EXE: command return code was <
          run the statements until an END:
 VER:<verkeyword> 
          Check the passeed OS Version <verkeyword> Keyword to see if that
