@@ -1,0 +1,64 @@
+***************************************************
+* VSS Test                                        *
+***************************************************
+ACQ:\
+CKY:C:\Windows\Sysnative\wbem\wmic.exe
+ Say:Calling Non-Native WMIC Query for VSS
+ SYS:for /f "tokens=1,2,3,4" %%a in ('c:\windows\sysnative\vssadmin list shadows ^| findstr /I /C:"shadow copy volume:" ') do @echo %%d>>&Dir\&Acn\Cache\VSSEnum.txt
+ *SYS:C:\windows\sysnative\wbem\wmic.exe shadowcopy get deviceobject| findstr /i "harddiskvolumeshadowcopy"> &Dir\&Acn\Cache\VSSEnum.txt
+ LST:&Acn\Cache\VSSEnum.txt
+ ACQ:\VSS
+ SYS:mklink /d &Acq\&Num &Lst\ 
+END:
+
+CKN:C:\Windows\Sysnative\wbem\wmic.exe
+ Say:Calling Native WMIC Query for VSS
+ SYS:for /f "tokens=1,2,3,4" %%a in ('c:\windows\system32\vssadmin list shadows ^| findstr /I /C:"shadow copy volume:" ') do @echo %%d>>&Dir\&Acn\Cache\VSSEnum.txt
+ *SYS:C:\windows\System32\wbem\wmic.exe shadowcopy get deviceobject| findstr /i "harddiskvolumeshadowcopy"> &Dir\&Acn\Cache\VSSEnum.txt
+ LST:&Acn\Cache\VSSEnum.txt
+ ACQ:\VSS
+ SYS:mklink /d &Acq\&Num &Lst\
+END:
+
+***
+* Set Variables
+***
+VR1:Loop
+CN0:0
+CN1:&Max
+****************************
+* Start Of our Loop        *
+****************************
+LBL:Loop
+ CN0:++
+ **************************************************************
+ * If we exceed the number of records - Set To ExitLoop Label *
+ **************************************************************
+ N>>:&CN0 &CN1
+  VR1:ExitLoop
+ END:
+ **************************************************************
+ * Copy Prefetch from VSS Link, Then Delete the Link          *
+ **************************************************************
+ ACQ:\VSS
+ FOR:&Acq\&CN0\Windows\Prefetch\*.*
+ ACQ:\VSSPrf-&CN0
+ CPY:"&For" "&Acq\&Fnm"
+ ACQ:\VSS
+ SYS:RMDir &Acq\&CN0
+ JMP:&VR1
+****************************
+* Exit Loop Label          *
+****************************
+LBL:ExitLoop
+****************************
+* Drop Into Console        *
+****************************
+SAY:
+SAY: VSS Prefetch Acquisition Complete...
+SAY:
+SAY: Now Hashing Artifacts...
+HSH:ACQ
+SAY:All Done!  Press Any Key to Finish.
+
+* ini:Console
