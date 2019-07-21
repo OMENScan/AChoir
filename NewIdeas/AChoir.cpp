@@ -189,6 +189,7 @@
 /* AChoir v3.3  - Expand syslogging                             */
 /* AChoir v3.4  - Add Set:MapErr=Continue, Fail, Query)         */
 /* AChoir v3.5  - Add &Max, &CN0-CN9, CN++, CN-- (Counters)     */
+/*                &Acn (Acquisition Name)                       */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -1820,6 +1821,14 @@ int main(int argc, char *argv[])
                 sprintf(Inrec + oPtr, "%s\\%s", BACQDir, ACQDir);
               else
                 sprintf(Inrec + oPtr, "%s", BACQDir);
+
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Acn", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%s", ACQName);
 
               oPtr = strlen(Inrec);
               iPtr += 3;
