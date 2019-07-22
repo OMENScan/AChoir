@@ -189,6 +189,8 @@ SET:CopyPath=Full Set the NCP: Copy Path to Partial and CPY: Copy Path to Full.
                   This only works for NCP: Copy, and will copy ONLY the path
                   after any wildcards.  This allows the examiner to see the 
                   RELATIVE path the the source files were in
+SET:Trim=Yes When using &For or &Lst, Trim leading and trailing spaces (Default)
+SET:Trim=No  When using &For or &Lst, DO NOT Trim leading and trailing spaces
 SAY:     Echo Text and Objects to the Screen and Logfile
 CON:Hide Hide The Console Screen - For quiet Acquisition
          DO NOT USE IF YOU HAVE SCREEN INPUT - For any 
@@ -364,6 +366,7 @@ Objects:
 &FNM     Each &FOR File Name (Without Path)
 &VR0 - &VR9  Variables set by the VR0: - VR9: Actions
 &CN0 - &CN9  Counters set and incremented/decremented by the CN0: - CN9: Actions
+&CNR     AFTER using the &FOR or &LST variable the number of records counted is stored here
 &VCK     Results of last Volume Check (VCK:<x:\>
 &MEM     System Memory 
 &DSA     Disk Space Available
@@ -513,6 +516,14 @@ I have come up with the following nomenclature:
   the CURRENT directory.
 
 I believe this is the easiest way to support both types ofsearches. 
+
+
+A note about SET:TRIM=<yes> or <No>
+------
+Achoir is designed to work with Built in DOS utilities and commands.  I have found that 
+Redirecting output to a file can OFTEN add eroneous spaces which then make parsing 
+difficult. To overcome that, I have added the ability to Trim or Not Trim &For and &Lst
+file enumeration.  Trimming is on by default, but if you don't want it, you can turn it off.
 
 
 A note about LZNT1 Decompression

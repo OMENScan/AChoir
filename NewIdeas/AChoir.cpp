@@ -188,8 +188,11 @@
 /*                 SET:SYSLOGL=None, Min, Max                   */
 /* AChoir v3.3  - Expand syslogging                             */
 /* AChoir v3.4  - Add Set:MapErr=Continue, Fail, Query)         */
-/* AChoir v3.5  - Add &Max, &CN0-CN9, CN++, CN-- (Counters)     */
+/* AChoir v3.5  - Add &CNR, &CN0-CN9, CN++, CN-- (Counters)     */
 /*                &Acn (Acquisition Name)                       */
+/*                Add Set:Trim=<Yes> or <No> (Default is Yes)   */
+/*                 Trims &FOR and &LST since DOS File Redirects */
+/*                 OFTEN add erroneous spaces                   */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -299,6 +302,7 @@ char cIsCompressed[15] = "\0";
 int  setNCP = 2;    // 0=NODCMP, 1=DECOMP/RAWONLY, 2=OSCOPY (Default)
 int  setCPath = 0;  // 0=None, 1=Partial, 2=Full
 int  setMapErr = 0; // 0=Continue, 1=Query, 2=Fail
+int  setTrim = 1;   // 0=NoTrim, 1=Trim (Default Trim the read records &For and &Lst)
 
 int  iNative = 0; // Are we Native 64Bit on 64Bit (Native = 1, NonNative = 0)
 char sNative[10] = "\0";
@@ -317,6 +321,7 @@ int DebugFlag = 0;
 int ListDir(char *DirName, char *LisType);
 size_t Squish(char *SqString);
 size_t unIndent(char *SqString);
+size_t LRTrim(char *SqString);
 long twoSplit(char *SpString);
 char *stristr(const char *String, const char *Pattern);
 int  FileMD5(char *MD5FileName);
@@ -485,7 +490,7 @@ int  iVar;
 char VarArray[2560]; // Ten 256 Byte Variables (&Var0 - &Var9)
 int iCnt;
 int CntArray[10];   // Ten Counter Variables (&Cn0 - &Cn9)
-int iMaxCnt = 0;     // Maximum Record Count (Set by FOR:, LST: &FOR, &LST)
+int iMaxCnt = 0;    // Maximum Record Count (Set by FOR:, LST: &FOR, &LST)
 
 int  iMonth, iDay, iYear, iHour, iMin, iSec, iYYYY;
 
@@ -1679,6 +1684,8 @@ int main(int argc, char *argv[])
               strtok(Filrec, "\n");
               strtok(Filrec, "\r");
 
+              if(setTrim == 1)
+               LRTrim(Filrec);
 
               /****************************************************************/
               /* Get Just the File Name                                       */
@@ -1706,6 +1713,9 @@ int main(int argc, char *argv[])
 
               strtok(Lstrec, "\n");
               strtok(Lstrec, "\r");
+
+              if (setTrim == 1)
+               LRTrim(Lstrec);
             }
             else
               break;
@@ -1720,6 +1730,9 @@ int main(int argc, char *argv[])
 
               strtok(Dskrec, "\n");
               strtok(Dskrec, "\r");
+
+              if (setTrim == 1)
+               LRTrim(Dskrec);
             }
             else
               break;
@@ -1876,7 +1889,7 @@ int main(int argc, char *argv[])
               iPtr += 3;
             }
             else
-            if (strnicmp(o32VarRec + iPtr, "&Max", 4) == 0)
+            if (strnicmp(o32VarRec + iPtr, "&Cnr", 4) == 0)
             {
               sprintf(Inrec + oPtr, "%d\0", iMaxCnt);
               oPtr = strlen(Inrec);
@@ -4227,6 +4240,22 @@ int main(int argc, char *argv[])
             setNCP = 2;
           }
           else
+          if (strnicmp(Inrec, "SET:TRIM=YES", 12) == 0)
+          {
+            /****************************************************************/
+            /* Trim Leading and Trailing Spaces                              */
+            /****************************************************************/
+            setTrim = 1;
+          }
+          else
+          if (strnicmp(Inrec, "SET:TRIM=NO", 11) == 0)
+          {
+            /****************************************************************/
+            /* DO NOT Trim Leading and Trailing Spaces                      */
+            /****************************************************************/
+            setTrim = 0;
+          }
+          else
           if (strnicmp(Inrec, "SET:CopyPath=None", 17) == 0)
           {
             /****************************************************************/
@@ -5279,6 +5308,45 @@ size_t unIndent(char *SqString)
 
     // Null Terminate the string
     SqString[Sqx+1] = '\0';
+  }
+
+  SqLen = strlen(SqString);
+  return SqLen;
+}
+
+
+
+/****************************************************************/
+/* Remove Indented Spaces and Tabs and Trailing Spaces          */
+/****************************************************************/
+size_t LRTrim(char *SqString)
+{
+  size_t Sqi, Sqx, SqLen;
+
+  //Zap any preceding spaces or tabs..
+  for (Sqi = 0; Sqi < strlen(SqString); Sqi++)
+  {
+    if ((SqString[Sqi] != ' ') && (SqString[Sqi] != 9))
+      break;
+  }
+
+  if (Sqi > 0)
+  {
+    for (Sqx = 0; Sqx < strlen(SqString) + Sqi; Sqx++)
+      SqString[Sqx] = SqString[Sqx + Sqi];
+
+    // Null Terminate the string
+    SqString[Sqx + 1] = '\0';
+  }
+
+
+  //Zap any non-printable ending characters...
+  for (Sqi = strlen(SqString); Sqi >= 0; Sqi--)
+  {
+    if ((SqString[Sqi] < 33) || (SqString[Sqi] > 126))
+      SqString[Sqi] = '\0';
+    else
+      break;
   }
 
   SqLen = strlen(SqString);

@@ -4,8 +4,8 @@
 ACQ:\
 CKY:C:\Windows\Sysnative\wbem\wmic.exe
  Say:Calling Non-Native WMIC Query for VSS
- SYS:for /f "tokens=1,2,3,4" %%a in ('c:\windows\sysnative\vssadmin list shadows ^| findstr /I /C:"shadow copy volume:" ') do @echo %%d>>&Dir\&Acn\Cache\VSSEnum.txt
- *SYS:C:\windows\sysnative\wbem\wmic.exe shadowcopy get deviceobject| findstr /i "harddiskvolumeshadowcopy"> &Dir\&Acn\Cache\VSSEnum.txt
+ *SYS:for /f "tokens=1,2,3,4" %%a in ('c:\windows\sysnative\vssadmin list shadows ^| findstr /I /C:"shadow copy volume:" ') do @echo %%d>>&Dir\&Acn\Cache\VSSEnum.txt
+ SYS:C:\windows\sysnative\wbem\wmic.exe shadowcopy get deviceobject | findstr /i "harddiskvolumeshadowcopy"> &Dir\&Acn\Cache\VSSEnum.txt
  LST:&Acn\Cache\VSSEnum.txt
  ACQ:\VSS
  SYS:mklink /d &Acq\&Num &Lst\ 
@@ -13,8 +13,8 @@ END:
 
 CKN:C:\Windows\Sysnative\wbem\wmic.exe
  Say:Calling Native WMIC Query for VSS
- SYS:for /f "tokens=1,2,3,4" %%a in ('c:\windows\system32\vssadmin list shadows ^| findstr /I /C:"shadow copy volume:" ') do @echo %%d>>&Dir\&Acn\Cache\VSSEnum.txt
- *SYS:C:\windows\System32\wbem\wmic.exe shadowcopy get deviceobject| findstr /i "harddiskvolumeshadowcopy"> &Dir\&Acn\Cache\VSSEnum.txt
+ *SYS:for /f "tokens=1,2,3,4" %%a in ('c:\windows\system32\vssadmin list shadows ^| findstr /I /C:"shadow copy volume:" ') do @echo %%d>>&Dir\&Acn\Cache\VSSEnum.txt
+ SYS:C:\windows\System32\wbem\wmic.exe shadowcopy get deviceobject | findstr /i "harddiskvolumeshadowcopy"> &Dir\&Acn\Cache\VSSEnum.txt
  LST:&Acn\Cache\VSSEnum.txt
  ACQ:\VSS
  SYS:mklink /d &Acq\&Num &Lst\
@@ -25,7 +25,7 @@ END:
 ***
 VR1:Loop
 CN0:0
-CN1:&Max
+CN1:&CNR
 ****************************
 * Start Of our Loop        *
 ****************************
