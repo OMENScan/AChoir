@@ -1,6 +1,6 @@
 **********************************************************
 ** Live Acquisition Downloading Script (2.0)             *
-** This script uses cURL to get the LiveKit Utilities.   *
+** This script uses cURL to get the AChoir Utilities     *
 ** from the owners websites - These are not my utilities *
 ** I just use them in the Live Acquisition script.       *
 ** - Created by D0n Quix0te/OMENScan (May 2015)          *
@@ -8,11 +8,13 @@
 SAY:
 SAY: Welcome to AChoir Builder.
 SAY:
-SAY: AChoir is a framework for building and running Live Acquisition scripts 
-SAY: to gather forensics information from a Live Windows System.
+SAY: AChoir is a framework for building and running Forensic Collection scripts 
+SAY: to gather telemetry and artifacts from both Live Windows Systems and 
+SAY: Mounted images.
 SAY:
-SAY: I didn't write these awesome programs - They are just the ones I really 
-SAY: like, so I wrote an engine/framework to script them.  AChoir is that engine.
+SAY: Along with its buit in functions, AChoir uses many other FOSS utilities.
+SAY: AChoir can script these utilities to provide a consistent way of gathering.
+SAY: artifacts and telemetry.
 SAY:
 SAY: This AChoir script goes out to the Internets and downloads them.
 SAY:
@@ -29,9 +31,11 @@ PZZ: Press any key to continue (or q to quit)...
 REQ:&Dir\cURL.exe
 REQ:&Dir\unzip.exe
 SAY: 
-SAY: --- Getting WinPMem 1.6.2 (from GitHub/Rekall) ---
+SAY: --- Getting WinPMem (from GitHub/Rekall & Velocidex) ---
 SAY:
 DIR:\MEM
+FIL:WinPmem320.exe
+EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\WinPMem320.txt https://github.com/Velocidex/c-aff4/releases/download/3.2/winpmem_3.2.exe
 FIL:WinPmem201.exe
 EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\WinPMem201.txt https://github.com/google/rekall/releases/download/v1.3.2/winpmem_2.0.1.exe
 Fil:WinPmem.exe

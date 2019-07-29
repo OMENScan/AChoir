@@ -188,6 +188,11 @@
 /*                 SET:SYSLOGL=None, Min, Max                   */
 /* AChoir v3.3  - Expand syslogging                             */
 /* AChoir v3.4  - Add Set:MapErr=Continue, Fail, Query)         */
+/* AChoir v3.5  - Add &CNR, &CN0-CN9, CN++, CN-- (Counters)     */
+/*                &Acn (Acquisition Name)                       */
+/*                Add Set:Trim=<Yes> or <No> (Default is Yes)   */
+/*                 Trims &FOR and &LST since DOS File Redirects */
+/*                 OFTEN add erroneous spaces                   */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -283,7 +288,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v3.4\0";
+char Version[10] = "v3.5\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -297,6 +302,7 @@ char cIsCompressed[15] = "\0";
 int  setNCP = 2;    // 0=NODCMP, 1=DECOMP/RAWONLY, 2=OSCOPY (Default)
 int  setCPath = 0;  // 0=None, 1=Partial, 2=Full
 int  setMapErr = 0; // 0=Continue, 1=Query, 2=Fail
+int  setTrim = 1;   // 0=NoTrim, 1=Trim (Default Trim the read records &For and &Lst)
 
 int  iNative = 0; // Are we Native 64Bit on 64Bit (Native = 1, NonNative = 0)
 char sNative[10] = "\0";
@@ -315,6 +321,7 @@ int DebugFlag = 0;
 int ListDir(char *DirName, char *LisType);
 size_t Squish(char *SqString);
 size_t unIndent(char *SqString);
+size_t LRTrim(char *SqString);
 long twoSplit(char *SpString);
 char *stristr(const char *String, const char *Pattern);
 int  FileMD5(char *MD5FileName);
@@ -481,6 +488,9 @@ char cpyChar;
 
 int  iVar;
 char VarArray[2560]; // Ten 256 Byte Variables (&Var0 - &Var9)
+int iCnt;
+int CntArray[10];   // Ten Counter Variables (&Cn0 - &Cn9)
+int iMaxCnt = 0;    // Maximum Record Count (Set by FOR:, LST: &FOR, &LST)
 
 int  iMonth, iDay, iYear, iHour, iMin, iSec, iYYYY;
 
@@ -1674,6 +1684,8 @@ int main(int argc, char *argv[])
               strtok(Filrec, "\n");
               strtok(Filrec, "\r");
 
+              if(setTrim == 1)
+               LRTrim(Filrec);
 
               /****************************************************************/
               /* Get Just the File Name                                       */
@@ -1701,6 +1713,9 @@ int main(int argc, char *argv[])
 
               strtok(Lstrec, "\n");
               strtok(Lstrec, "\r");
+
+              if (setTrim == 1)
+               LRTrim(Lstrec);
             }
             else
               break;
@@ -1715,6 +1730,9 @@ int main(int argc, char *argv[])
 
               strtok(Dskrec, "\n");
               strtok(Dskrec, "\r");
+
+              if (setTrim == 1)
+               LRTrim(Dskrec);
             }
             else
               break;
@@ -1821,6 +1839,14 @@ int main(int argc, char *argv[])
               iPtr += 3;
             }
             else
+            if (strnicmp(o32VarRec + iPtr, "&Acn", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%s", ACQName);
+
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
             if (strnicmp(o32VarRec + iPtr, "&Win", 4) == 0)
             {
               sprintf(Inrec + oPtr, "%s", WinRoot);
@@ -1859,6 +1885,13 @@ int main(int argc, char *argv[])
             if (strnicmp(o32VarRec + iPtr, "&Num", 4) == 0)
             {
               sprintf(Inrec + oPtr, "%d\0", LoopNum);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Cnr", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%d\0", iMaxCnt);
               oPtr = strlen(Inrec);
               iPtr += 3;
             }
@@ -2006,6 +2039,77 @@ int main(int argc, char *argv[])
               else
               {
                 sprintf(Inrec + oPtr, "%s\0", VarArray+iVar);
+                oPtr = strlen(Inrec);
+                iPtr += 3;
+              }
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&CN", 3) == 0)
+            {
+              switch (o32VarRec[iPtr + 3])
+              {
+                case '0':
+                  iCnt = 0;
+                break;
+
+                case '1':
+                  iCnt = 1;
+                  break;
+
+                case '2':
+                  iCnt = 2;
+                  break;
+
+                case '3':
+                  iCnt = 3;
+                  break;
+
+                case '4':
+                  iCnt = 4;
+                break;
+
+                case '5':
+                  iCnt = 5;
+                break;
+
+                case '6':
+                  iCnt = 6;
+                break;
+
+                case '7':
+                  iCnt = 7;
+                break;
+
+                case '8':
+                  iCnt = 8;
+                break;
+
+                case '9':
+                  iCnt = 9;
+                break;
+
+                /**********************************************************/
+                /* Bad Var Name                                           */
+                /**********************************************************/
+                default:
+                  iCnt = -1;
+                  break;
+              }
+
+              if (iCnt == -1)
+              {
+                fprintf(LogHndl, "[!] Invalid Counter: %.4s\n", o32VarRec + iPtr);
+
+                consPrefix("[!] ", consRed);
+                printf("Invalid Counter: %.4s\n", o32VarRec + iPtr);
+
+                sprintf(Inrec + oPtr, "%.4s\0", o32VarRec + iPtr);
+                oPtr = strlen(Inrec);
+                iPtr += 3;
+              }
+              else
+              {
+                sprintf(Inrec + oPtr, "%d\0", CntArray[iCnt]);
                 oPtr = strlen(Inrec);
                 iPtr += 3;
               }
@@ -2296,6 +2400,80 @@ int main(int argc, char *argv[])
             else
             {
               strncpy(VarArray+iVar, Inrec+4, 255);
+            }
+          }
+          else
+          if ((strnicmp(Inrec, "CN", 2) == 0) && (Inrec[3] == ':'))
+          {
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            switch (Inrec[2])
+            {
+              case '0':
+                iCnt = 0;
+              break;
+
+              case '1':
+                iCnt = 1;
+              break;
+
+              case '2':
+                iCnt = 2;
+              break;
+
+              case '3':
+                iCnt = 3;
+              break;
+
+              case '4':
+                iCnt = 4;
+              break;
+
+              case '5':
+                iCnt = 5;
+              break;
+
+              case '6':
+                iCnt = 6;
+              break;
+
+              case '7':
+                iCnt = 7;
+              break;
+
+              case '8':
+                iCnt = 8;
+              break;
+
+              case '9':
+                iCnt = 9;
+              break;
+
+              /**********************************************************/
+              /* Bad Var Name                                           */
+              /**********************************************************/
+              default:
+                iCnt = -1;
+              break;
+            }
+
+            if (iCnt == -1)
+            {
+              fprintf(LogHndl, "[!] Invalid Counter Define Action: %.4s\n", Inrec);
+
+              consPrefix("[!] ", consRed);
+              printf("Invalid Counter Define Action: %.4s\n", Inrec);
+            }
+            else
+            {
+              if (strnicmp(Inrec + 4, "++", 2) == 0)
+               CntArray[iCnt]++;
+              else
+              if (strnicmp(Inrec + 4, "--", 2) == 0)
+               CntArray[iCnt]--;
+              else
+               CntArray[iCnt] = atoi(Inrec + 4);
             }
           }
           else
@@ -3760,6 +3938,7 @@ int main(int argc, char *argv[])
             MD5Hndl = fopen(MD5File, "w");
             if (MD5Hndl != NULL)
             {
+              iMaxCnt = 0;
               ListDir(TempDir, "MD5");
               fclose(MD5Hndl);
             }
@@ -3782,6 +3961,7 @@ int main(int argc, char *argv[])
             MD5Hndl = fopen(MD5File, "w");
             if (MD5Hndl != NULL)
             {
+              iMaxCnt = 0;
               ListDir(TempDir, "MD5");
               fclose(MD5Hndl);
             }
@@ -3817,13 +3997,17 @@ int main(int argc, char *argv[])
             DskHndl = fopen(ForDisk, "w");
             if(DskHndl != NULL)
             {
+              iMaxCnt = 0;
               for (dskNum = 0; dskNum < 26; dskNum++)
               {
                 memset(dskNam, 0, 10);
                 sprintf(dskNam, "%c:\\", Alphabet[dskNum]);
 
-                if(GetDriveType(dskNam) == dskTyp)
-                 fprintf(DskHndl,"%c\n", Alphabet[dskNum]);
+                if (GetDriveType(dskNam) == dskTyp)
+                {
+                  iMaxCnt++;
+                  fprintf(DskHndl, "%c\n", Alphabet[dskNum]);
+                }
               }
               fclose(DskHndl);
             }
@@ -3842,6 +4026,7 @@ int main(int argc, char *argv[])
 
             if (MD5Hndl != NULL)
             {
+              iMaxCnt = 0;
               ListDir(Inrec + 4, "FOR");
 
               if (iNative == 0)
@@ -4060,6 +4245,22 @@ int main(int argc, char *argv[])
             /* Set Raw NTFS Copy to RAW ONLY                                */
             /****************************************************************/
             setNCP = 2;
+          }
+          else
+          if (strnicmp(Inrec, "SET:TRIM=YES", 12) == 0)
+          {
+            /****************************************************************/
+            /* Trim Leading and Trailing Spaces                              */
+            /****************************************************************/
+            setTrim = 1;
+          }
+          else
+          if (strnicmp(Inrec, "SET:TRIM=NO", 11) == 0)
+          {
+            /****************************************************************/
+            /* DO NOT Trim Leading and Trailing Spaces                      */
+            /****************************************************************/
+            setTrim = 0;
           }
           else
           if (strnicmp(Inrec, "SET:CopyPath=None", 17) == 0)
@@ -4571,6 +4772,7 @@ int main(int argc, char *argv[])
           consPrefix("\n[+] ", consGre);
           fprintf(LogHndl, "\n[+] Total Files (Loop): %d\n", LoopNum);
           printf("Total Files (Loop): %d\n", LoopNum);
+          iMaxCnt = LoopNum;
 
           fclose(ForHndl);
         }
@@ -4580,6 +4782,7 @@ int main(int argc, char *argv[])
           consPrefix("\n[+] ", consGre);
           fprintf(LogHndl, "\n[+] Total List Entries (Loop): %d\n", LoopNum);
           printf("Total List Entries (Loop): %d\n", LoopNum);
+          iMaxCnt = LoopNum;
 
           fclose(LstHndl);
         }
@@ -4589,6 +4792,7 @@ int main(int argc, char *argv[])
           consPrefix("\n[+] ", consGre);
           fprintf(LogHndl, "\n[+] Total Disks (Loop): %d\n", LoopNum);
           printf("Total Disks (Loop): %d\n", LoopNum);
+          iMaxCnt = LoopNum;
 
           fclose(DskHndl);
         }
@@ -5120,6 +5324,45 @@ size_t unIndent(char *SqString)
 
 
 /****************************************************************/
+/* Remove Indented Spaces and Tabs and Trailing Spaces          */
+/****************************************************************/
+size_t LRTrim(char *SqString)
+{
+  size_t Sqi, Sqx, SqLen;
+
+  //Zap any preceding spaces or tabs..
+  for (Sqi = 0; Sqi < strlen(SqString); Sqi++)
+  {
+    if ((SqString[Sqi] != ' ') && (SqString[Sqi] != 9))
+      break;
+  }
+
+  if (Sqi > 0)
+  {
+    for (Sqx = 0; Sqx < strlen(SqString) + Sqi; Sqx++)
+      SqString[Sqx] = SqString[Sqx + Sqi];
+
+    // Null Terminate the string
+    SqString[Sqx + 1] = '\0';
+  }
+
+
+  //Zap any non-printable ending characters...
+  for (Sqi = strlen(SqString); Sqi >= 0; Sqi--)
+  {
+    if ((SqString[Sqi] < 33) || (SqString[Sqi] > 126))
+      SqString[Sqi] = '\0';
+    else
+      break;
+  }
+
+  SqLen = strlen(SqString);
+  return SqLen;
+}
+
+
+
+/****************************************************************/
 /* convert a record with Environment Variables in it            */
 /*  - Do manual checks for 64 bit exceptions - Check both 32&64 */
 /****************************************************************/
@@ -5512,10 +5755,14 @@ int ListDir(char *DirName, char *LisType)
         {
           FileMD5(FullFName);
           fprintf(MD5Hndl, "File: %s - MD5: %s\n", FullFName, MD5Out);
+          iMaxCnt++;
         }
         else
         if (iLisType == 2)
+        {
           fprintf(MD5Hndl, "%s\n", FullFName);
+          iMaxCnt++;
+        }
         else
         if (iLisType == 3)
           SetFileAttributes(FullFName, 0x1);
@@ -7413,7 +7660,8 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 
   fprintf(LogHndl, "\n[+] Total Files Found: %d\n", TotFilesFound);
   printf("Total Files Found: %d\n", TotFilesFound);
-  
+  iMaxCnt = TotFilesFound;
+
   fflush(stdout); //More PSExec Friendly
   return 0;
 }

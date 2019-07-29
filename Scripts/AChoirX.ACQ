@@ -1,9 +1,9 @@
-***************************************************
-* Live Acquisition Script (2.0)                   *
-* - Pulls Forensics artifacts for analysis        *
-* - Created by D0n Quix0te/OMENScan (May 2015)    *
-* - Inspired by many other tools                  *
-***************************************************
+*******************************************************
+* Live Acquisition Script (2.0)                       *
+* - Pulls Forensic artifacts & telemetry for analysis *
+* - Created by D0n Quix0te/OMENScan (May 2015)        *
+* - Inspired by many other tools                      *
+*******************************************************
 ADM:Force
 ***************************************************
 * Create the Acquisition Directory and RESTRICT   *
@@ -26,7 +26,7 @@ SAY:
 INI:AChoir64.ACQ
 END:
 SAY:
-SAY: AChoir will scan the Hard drive and pull forensics for investigation.
+SAY: AChoir will pull artifacts and telemetry of forensic value for investigation.
 SAY:
 SAY: * * *   Please MAKE SURE you are running this as an Administrator  * * * 
 SAY: * * * Administrator right are required for many of these utilities * * * 
@@ -45,7 +45,7 @@ N<<:&Dsa &Mem
 END:
 N>>:&Dsa &Mem
  ACQ:\MemDump
- EXE:\MEM\WinPmem.exe &Acq\WinPmemDump.Raw
+ EXE:\MEM\WinPmem320.exe --output &Acq\WinPmemDump.Raw --logfile &Acq\WinPmemDump.Log --volume_format raw -dd -t
 END:
 SAY:
 SAY: 2. Extracting Prefetch Directory...

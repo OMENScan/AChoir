@@ -1,23 +1,28 @@
 ***************************************************
-* VSS Test                                        *
+* Use WMIC to find all VSS/VSCs and Mount them    *
+*  Then copy the Prefetch and Registry files from *
+*  then mounted VSS/VSCs                          *
+*  Note: VSSAdmin example is commented out        *
 ***************************************************
 ACQ:\
 CKY:C:\Windows\Sysnative\wbem\wmic.exe
- Say:Calling Non-Native WMIC Query for VSS
+ Say:[+] Calling Non-Native WMIC Query for VSS
  *SYS:for /f "tokens=1,2,3,4" %%a in ('c:\windows\sysnative\vssadmin list shadows ^| findstr /I /C:"shadow copy volume:" ') do @echo %%d>>&Dir\&Acn\Cache\VSSEnum.txt
  SYS:C:\windows\sysnative\wbem\wmic.exe shadowcopy get deviceobject | findstr /i "harddiskvolumeshadowcopy"> &Dir\&Acn\Cache\VSSEnum.txt
  LST:&Acn\Cache\VSSEnum.txt
  ACQ:\VSS
  SYS:mklink /d &Acq\&Num &Lst\ 
+ SAY:[+] Created &CNR VSS/VSC Links for Historical Artifacts 
 END:
 
 CKN:C:\Windows\Sysnative\wbem\wmic.exe
- Say:Calling Native WMIC Query for VSS
+ Say:[+] Calling Native WMIC Query for VSS
  *SYS:for /f "tokens=1,2,3,4" %%a in ('c:\windows\system32\vssadmin list shadows ^| findstr /I /C:"shadow copy volume:" ') do @echo %%d>>&Dir\&Acn\Cache\VSSEnum.txt
  SYS:C:\windows\System32\wbem\wmic.exe shadowcopy get deviceobject | findstr /i "harddiskvolumeshadowcopy"> &Dir\&Acn\Cache\VSSEnum.txt
  LST:&Acn\Cache\VSSEnum.txt
  ACQ:\VSS
  SYS:mklink /d &Acq\&Num &Lst\
+ SAY:[+] Created &CNR VSS/VSC Links for Historical Artifacts 
 END:
 
 ***
@@ -34,16 +39,42 @@ LBL:Loop
  **************************************************************
  * If we exceed the number of records - Set To ExitLoop Label *
  **************************************************************
+ N==:&CN0 &CN1
+  VR1:ExitLoop
+ END:
  N>>:&CN0 &CN1
   VR1:ExitLoop
  END:
  **************************************************************
  * Copy Prefetch from VSS Link, Then Delete the Link          *
  **************************************************************
+ SAY:[+] Copying Prefetch Files...
+ SET:CopyPath=None
  ACQ:\VSS
- FOR:&Acq\&CN0\Windows\Prefetch\*.*
+ VR9:&ACQ\&CN0
+ FOR:&VR9\Windows\Prefetch\*.*
+ SAY:[+] Found &CNR Prefetch Files...
  ACQ:\VSSPrf-&CN0
  CPY:"&For" "&Acq\&Fnm"
+ SAY:[+] Copied &CNR Prefetch Files...
+ **************************************************************
+ * Copy Registry from VSS Link, Then Delete the Link          *
+ **************************************************************
+ SAY:[+]  Copying Registry Hives...
+ SET:CopyPath=None
+ ACQ:\VSSReg-&CN0
+ CPY:"&VR9\Windows\System32\Config\SECURITY" "&Acq\SECURITY"
+ CPY:"&VR9\Windows\System32\Config\SOFTWARE" "&Acq\SOFTWARE"
+ CPY:"&VR9\Windows\System32\Config\SAM" "&Acq\SAM"
+ CPY:"&VR9\Windows\System32\Config\SYSTEM" "&Acq\SYSTEM"
+ SET:CopyPath=Full
+ FOR:&VR9\Users\NTUSER.DAT
+ SAY:[+] Found &CNR User Registry Files
+ CPY:"&For" "&Acq\&Fnm"
+ SAY:[+] Copied &CNR User Registry Files
+ **************************************************************
+ * Remove VSS Links.                                          *
+ **************************************************************
  ACQ:\VSS
  SYS:RMDir &Acq\&CN0
  JMP:&VR1
@@ -55,10 +86,10 @@ LBL:ExitLoop
 * Drop Into Console        *
 ****************************
 SAY:
-SAY: VSS Prefetch Acquisition Complete...
+SAY:[+] VSS Acquisition Complete...
 SAY:
-SAY: Now Hashing Artifacts...
+SAY:[+]  Now Hashing Artifacts...
 HSH:ACQ
-SAY:All Done!  Press Any Key to Finish.
+SAY:[+] All Done!  Press Any Key to Finish.
 
 * ini:Console
