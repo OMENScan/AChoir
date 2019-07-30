@@ -1,4 +1,4 @@
-AChoir - v3.5
+AChoir - v3.6
 
 AChoir
 ======
@@ -191,6 +191,10 @@ SET:CopyPath=Part Set the NCP: Copy Path to Partial and CPY: Copy Path to Full.
                   RELATIVE path the the source files were in
 SET:Trim=Yes When using &For or &Lst, Trim leading and trailing spaces (Default)
 SET:Trim=No  When using &For or &Lst, DO NOT Trim leading and trailing spaces
+SET:DELIMS=<chars> These are the delimiters that the &FOR and &LST objects 
+                   will use to Parse out &FO0-&FO9 and &LS0-&LS9
+                   <chars> can be up to 5 characters.
+                   Example: SET:DELIMS=,\ (will set delimiters to , AND \)
 SAY:     Echo Text and Objects to the Screen and Logfile
 CON:Hide Hide The Console Screen - For quiet Acquisition
          DO NOT USE IF YOU HAVE SCREEN INPUT - For any 
@@ -353,7 +357,11 @@ Objects:
 &Acq     The Current Acquisition Directory
 &Acn     The Current Acquisition Name
 &For     An array of File objects set by the FOR: action
+&FO0-&FO9  The &FOR object parsed into 10 variables using
+           the Delims (See SET:DELIMS=)
 &Lst     An array of text objects set by the LST: action
+&LS0-&LS9  The &LST object parsed into 10 variables using
+           the Delims (See SET:DELIMS=)
 &DSK     An Array of Disk objects set by the DSK: action
 &Num     The array number of each &For Object
 &Win     The Windows Root Directory

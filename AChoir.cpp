@@ -193,6 +193,9 @@
 /*                Add Set:Trim=<Yes> or <No> (Default is Yes)   */
 /*                 Trims &FOR and &LST since DOS File Redirects */
 /*                 OFTEN add erroneous spaces                   */
+/* AChoir v3.6  - Add SET:DELIMS= (Sets the Parsing Delimiters) */
+/*                &LS0-&LS9 (Parses the first 10 Cols in &LST)  */
+/*                &FO0-&FO9 (Parses the first 10 Cols in &FOR)  */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -288,7 +291,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v3.5\0";
+char Version[10] = "v3.6\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -303,6 +306,11 @@ int  setNCP = 2;    // 0=NODCMP, 1=DECOMP/RAWONLY, 2=OSCOPY (Default)
 int  setCPath = 0;  // 0=None, 1=Partial, 2=Full
 int  setMapErr = 0; // 0=Continue, 1=Query, 2=Fail
 int  setTrim = 1;   // 0=NoTrim, 1=Trim (Default Trim the read records &For and &Lst)
+
+char Delims[10] = ",\0\0\0\0\0\0\0\0";
+char *TokPtr;
+int  TokCnt;
+int  TokMax;
 
 int  iNative = 0; // Are we Native 64Bit on 64Bit (Native = 1, NonNative = 0)
 char sNative[10] = "\0";
@@ -720,6 +728,7 @@ int main(int argc, char *argv[])
   char Tmprec[2048];
   char Filrec[2048];
   char Lstrec[2048];
+  char Tokrec[2048];
   char Cpyrec[4096];
   char Exerec[4096];
   char Cmprec[4096];
@@ -1591,7 +1600,10 @@ int main(int argc, char *argv[])
         /****************************************************************/
         /* ForFiles Looper Setup                                        */
         /****************************************************************/
-        if (stristr(Tmprec, "&FOR") > 0)
+        if ((stristr(Tmprec, "&FOR") > 0) || (stristr(Tmprec, "&FO0") > 0) || (stristr(Tmprec, "&FO1") > 0)
+         || (stristr(Tmprec, "&FO2") > 0) || (stristr(Tmprec, "&FO3") > 0) || (stristr(Tmprec, "&FO4") > 0)
+         || (stristr(Tmprec, "&FO5") > 0) || (stristr(Tmprec, "&FO6") > 0) || (stristr(Tmprec, "&FO7") > 0)
+         || (stristr(Tmprec, "&FO8") > 0) || (stristr(Tmprec, "&FO9") > 0))
         {
           ForMe = 1;
           memset(Filrec, 0, 2048);
@@ -1616,7 +1628,10 @@ int main(int argc, char *argv[])
         /****************************************************************/
         /* LstFiles Looper Setup                                        */
         /****************************************************************/
-        if (stristr(Tmprec, "&LST") > 0)
+        if ((stristr(Tmprec, "&LST") > 0) || (stristr(Tmprec, "&LS0") > 0) || (stristr(Tmprec, "&LS1") > 0)
+         || (stristr(Tmprec, "&LS2") > 0) || (stristr(Tmprec, "&LS3") > 0) || (stristr(Tmprec, "&LS4") > 0)
+         || (stristr(Tmprec, "&LS5") > 0) || (stristr(Tmprec, "&LS6") > 0) || (stristr(Tmprec, "&LS7") > 0)
+         || (stristr(Tmprec, "&LS8") > 0) || (stristr(Tmprec, "&LS9") > 0))
         {
           LstMe = 1;
           memset(Lstrec, 0, 2048);
@@ -1861,18 +1876,190 @@ int main(int argc, char *argv[])
               iPtr += 3;
             }
             else
-            if (strnicmp(o32VarRec + iPtr, "&For", 4) == 0)
+            if (strnicmp(o32VarRec + iPtr, "&Fo", 3) == 0)
             {
-              sprintf(Inrec + oPtr, "%s", Filrec);
-              oPtr = strlen(Inrec);
-              iPtr += 3;
+              TokMax = 0;
+              switch (o32VarRec[iPtr + 3])
+              {
+              case 'r':
+                TokMax = 0;
+                sprintf(Inrec + oPtr, "%s", Filrec);
+                oPtr = strlen(Inrec);
+                iPtr += 3;
+                break;
+              case 'R':
+                TokMax = 0;
+                sprintf(Inrec + oPtr, "%s", Filrec);
+                oPtr = strlen(Inrec);
+                iPtr += 3;
+                break;
+              case '0':
+                TokMax = 0;
+                memset(Tokrec, 0, 2048);
+                strncpy(Tokrec, Filrec, 2048);
+                TokPtr = strtok(Tokrec, Delims);
+
+                if (setTrim == 1)
+                  LRTrim(Tokrec);
+
+                sprintf(Inrec + oPtr, "%s", Tokrec);
+                oPtr = strlen(Inrec);
+                iPtr += 3;
+                break;
+              case '1':
+                TokMax = 1;
+                break;
+              case '2':
+                TokMax = 2;
+                break;
+              case '3':
+                TokMax = 3;
+                break;
+              case '4':
+                TokMax = 4;
+                break;
+              case '5':
+                TokMax = 5;
+                break;
+              case '6':
+                TokMax = 6;
+                break;
+              case '7':
+                TokMax = 7;
+                break;
+              case '8':
+                TokMax = 8;
+                break;
+              case '9':
+                TokMax = 9;
+                break;
+              default:
+                TokMax = -1;
+                iPtr += 3;
+                break;
+              }
+
+              /****************************************************************/
+              /* Now Tokenize the column if > 0                               */
+              /****************************************************************/
+              if (TokMax > 0)
+              {
+                memset(Tokrec, 0, 2048);
+                strncpy(Tokrec, Filrec, 2048);
+                TokPtr = strtok(Tokrec, Delims);
+
+                for (TokCnt = 0; TokCnt < TokMax; TokCnt++)
+                {
+                  if (TokPtr != NULL)
+                    TokPtr = strtok(NULL, Delims);
+                }
+
+                /****************************************************************/
+                /* If we got a Column, Add it.                                  */
+                /****************************************************************/
+                if (TokPtr != NULL)
+                {
+                  if (setTrim == 1)
+                    LRTrim(TokPtr);
+
+                  sprintf(Inrec + oPtr, "%s", TokPtr);
+                }
+                oPtr = strlen(Inrec);
+                iPtr += 3;
+              }
             }
             else
-            if (strnicmp(o32VarRec + iPtr, "&Lst", 4) == 0)
+            if (strnicmp(o32VarRec + iPtr, "&Ls", 3) == 0)
             {
-              sprintf(Inrec + oPtr, "%s", Lstrec);
-              oPtr = strlen(Inrec);
-              iPtr += 3;
+              TokMax = 0;
+              switch (o32VarRec[iPtr + 3])
+              {
+                case 't':
+                  TokMax = 0;
+                  sprintf(Inrec + oPtr, "%s", Lstrec);
+                  oPtr = strlen(Inrec);
+                  iPtr += 3;
+                break;
+                case 'T':
+                  TokMax = 0;
+                  sprintf(Inrec + oPtr, "%s", Lstrec);
+                  oPtr = strlen(Inrec);
+                  iPtr += 3;
+                break;
+                case '0':
+                  TokMax = 0;
+                  memset(Tokrec, 0, 2048);
+                  strncpy(Tokrec, Lstrec, 2048);
+                  TokPtr = strtok(Tokrec, Delims);
+                  
+                  if (setTrim == 1)
+                    LRTrim(Tokrec);
+
+                  sprintf(Inrec + oPtr, "%s", Tokrec);
+                  oPtr = strlen(Inrec);
+                  iPtr += 3;
+                break;
+                case '1':
+                  TokMax = 1;
+                break;
+                case '2':
+                  TokMax = 2;
+                break;
+                case '3':
+                  TokMax = 3;
+                break;
+                case '4':
+                  TokMax = 4;
+                break;
+                case '5':
+                  TokMax = 5;
+                break;
+                case '6':
+                  TokMax = 6;
+                break;
+                case '7':
+                  TokMax = 7;
+                break;
+                case '8':
+                  TokMax = 8;
+                break;
+                case '9':
+                  TokMax = 9;
+                break;
+                default:
+                  TokMax = -1;
+                  iPtr += 3;
+                break;
+              }
+
+              /****************************************************************/
+              /* Now Tokenize the column if > 0                               */
+              /****************************************************************/
+              if (TokMax > 0)
+              {
+                memset(Tokrec, 0, 2048);
+                strncpy(Tokrec, Lstrec, 2048);
+                TokPtr = strtok(Tokrec, Delims);
+
+                for (TokCnt = 0; TokCnt < TokMax; TokCnt++)
+                {
+                  if (TokPtr != NULL)
+                   TokPtr = strtok(NULL, Delims);
+                }
+
+                /****************************************************************/
+                /* If we got a Column, Add it.                                  */
+                /****************************************************************/
+                if (TokPtr != NULL)
+                {
+                  if (setTrim == 1)
+                    LRTrim(TokPtr);
+
+                  sprintf(Inrec + oPtr, "%s", TokPtr);
+                }
+                oPtr = strlen(Inrec);
+                iPtr += 3;
+              }
             }
             else
             if (strnicmp(o32VarRec + iPtr, "&Dsk", 4) == 0)
@@ -4261,6 +4448,16 @@ int main(int argc, char *argv[])
             /* DO NOT Trim Leading and Trailing Spaces                      */
             /****************************************************************/
             setTrim = 0;
+          }
+          else
+          if (strnicmp(Inrec, "SET:DELIMS=", 11) == 0)
+          {
+            /****************************************************************/
+            /* Set the Tokenizing Delimiters.  Allow up to 5                */
+            /****************************************************************/
+            memset(Delims, 0, 10);
+            strncpy(Delims, Inrec + 11, 5);
+
           }
           else
           if (strnicmp(Inrec, "SET:CopyPath=None", 17) == 0)
