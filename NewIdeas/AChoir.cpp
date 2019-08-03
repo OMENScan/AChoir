@@ -196,6 +196,8 @@
 /* AChoir v3.6  - Add SET:DELIMS= (Sets the Parsing Delimiters) */
 /*                &LS0-&LS9 (Parses the first 10 Cols in &LST)  */
 /*                &FO0-&FO9 (Parses the first 10 Cols in &FOR)  */
+/* AChoir v3.7  - Add WildCards (*, ?) to CPY: (No Longer needs */
+/*                 FOR: to do multiple file copy)               */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -291,7 +293,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v3.6\0";
+char Version[10] = "v3.7\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -302,10 +304,13 @@ int  iIsAdmin = 0;
 int  iExec = 0;
 int  iIsCompressed = 0;
 char cIsCompressed[15] = "\0";
+int  iCDepth = 0; // CopyDepth Counter
+
 int  setNCP = 2;    // 0=NODCMP, 1=DECOMP/RAWONLY, 2=OSCOPY (Default)
 int  setCPath = 0;  // 0=None, 1=Partial, 2=Full
 int  setMapErr = 0; // 0=Continue, 1=Query, 2=Fail
 int  setTrim = 1;   // 0=NoTrim, 1=Trim (Default Trim the read records &For and &Lst)
+int  setCDepth = 0; // Maximum CPY: Directory Depth (0 = Unlimited)
 
 char Delims[10] = ",\0\0\0\0\0\0\0\0";
 char *TokPtr;
@@ -3074,6 +3079,9 @@ int main(int argc, char *argv[])
 
                       binCopy(MCprcI, MCprcO, 1);
                     }
+
+                    fclose(MCpHndl);
+
                   }
                 }
               }
@@ -4364,7 +4372,10 @@ int main(int argc, char *argv[])
 
             if (access(ForDisk, 0) == 0)
               unlink(ForDisk);
-            
+
+            if (access(MCpFile, 0) == 0)
+              unlink(MCpFile);
+
             //fclose(LogHndl);
             cleanUp_Exit(LastRC);
             exit (LastRC);
@@ -4573,6 +4584,14 @@ int main(int argc, char *argv[])
             /* Set CPY: and NCP Paths to Full (Full Output Directory)       */
             /****************************************************************/
             setCPath = 2;
+          }
+          else
+          if (strnicmp(Inrec, "SET:CopyDepth=", 14) == 0)
+          {
+            /****************************************************************/
+            /* Set CPY: Max Directory Depth                                 */
+            /****************************************************************/
+            setCDepth = atoi(Inrec + 14);
           }
           else
           if (strnicmp(Inrec, "SET:SyslogS=", 12) == 0)
@@ -5883,6 +5902,7 @@ int ListDir(char *DirName, char *LisType)
   char SrchFName[FILENAME_MAX] = "*.*\0";
 
   char *Slash;
+  int  iSlash;
 
   int iLisType;
   size_t iMaxSize;
@@ -5963,6 +5983,11 @@ int ListDir(char *DirName, char *LisType)
 
       iMaxSize = strlen(RootDir);
       iMaxSize += strlen(inName);
+
+
+      /****************************************************************/
+      /* Max Path Size Exceeded?                                      */
+      /****************************************************************/
       if (iMaxSize >= FILENAME_MAX)
       {
         fprintf(LogHndl, "[!] Max Path Exceeded: %s%s\n", RootDir, inName);
@@ -5974,6 +5999,33 @@ int ListDir(char *DirName, char *LisType)
         return 0;
       }
 
+      /****************************************************************/
+      /* Max Directory Depth Exceeded?                                */
+      /****************************************************************/
+      if (setCDepth > 0)
+      {
+        for (iSlash = 0; iSlash < strlen(RootDir); iSlash++)
+        {
+          if (RootDir[iSlash] = '\\')
+            iCDepth++;
+        }
+
+        if (iCDepth > setCDepth)
+        {
+          fprintf(LogHndl, "[!] Max Directory Depth Exceeded: %d\n", setCDepth);
+
+          consPrefix("[!] ", consRed);
+          printf("Max Directory Depth Exceeded: %d\n", setCDepth);
+
+          fflush(stdout); //More PSExec Friendly
+          return 0;
+        }
+      }
+
+
+      /****************************************************************/
+      /* Windows Recursion Loop?                                      */
+      /****************************************************************/
       //if (stristr(RootDir, "Application Data\\Application Data\\Application Data\0") > 0)
       if (stristr(RootDir, "\\Application Data\\Application Data\\\0") > 0)
       {
@@ -8658,6 +8710,9 @@ void cleanUp_Exit(int exitRC)
 
   if (access(ForDisk, 0) == 0)
    unlink(ForDisk);
+
+  if (access(MCpFile, 0) == 0)
+    unlink(MCpFile);
 
 
   if (iHtmMode == 1)
