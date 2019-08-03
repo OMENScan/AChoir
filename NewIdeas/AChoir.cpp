@@ -196,8 +196,12 @@
 /* AChoir v3.6  - Add SET:DELIMS= (Sets the Parsing Delimiters) */
 /*                &LS0-&LS9 (Parses the first 10 Cols in &LST)  */
 /*                &FO0-&FO9 (Parses the first 10 Cols in &FOR)  */
-/* AChoir v3.7  - Add WildCards (*, ?) to CPY: (No Longer needs */
-/*                 FOR: to do multiple file copy)               */
+/* AChoir v3.7  - Add WildCard to CPY: (No Longer needs FOR:    */
+/*                 to do multiple file copy)                    */
+/*                Add SET:CopyDepth=nn - Set Maximum Directory  */
+/*                 for CPY: (Does not work win NCP:) - This     */
+/*                 will help speed up copying by preventing     */
+/*                 unnecessary depth (Default is 10 SubDirs)    */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -310,7 +314,7 @@ int  setNCP = 2;    // 0=NODCMP, 1=DECOMP/RAWONLY, 2=OSCOPY (Default)
 int  setCPath = 0;  // 0=None, 1=Partial, 2=Full
 int  setMapErr = 0; // 0=Continue, 1=Query, 2=Fail
 int  setTrim = 1;   // 0=NoTrim, 1=Trim (Default Trim the read records &For and &Lst)
-int  setCDepth = 0; // Maximum CPY: Directory Depth (0 = Unlimited)
+int  setCDepth = 10; // Maximum CPY: Directory Depth (0 = Unlimited) - Default is 10
 
 char Delims[10] = ",\0\0\0\0\0\0\0\0";
 char *TokPtr;
@@ -6000,22 +6004,23 @@ int ListDir(char *DirName, char *LisType)
       }
 
       /****************************************************************/
-      /* Max Directory Depth Exceeded?                                */
+      /* Max Directory Depth Exceeded?  Only used on FOR Type         */
       /****************************************************************/
-      if (setCDepth > 0)
+      if ((setCDepth > 0) && (iLisType == 2))
       {
+        iCDepth = 0;
         for (iSlash = 0; iSlash < strlen(RootDir); iSlash++)
         {
-          if (RootDir[iSlash] = '\\')
+          if (RootDir[iSlash] == '\\')
             iCDepth++;
         }
 
         if (iCDepth > setCDepth)
         {
-          fprintf(LogHndl, "[!] Max Directory Depth Exceeded: %d\n", setCDepth);
+          fprintf(LogHndl, "[!] Max Directory Depth Exceeded: %d\n    %s\n", setCDepth, RootDir);
 
           consPrefix("[!] ", consRed);
-          printf("Max Directory Depth Exceeded: %d\n", setCDepth);
+          printf("Max Directory Depth Exceeded: %d\n    %s\n", setCDepth, RootDir);
 
           fflush(stdout); //More PSExec Friendly
           return 0;
