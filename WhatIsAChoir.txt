@@ -1,4 +1,4 @@
-AChoir - v3.6
+AChoir - v3.7
 
 AChoir
 ======
@@ -189,6 +189,8 @@ SET:CopyPath=Part Set the NCP: Copy Path to Partial and CPY: Copy Path to Full.
                   This only works for NCP: Copy, and will copy ONLY the path
                   after any wildcards.  This allows the examiner to see the 
                   RELATIVE path the the source files were in
+SET:CopyDepth=nn Set the Directory Depth for CPY: Default is 10 Subdirs.
+                 Note: This is not used by NCP: - Only CPY:
 SET:Trim=Yes When using &For or &Lst, Trim leading and trailing spaces (Default)
 SET:Trim=No  When using &For or &Lst, DO NOT Trim leading and trailing spaces
 SET:DELIMS=<chars> These are the delimiters that the &FOR and &LST objects 
@@ -277,8 +279,12 @@ LST:<FileName>
          be run iteratively replacing the &For variable with each
          entry in the <FileName>. 
 CPY:     Copy Files (CPY:<FromFile> <ToFile>) - Supports Quotes
+         Supports Wildcard. Important Note: CPY: WILL RECURSE THROuGH
+         SUBDIRECTORIES ONLY IF A WILDCARD IS USED.
 CPS:     Copy Files (CPS:<FromFile> <ToFile>) by Signature 
-          (Loaded by the Sig: command) - Use FOR: and &FOR for wildcards
+         (Loaded by the Sig: command)
+         Supports Wildcard. Important Note: CPY: WILL RECURSE THROuGH
+         SUBDIRECTORIES ONLY IF A WILDCARD IS USED.
 VCK:<x:> Check if the Volume <x:> is NTFS, FAT32, CDFS, Other, None
          (Used for conditional execution if Vol is/not NTFS)
 NCP:     NTFS Raw File Copy - Supports Wildcards (* and ?)
@@ -602,6 +608,13 @@ ForDisks
 Achoir will create a temporary file in the Acquisition Cache Directory called "ForDisks"
 every time the DSK: Action is used.  ForDisks contains the results and is used when the 
 &DSK Looping object (variable) is used.
+
+MCpFiles
+---------
+Achoir will create a temporary file in the Acquisition Cache Directory called "MCpFiles"
+every time the CPY: Action is used for multiple files.  AChoir first recurses through the
+file directory, saves what it finds in the MCpFiles file, and then copies all the files
+saved in the MCpFile.
 
 
 Acknowledgements:

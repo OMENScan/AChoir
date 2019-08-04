@@ -196,6 +196,12 @@
 /* AChoir v3.6  - Add SET:DELIMS= (Sets the Parsing Delimiters) */
 /*                &LS0-&LS9 (Parses the first 10 Cols in &LST)  */
 /*                &FO0-&FO9 (Parses the first 10 Cols in &FOR)  */
+/* AChoir v3.7  - Add WildCard to CPY: (No Longer needs FOR:    */
+/*                 to do multiple file copy)                    */
+/*                Add SET:CopyDepth=nn - Set Maximum Directory  */
+/*                 for CPY: (Does not work win NCP:) - This     */
+/*                 will help speed up copying by preventing     */
+/*                 unnecessary depth (Default is 10 SubDirs)    */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -291,7 +297,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v3.6\0";
+char Version[10] = "v3.7\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -302,10 +308,13 @@ int  iIsAdmin = 0;
 int  iExec = 0;
 int  iIsCompressed = 0;
 char cIsCompressed[15] = "\0";
+int  iCDepth = 0; // CopyDepth Counter
+
 int  setNCP = 2;    // 0=NODCMP, 1=DECOMP/RAWONLY, 2=OSCOPY (Default)
 int  setCPath = 0;  // 0=None, 1=Partial, 2=Full
 int  setMapErr = 0; // 0=Continue, 1=Query, 2=Fail
 int  setTrim = 1;   // 0=NoTrim, 1=Trim (Default Trim the read records &For and &Lst)
+int  setCDepth = 10; // Maximum CPY: Directory Depth (0 = Unlimited) - Default is 10
 
 char Delims[10] = ",\0\0\0\0\0\0\0\0";
 char *TokPtr;
@@ -431,7 +440,7 @@ sqlite3_stmt *dbMFTStmt;
 sqlite3_stmt *dbXMFTStmt;
 
 FILE* LogHndl;
-FILE* CpyHndl;
+FILE* MCpHndl;
 FILE* ForHndl;
 FILE* LstHndl;
 FILE* DskHndl;
@@ -445,6 +454,7 @@ char CpyFile[1024] = "C:\\AChoir\\AChoir.exe\0";
 char ChkFile[1024] = "C:\\AChoir\\AChoir.exe\0";
 char MD5File[1024] = "C:\\AChoir\\Hashes.txt\0";
 char ForFile[1024] = "C:\\AChoir\\ForFiles\0";
+char MCpFile[1024] = "C:\\AChoir\\MCpFiles\0";
 char ForDisk[1024] = "C:\\AChoir\\ForDisks\0";
 char LstFile[1024] = "C:\\AChoir\\LstFiles\0";
 char IniFile[1024] = "C:\\AChoir\\AChoir.ACQ\0";
@@ -531,6 +541,7 @@ char volType[10] = " \0";
 char RootDir[FILENAME_MAX] = " \0";
 char FullFName[FILENAME_MAX];
 char ForFName[FILENAME_MAX];
+char MCpFName[FILENAME_MAX];
 
 DWORD netRC = NO_ERROR;
 NETRESOURCE netRes = { 0 };
@@ -729,6 +740,8 @@ int main(int argc, char *argv[])
   char Filrec[2048];
   char Lstrec[2048];
   char Tokrec[2048];
+  char MCprcI[2048];
+  char MCprcO[2048];
   char Cpyrec[4096];
   char Exerec[4096];
   char Cmprec[4096];
@@ -1205,6 +1218,7 @@ int main(int argc, char *argv[])
   sprintf(IniFile, "%s\\%s\0", BaseDir, inFnam);
   sprintf(WGetFile, "%s\\AChoir.Dat\0", BaseDir);
   sprintf(ForFile, "%s\\%s\\Cache\\ForFiles\0", BaseDir, ACQName);
+  sprintf(MCpFile, "%s\\%s\\Cache\\MCpFiles\0", BaseDir, ACQName);
   sprintf(ForDisk, "%s\\%s\\Cache\\ForDisks\0", BaseDir, ACQName);
   sprintf(LstFile, "%s\\LstFiles\0", BaseDir);
   sprintf(ChkFile, "%s\\AChoir.exe\0", BaseDir);
@@ -2987,7 +3001,86 @@ int main(int argc, char *argv[])
               consPrefix("\nCPY: ", consBlu);
               printf("%s\n", Cpyrec + iPrm1);
 
-              binCopy(Cpyrec + iPrm1, Cpyrec + iPrm2, 1);
+              /****************************************************************/
+              /* If we see any wildcards, do search for multiple occurances   */
+              /****************************************************************/
+              if ((strchr(Cpyrec + iPrm1, '*') != NULL) || (strchr(Cpyrec + iPrm1, '?') != NULL))
+              {
+                sprintf(MD5File, "%s\\%s\\Cache\\MCpFiles\0", BaseDir, ACQName);
+                MD5Hndl = fopen(MD5File, "w");
+
+                if (MD5Hndl != NULL)
+                {
+                  iMaxCnt = 0;
+                  ListDir(Cpyrec + iPrm1, "FOR");
+
+                  if (iNative == 0)
+                  {
+                    if (strnicmp(Cpyrec + iPrm1 + strlen(WinRoot), "\\System32\\", 10) == 0)
+                    {
+                      memset(TempDir, 0, 1024);
+                      sprintf(TempDir, "%s\\Sysnative\\%s\0", WinRoot, Cpyrec + iPrm1 + strlen(WinRoot) + 10);
+
+                      if (iLogOpen == 1)
+                        fprintf(LogHndl, "[*] Non-Native Flag Has Been Detected - Adding Sysnative Redirection: \n %s\n", TempDir);
+
+                      consPrefix("[*] ", consYel);
+                      printf("Non-Native Flag Has Been Detected - Adding Sysnative Redirection: \n %s\n", TempDir);
+
+                      ListDir(TempDir, "FOR");
+                    }
+                  }
+
+                  fclose(MD5Hndl);
+
+                  memset(MCprcI, 0, 2048);
+                  memset(MCprcO, 0, 2048);
+                  MCpHndl = fopen(MCpFile, "r");
+
+                  if (MCpHndl != NULL)
+                  {
+                    while (fgets(MCprcI, 1000, MCpHndl))
+                    {
+                      strtok(MCprcI, "\n"); strtok(MCprcI, "\r");
+
+                      /****************************************************************/
+                      /* Get Just the File Name                                       */
+                      /****************************************************************/
+                      if ((ForSlash = strrchr(MCprcI, '\\')) != NULL)
+                      {
+                        if (strlen(ForSlash + 1) > 1)
+                          strncpy(MCpFName, ForSlash + 1, 250);
+                        else
+                          strncpy(MCpFName, "Unknown\0", 8);
+                      }
+                      else
+                        strncpy(MCpFName, MCprcI, 250);
+
+
+                      /****************************************************************/
+                      /* Copy it to Output File Name                                  */
+                      /****************************************************************/
+                      strncpy(MCprcO, Cpyrec + iPrm2, 1000);
+                      if ((ForSlash = strrchr(MCprcO, '\\')) != NULL)
+                      {
+                        if (strlen(ForSlash + 1) > 1)
+                          strncpy(ForSlash + 1, MCpFName, 250);
+                        else
+                          strncpy(ForSlash + 1, "Unknown\0", 8);
+                      }
+                      else
+                        strncpy(MCprcO, MCpFName, 250);
+
+                      binCopy(MCprcI, MCprcO, 1);
+                    }
+
+                    fclose(MCpHndl);
+
+                  }
+                }
+              }
+              else
+               binCopy(Cpyrec + iPrm1, Cpyrec + iPrm2, 1);
             }
           }
           else
@@ -4273,7 +4366,10 @@ int main(int argc, char *argv[])
 
             if (access(ForDisk, 0) == 0)
               unlink(ForDisk);
-            
+
+            if (access(MCpFile, 0) == 0)
+              unlink(MCpFile);
+
             //fclose(LogHndl);
             cleanUp_Exit(LastRC);
             exit (LastRC);
@@ -4482,6 +4578,14 @@ int main(int argc, char *argv[])
             /* Set CPY: and NCP Paths to Full (Full Output Directory)       */
             /****************************************************************/
             setCPath = 2;
+          }
+          else
+          if (strnicmp(Inrec, "SET:CopyDepth=", 14) == 0)
+          {
+            /****************************************************************/
+            /* Set CPY: Max Directory Depth                                 */
+            /****************************************************************/
+            setCDepth = atoi(Inrec + 14);
           }
           else
           if (strnicmp(Inrec, "SET:SyslogS=", 12) == 0)
@@ -5792,6 +5896,7 @@ int ListDir(char *DirName, char *LisType)
   char SrchFName[FILENAME_MAX] = "*.*\0";
 
   char *Slash;
+  int  iSlash;
 
   int iLisType;
   size_t iMaxSize;
@@ -5872,6 +5977,11 @@ int ListDir(char *DirName, char *LisType)
 
       iMaxSize = strlen(RootDir);
       iMaxSize += strlen(inName);
+
+
+      /****************************************************************/
+      /* Max Path Size Exceeded?                                      */
+      /****************************************************************/
       if (iMaxSize >= FILENAME_MAX)
       {
         fprintf(LogHndl, "[!] Max Path Exceeded: %s%s\n", RootDir, inName);
@@ -5883,6 +5993,34 @@ int ListDir(char *DirName, char *LisType)
         return 0;
       }
 
+      /****************************************************************/
+      /* Max Directory Depth Exceeded?  Only used on FOR Type         */
+      /****************************************************************/
+      if ((setCDepth > 0) && (iLisType == 2))
+      {
+        iCDepth = 0;
+        for (iSlash = 0; iSlash < strlen(RootDir); iSlash++)
+        {
+          if (RootDir[iSlash] == '\\')
+            iCDepth++;
+        }
+
+        if (iCDepth > setCDepth)
+        {
+          fprintf(LogHndl, "[!] Max Directory Depth Exceeded: %d\n    %s\n", setCDepth, RootDir);
+
+          consPrefix("[!] ", consRed);
+          printf("Max Directory Depth Exceeded: %d\n    %s\n", setCDepth, RootDir);
+
+          fflush(stdout); //More PSExec Friendly
+          return 0;
+        }
+      }
+
+
+      /****************************************************************/
+      /* Windows Recursion Loop?                                      */
+      /****************************************************************/
       //if (stristr(RootDir, "Application Data\\Application Data\\Application Data\0") > 0)
       if (stristr(RootDir, "\\Application Data\\Application Data\\\0") > 0)
       {
@@ -8567,6 +8705,9 @@ void cleanUp_Exit(int exitRC)
 
   if (access(ForDisk, 0) == 0)
    unlink(ForDisk);
+
+  if (access(MCpFile, 0) == 0)
+    unlink(MCpFile);
 
 
   if (iHtmMode == 1)

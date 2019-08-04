@@ -1,0 +1,55 @@
+***************************************************
+* Use WMIC to find all VSS/VSCs and Mount them    *
+*  Then copy the Prefetch and Registry files from *
+*  then mounted VSS/VSCs                          *
+*  Note: VSSAdmin example is commented out        *
+***************************************************
+SET:DELIMS=\
+
+ACQ:\
+CKY:C:\Windows\Sysnative\wbem\wmic.exe
+ Say:[+] Calling Non-Native WMIC Query for VSS
+ *SYS:for /f "tokens=1,2,3,4" %%a in ('c:\windows\sysnative\vssadmin list shadows ^| findstr /I /C:"shadow copy volume:" ') do @echo %%d>>&Dir\&Acn\Cache\VSSEnum.txt
+ SYS:C:\windows\sysnative\wbem\wmic.exe shadowcopy get deviceobject | findstr /i "harddiskvolumeshadowcopy"> &Dir\&Acn\Cache\VSSEnum.txt
+ LST:&Acn\Cache\VSSEnum.txt
+ SYS:mklink /d &Acq\&ls3 &Lst\ 
+ SAY:[+] Created &CNR VSS/VSC Links for Historical Artifacts 
+END:
+
+CKN:C:\Windows\Sysnative\wbem\wmic.exe
+ Say:[+] Calling Native WMIC Query for VSS
+ *SYS:for /f "tokens=1,2,3,4" %%a in ('c:\windows\system32\vssadmin list shadows ^| findstr /I /C:"shadow copy volume:" ') do @echo %%d>>&Dir\&Acn\Cache\VSSEnum.txt
+ SYS:C:\windows\System32\wbem\wmic.exe shadowcopy get deviceobject | findstr /i "harddiskvolumeshadowcopy"> &Dir\&Acn\Cache\VSSEnum.txt
+ LST:&Acn\Cache\VSSEnum.txt
+ SYS:mklink /d &Acq\&ls3 &Lst\
+ SAY:[+] Created &CNR VSS/VSC Links for Historical Artifacts 
+END:
+
+**************************************************************
+* Make the Subdirectories                                    *
+**************************************************************
+ACQ:\VSS-PRF\&ls3
+ACQ:\VSS-REG\&ls3
+
+**************************************************************
+* Copy Prefetch Files from VSS Links                         *
+**************************************************************
+ACQ:\
+CPY:&ACQ\&ls3\Windows\Prefetch\*.* &ACQ\VSS-PRF\&ls3\*.*
+
+**************************************************************
+* Copy Registry from VSS Link, Then Delete the Link          *
+**************************************************************
+CPY:&ACQ\&ls3\Windows\System32\Config\SECURITY &ACQ\VSS-REG\&ls3\SECURITY
+CPY:&ACQ\&ls3\Windows\System32\Config\SOFTWARE &ACQ\VSS-REG\&ls3\SOFTWARE
+CPY:&ACQ\&ls3\Windows\System32\Config\SAM &ACQ\VSS-REG\&ls3\SAM
+CPY:&ACQ\&ls3\Windows\System32\Config\SYSTEM &ACQ\VSS-REG\&ls3\SYSTEM
+
+SET:CopyPath=Full
+SET:CopyDepth=6
+CPY:&ACQ\&ls3\Users\NTUSER.* &ACQ\VSS-REG\&ls3\*.*
+
+**************************************************************
+* Remove All Links                                           *
+**************************************************************
+SYS:RMDir &Acq\&Ls3

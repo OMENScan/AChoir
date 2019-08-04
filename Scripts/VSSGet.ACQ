@@ -68,6 +68,7 @@ LBL:Loop
  CPY:"&VR9\Windows\System32\Config\SAM" "&Acq\SAM"
  CPY:"&VR9\Windows\System32\Config\SYSTEM" "&Acq\SYSTEM"
  SET:CopyPath=Full
+ SET:CopyDepth=7
  FOR:&VR9\Users\NTUSER.DAT
  SAY:[+] Found &CNR User Registry Files
  CPY:"&For" "&Acq\&Fnm"
@@ -91,5 +92,3 @@ SAY:
 SAY:[+]  Now Hashing Artifacts...
 HSH:ACQ
 SAY:[+] All Done!  Press Any Key to Finish.
-
-* ini:Console
