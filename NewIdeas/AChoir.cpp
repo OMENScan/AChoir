@@ -202,8 +202,11 @@
 /*                 for CPY: (Does not work win NCP:) - This     */
 /*                 will help speed up copying by preventing     */
 /*                 unnecessary depth (Default is 10 SubDirs)    */
-/* AChoir v3.8  - Better mkdir Processing - Better Support for  */
-/*                 MAP:                                         */
+/* AChoir v3.8  - Better mkdir Processing (Error Correction)    */
+/*              - Better Support for MAP: (Sets Target Dirs)    */
+/*                Set:Cache=<local> or <Movable> - Speed        */
+/*                 enhancement to keep the Cache local to the   */
+/*                 target machine - Use with caution.           */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -246,8 +249,8 @@
 #include <errno.h>
 
 /* #ifndef NO_UNISTD
-#include <unistd.h>
-#endif NO_UNISTD
+   #include <unistd.h>
+   #endif NO_UNISTD 
 */
 
 #include <conio.h>
@@ -311,6 +314,8 @@ int  iExec = 0;
 int  iIsCompressed = 0;
 char cIsCompressed[15] = "\0";
 int  iCDepth = 0; // CopyDepth Counter
+int  iCacheType = 0; // Movable Cache (Default)
+
 
 int  setNCP = 2;    // 0=NODCMP, 1=DECOMP/RAWONLY, 2=OSCOPY (Default)
 int  setCPath = 0;  // 0=None, 1=Partial, 2=Full
@@ -475,9 +480,9 @@ char *WinRoot = "C:\\Windows";
 char *Procesr = "AMD64";
 char *TempVar = "C:\\Windows\\Temp";
 char *ProgVar = "C:\\Program Files";
-char CrLf[3] = { 0x0D, 0x0A, 0x00 };
+char CrLf[3] = {0x0D, 0x0A, 0x00};
 
-int  iLogOpen = 0;
+int  iLogOpen = 0 ;
 
 HANDLE SecTokn;
 int PrivSet = 0;
@@ -632,7 +637,7 @@ ULONG maxDataSize, leftDataSize;
 int LCNType = 0;  // 0 for Attributes, 1 for Files (used for tracking leftFileSize)
 int iDepth = 0;   // Sanity Check for Recursion Loops
 
-                  //File Signature Copy Table & Vars
+//File Signature Copy Table & Vars
 int  iSigCount = 0;
 int  iSigTMax = 100;
 int  iSigSize = 33; // One Extra byte for null terminator
@@ -640,7 +645,7 @@ int  iTypSize = 11; // One Extra byte for null terminator
 char *SigTabl;
 char *TypTabl;
 int  *SizTabl;
-char * equDelim;
+char * equDelim ;
 char tmpSig[255];
 int  tmpSize;
 int  iNCS = 0;
@@ -650,9 +655,9 @@ int  iCPSFound = 0; // 0==Found, 1==Not
 
 PUCHAR ClustZero; // First Cluster buffer
 
-                  // Console Hande for Hide, Show
+// Console Hande for Hide, Show
 HWND conHndl;
-int  iConMode = 1;
+int  iConMode = 1 ;
 
 // Console Input instead of File
 int consOrFile = 0;
@@ -660,26 +665,26 @@ int consOrFile = 0;
 // Console Coloring
 void consPrefix(char *consText, int consColor);
 HANDLE  hConsole;
-char    consTemp[10];
-int     consBlu = 11;
-int     consGre = 10;
-int     consRed = 12;
-int     consYel = 14;
-int     consWhi = 15;
+char    consTemp[10] ; 
+int     consBlu = 11 ;
+int     consGre = 10 ;
+int     consRed = 12 ;
+int     consYel = 14 ;
+int     consWhi = 15 ;
 
 // Case Information (ONLY ONCE!)
 // 0 = Not Entered, 1 = Entered, 2 = /CSE Arg
-int  iCase = 0;
-char caseNumbr[255];
-char evidNumbr[255];
-char caseDescr[255];
-char caseExmnr[255];
+int  iCase = 0 ;
+char caseNumbr[255] ; 
+char evidNumbr[255] ; 
+char caseDescr[255] ; 
+char caseExmnr[255] ; 
 
 
 // DSK Variables
-int  dskNum;
-int  dskTyp;
-int  DskMe;
+int  dskNum ;
+int  dskTyp ;
+int  DskMe ;
 char dskNam[10] = "A:\\\0";
 char Dskrec[10] = "A:\\\0";
 char Alphabet[30] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
@@ -702,7 +707,7 @@ ULONG lst_cur, lst_end, tot_byt_src, tot_byt_dst;
 //End Testing Varaibles
 
 //Global Variables for lznCopy
-ULONG last_rawdLen;
+ULONG last_rawdLen ;
 char  last_Fname[2048] = "\0";
 
 //#define STATUS_ACCESS_VIOLATION 0xC0000005
@@ -710,8 +715,8 @@ char  last_Fname[2048] = "\0";
 #define STATUS_SUCCESS 0x00000000
 
 //lznCopy - Routines Definitions
-static PUCHAR lznt1_decompress_chunk(UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG src_size);
-static NTSTATUS lznt1_decompress(UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG src_size, ULONG offset, ULONG * final_size, UCHAR * workspace);
+static PUCHAR lznt1_decompress_chunk (UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG src_size);
+static NTSTATUS lznt1_decompress ( UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG src_size, ULONG offset, ULONG * final_size, UCHAR * workspace);
 
 //Windows Version
 char descrWinVer[50] = "Unknown\0";
@@ -719,7 +724,7 @@ char shortWinVer[15] = "Win\0";
 int  iIsServer = 0;
 
 //Offline Registry 
-DWORD ORRetcd;
+DWORD ORRetcd ;
 
 //Global Disk And Memory Variables
 long long TotalMem, AvailDisk, longParm1, longParm2;
@@ -737,7 +742,7 @@ int main(int argc, char *argv[])
   int i;
   int iPtr;
   size_t oPtr, ArnLen, ArnPtr;
-  int RunMe, ForMe, LstMe, Looper, LoopNum;
+  int RunMe, ForMe, LstMe, Looper, LoopNum ;
 
   char Tmprec[2048];
   char Filrec[2048];
@@ -757,7 +762,7 @@ int main(int argc, char *argv[])
   //LPSTR pszOutBuffer;
   BOOL bResults = FALSE;
   HINTERNET hSession = NULL, hConnect = NULL, hRequest = NULL;
-
+    
   char *ForSlash;
   char *RootSlash;
 
@@ -805,6 +810,7 @@ int main(int argc, char *argv[])
   iOutOfDiskSpace = 0;
   iSyslogLvl = 0;
   setMapErr = 0;
+  iCacheType = 0;
 
   memset(CurrDir, 0, 1024);
   memset(CurrWorkDir, 0, 1024);
@@ -821,7 +827,7 @@ int main(int argc, char *argv[])
   memset(ntpFQDN, 0, 255);
 
   memset(VarArray, 0, 2560);
-  memset(cIsCompressed, 0, 15);
+  memset(cIsCompressed,0, 15);
 
   strncpy(inFnam, "AChoir.ACQ\0", 11);
 
@@ -837,8 +843,8 @@ int main(int argc, char *argv[])
   /*  mapped network drive (since it is at the root directory)    */
   /****************************************************************/
   lastChar = strlen(BaseDir);
-  if ((BaseDir[lastChar - 1] == '\\') && (lastChar > 2))
-    BaseDir[lastChar - 1] = '\0';
+  if ((BaseDir[lastChar-1] == '\\') && (lastChar > 2))
+    BaseDir[lastChar-1] = '\0';
 
 
   /****************************************************************/
@@ -868,17 +874,17 @@ int main(int argc, char *argv[])
   /****************************************************************/
   iSigCount = 0;
 
-  SigTabl = (char *)malloc(iSigTMax * iSigSize);
-  if (SigTabl == NULL)
-    MemAllocErr("File Signature Table");
+  SigTabl  = (char *) malloc(iSigTMax * iSigSize)  ;
+  if(SigTabl == NULL) 
+   MemAllocErr("File Signature Table") ;
 
-  TypTabl = (char *)malloc(iSigTMax * iTypSize);
-  if (TypTabl == NULL)
-    MemAllocErr("File Type Table");
+  TypTabl  = (char *) malloc(iSigTMax * iTypSize)  ;
+  if(TypTabl == NULL) 
+   MemAllocErr("File Type Table") ;
 
-  SizTabl = (int *)malloc(iSigTMax * sizeof(int));
-  if (SizTabl == NULL)
-    MemAllocErr("File Signature Size Table");
+  SizTabl = (int *) malloc(iSigTMax * sizeof(int)) ;
+  if(SizTabl == NULL) 
+   MemAllocErr("File Signature Size Table") ;
 
 
   /****************************************************************/
@@ -893,16 +899,16 @@ int main(int argc, char *argv[])
   /****************************************************************/
   /* Default Case Settings                                        */
   /****************************************************************/
-  memset(caseNumbr, 0, 255);
-  memset(evidNumbr, 0, 255);
-  memset(caseDescr, 0, 255);
-  memset(caseExmnr, 0, 255);
-  strncpy(caseNumbr, ACQName, 255);
-  strncpy(evidNumbr, "001", 3);
-  sprintf(caseDescr, "AChoir Live Acquisition: %s\0", ACQName);
-  strncpy(caseExmnr, "Unknown", 7);
+  memset(caseNumbr, 0, 255) ;
+  memset(evidNumbr, 0, 255) ;
+  memset(caseDescr, 0, 255) ;
+  memset(caseExmnr, 0, 255) ;
+  strncpy(caseNumbr, ACQName, 255) ;
+  strncpy(evidNumbr, "001", 3) ;
+  sprintf(caseDescr, "AChoir Live Acquisition: %s\0", ACQName) ;
+  strncpy(caseExmnr, "Unknown", 7) ;
 
-
+  
   /****************************************************************/
   /* Get the Runmode: (Default == 1)                              */
   /*  BLD = Go Get the Utilities via cURL                         */
@@ -1044,10 +1050,10 @@ int main(int argc, char *argv[])
       RootSlash = strrchr(WGetURL, '/');
 
       if (RootSlash == NULL)
-       sprintf(CurrFil, "%s\\AChoir.Acq\0", CurrWorkDir);
+        sprintf(CurrFil, "%s\\AChoir.Acq\0", CurrWorkDir);
       else
       if (strlen(RootSlash) < 2)
-       sprintf(CurrFil, "%s\\AChoir.Acq\0", CurrWorkDir);
+        sprintf(CurrFil, "%s\\AChoir.Acq\0", CurrWorkDir);
       else
        sprintf(CurrFil, "%s\\%s\0", CurrWorkDir, RootSlash + 1);
 
@@ -1064,14 +1070,14 @@ int main(int argc, char *argv[])
       }
       else
       {
-        consPrefix("[!] ", consRed);
-        printf("/MAP:  Too Long (Greater than 254 chars)\n");
+         consPrefix("[!] ", consRed);
+         printf("/MAP:  Too Long (Greater than 254 chars)\n");
       }
     }
     else
     if (strnicmp(argv[i], "/USR:", 5) == 0)
     {
-      if (argv[i][5] == '?')
+      if (argv[i][5] =='?')
       {
         consPrefix("[?] ", consYel);
         consInput("Enter Share Mapping UserId> ", 0, 0);
@@ -1086,14 +1092,14 @@ int main(int argc, char *argv[])
       }
       else
       {
-        consPrefix("[!] ", consRed);
-        printf("/USR:  Too Long (Greater than 254 chars)\n");
+         consPrefix("[!] ", consRed);
+         printf("/USR:  Too Long (Greater than 254 chars)\n");
       }
     }
     else
     if (strnicmp(argv[i], "/PWD:", 5) == 0)
     {
-      if (argv[i][5] == '?')
+      if (argv[i][5] =='?')
       {
         consPrefix("[?] ", consYel);
         consInput("Enter Share Mapping Password> ", 0, 1);
@@ -1108,8 +1114,8 @@ int main(int argc, char *argv[])
       }
       else
       {
-        consPrefix("[!] ", consRed);
-        printf("/PWD:  Too Long (Greater than 254 chars)\n");
+         consPrefix("[!] ", consRed);
+         printf("/PWD:  Too Long (Greater than 254 chars)\n");
       }
     }
     else
@@ -1160,7 +1166,7 @@ int main(int argc, char *argv[])
         case '9':
           iVar = 256 * 9;
         break;
-
+              
         /**********************************************************/
         /* Bad Var Name                                           */
         /**********************************************************/
@@ -1176,7 +1182,7 @@ int main(int argc, char *argv[])
       }
       else
       {
-        strncpy(VarArray + iVar, argv[i] + 5, 255);
+        strncpy(VarArray+iVar, argv[i]+5, 255);
       }
     }
     else
@@ -1201,7 +1207,7 @@ int main(int argc, char *argv[])
 
     // Reset The WorkingDirectory to the Mapped Drive
     sprintf(CurrWorkDir, "%s\\\0", BaseDir);
-    _chdir(CurrWorkDir);
+    _chdir(CurrWorkDir); 
 
     memset(WDLLPath, 0, 256);
 
@@ -1220,13 +1226,15 @@ int main(int argc, char *argv[])
   /****************************************************************/
   sprintf(IniFile, "%s\\%s\0", BaseDir, inFnam);
   sprintf(WGetFile, "%s\\AChoir.Dat\0", BaseDir);
-  sprintf(ForFile, "%s\\%s\\Cache\\ForFiles\0", BaseDir, ACQName);
-  sprintf(MCpFile, "%s\\%s\\Cache\\MCpFiles\0", BaseDir, ACQName);
-  sprintf(ForDisk, "%s\\%s\\Cache\\ForDisks\0", BaseDir, ACQName);
   sprintf(LstFile, "%s\\LstFiles\0", BaseDir);
   sprintf(ChkFile, "%s\\AChoir.exe\0", BaseDir);
+
   sprintf(BACQDir, "%s\\%s\0", BaseDir, ACQName);
   sprintf(CachDir, "%s\\%s\\Cache\0", BaseDir, ACQName);
+
+  sprintf(ForFile, "%s\\ForFiles\0", CachDir);
+  sprintf(MCpFile, "%s\\MCpFiles\0", CachDir);
+  sprintf(ForDisk, "%s\\ForDisks\0", CachDir);
 
 
 
@@ -1234,7 +1242,7 @@ int main(int argc, char *argv[])
   /* Create Log Dir if it aint there                              */
   /****************************************************************/
   sprintf(LogFile, "%s\\Logs\0", BaseDir);
-  
+
   //if (access(LogFile, 0) != 0)
   //  mkdir(LogFile);
   DirAllocErr(LogFile);
@@ -1254,7 +1262,7 @@ int main(int argc, char *argv[])
   }
 
   iLogOpen = 1;
-
+  
   consPrefix("[+] ", consGre);
   printf("AChoir ver: %s, Mode: %s\n", Version, RunMode);
   fprintf(LogHndl, "[+] AChoir ver: %s, Mode: %s\n", Version, RunMode);
@@ -1263,21 +1271,21 @@ int main(int argc, char *argv[])
   fflush(stdout); //More PSExec Friendly
 
 
-                  /****************************************************************/
-                  /* Display Windows Version - This Klugy API requires checking   */
-                  /*  all versions, since thelogic is Equals or Greater Than      */
-                  /****************************************************************/
-  if (IsWindowsServer())
-    iIsServer = 1;
+  /****************************************************************/
+  /* Display Windows Version - This Klugy API requires checking   */
+  /*  all versions, since thelogic is Equals or Greater Than      */
+  /****************************************************************/
+  if(IsWindowsServer())
+   iIsServer = 1 ;
   else
-    iIsServer = 0;
+   iIsServer = 0;
 
   memset(descrWinVer, 0, 50);
   memset(shortWinVer, 0, 15);
-  if (CompareWindowsVersion(10, 0))
+  if(CompareWindowsVersion(10, 0))
   {
     // Windows 10 or Server 2016
-    if (iIsServer == 0)
+    if(iIsServer == 0)
     {
       strncpy(shortWinVer, "Win10\0\0\0", 8);
       strncpy(descrWinVer, "Windows 10 (10.0)\0\0\0", 20);
@@ -1289,94 +1297,94 @@ int main(int argc, char *argv[])
     }
   }
   else
-    if (CompareWindowsVersion(6, 3))
+  if(CompareWindowsVersion(6, 3))
+  {
+    // Windows 8.1 or Server 2012R2
+    if(iIsServer == 0)
     {
-      // Windows 8.1 or Server 2012R2
-      if (iIsServer == 0)
-      {
-        strncpy(shortWinVer, "Win8.1\0\0\0", 9);
-        strncpy(descrWinVer, "Windows 8.1 (6.3)\0\0\0", 20);
-      }
-      else
-      {
-        strncpy(shortWinVer, "Win2012R2\0\0\0", 12);
-        strncpy(descrWinVer, "Server 2012R2 (6.3)\0\0\0", 22);
-      }
+      strncpy(shortWinVer, "Win8.1\0\0\0", 9);
+      strncpy(descrWinVer, "Windows 8.1 (6.3)\0\0\0", 20);
     }
     else
-      if (CompareWindowsVersion(6, 2))
-      {
-        // Windows 8 or Server 2012
-        if (iIsServer == 0)
-        {
-          strncpy(shortWinVer, "Win8\0\0\0", 7);
-          strncpy(descrWinVer, "Windows 8 (6.2)\0\0\0", 13);
-        }
-        else
-        {
-          strncpy(shortWinVer, "Win2012\0\0\0", 10);
-          strncpy(descrWinVer, "Server 2012 (6.2)\0\0\0", 20);
-        }
-      }
-      else
-        if (CompareWindowsVersion(6, 1))
-        {
-          // Windows 7 or Server 2008R2
-          if (iIsServer == 0)
-          {
-            strncpy(shortWinVer, "Win7\0\0\0", 7);
-            strncpy(descrWinVer, "Windows 7 (6.1)\0\0\0", 18);
-          }
-          else
-          {
-            strncpy(shortWinVer, "Win208R2\0\0\0", 11);
-            strncpy(descrWinVer, "Server 2008R2 (6.1)\0\0\0", 22);
-          }
-        }
-        else
-          if (CompareWindowsVersion(6, 0))
-          {
-            // Windows Vista or Server 2008
-            if (iIsServer == 0)
-            {
-              strncpy(shortWinVer, "Vista\0\0\0", 8);
-              strncpy(descrWinVer, "Windows Vista (6.0)\0\0\0", 22);
-            }
-            else
-            {
-              strncpy(shortWinVer, "Win2008\0\0\0", 10);
-              strncpy(descrWinVer, "Server 2008 (6.0)\0\0\0", 20);
-            }
-          }
-          else
-            if (CompareWindowsVersion(5, 2))
-            {
-              // Windows XP 64Bit or Server 2003(R2)
-              if (iIsServer == 0)
-              {
-                strncpy(shortWinVer, "WinXP64\0\0\0", 10);
-                strncpy(descrWinVer, "Windows XP64 (5.2)\0\0\0", 21);
-              }
-              else
-              {
-                strncpy(shortWinVer, "Win2003\0\0\0", 10);
-                strncpy(descrWinVer, "Server 2003/2003R2 (5.2)\0\0\0", 27);
-              }
-            }
-            else
-              if (CompareWindowsVersion(5, 1))
-              {
-                // Windows XP
-                strncpy(shortWinVer, "WinXP\0\0\0", 8);
-                strncpy(descrWinVer, "Windows XP (5.1)\0\0\0", 19);
-              }
-              else
-                if (CompareWindowsVersion(5, 0))
-                {
-                  // Windows 2000
-                  strncpy(shortWinVer, "Win2000\0\0\0", 10);
-                  strncpy(descrWinVer, "Windows 2000 (5.1)\0\0\0", 21);
-                }
+    {
+      strncpy(shortWinVer, "Win2012R2\0\0\0", 12);
+      strncpy(descrWinVer, "Server 2012R2 (6.3)\0\0\0", 22);
+    }
+  }
+  else
+  if(CompareWindowsVersion(6, 2))
+  {
+    // Windows 8 or Server 2012
+    if(iIsServer == 0)
+    {
+      strncpy(shortWinVer, "Win8\0\0\0", 7);
+      strncpy(descrWinVer, "Windows 8 (6.2)\0\0\0", 13);
+    }
+    else
+    {
+      strncpy(shortWinVer, "Win2012\0\0\0", 10);
+      strncpy(descrWinVer, "Server 2012 (6.2)\0\0\0", 20);
+    }
+  }
+  else
+  if(CompareWindowsVersion(6, 1))
+  {
+    // Windows 7 or Server 2008R2
+    if(iIsServer == 0)
+    {
+      strncpy(shortWinVer, "Win7\0\0\0", 7);
+      strncpy(descrWinVer, "Windows 7 (6.1)\0\0\0", 18);
+    }
+    else
+    {
+      strncpy(shortWinVer, "Win208R2\0\0\0", 11);
+      strncpy(descrWinVer, "Server 2008R2 (6.1)\0\0\0", 22);
+    }
+  }
+  else
+  if(CompareWindowsVersion(6, 0))
+  {
+    // Windows Vista or Server 2008
+    if(iIsServer == 0)
+    {
+      strncpy(shortWinVer, "Vista\0\0\0", 8);
+      strncpy(descrWinVer, "Windows Vista (6.0)\0\0\0", 22);
+    }
+    else
+    {
+      strncpy(shortWinVer, "Win2008\0\0\0", 10);
+      strncpy(descrWinVer, "Server 2008 (6.0)\0\0\0", 20);
+    }
+  }
+  else
+  if(CompareWindowsVersion(5, 2))
+  {
+    // Windows XP 64Bit or Server 2003(R2)
+    if(iIsServer == 0)
+    {
+      strncpy(shortWinVer, "WinXP64\0\0\0", 10);
+      strncpy(descrWinVer, "Windows XP64 (5.2)\0\0\0", 21);
+    }
+    else
+    {
+      strncpy(shortWinVer, "Win2003\0\0\0", 10);
+      strncpy(descrWinVer, "Server 2003/2003R2 (5.2)\0\0\0", 27);
+    }
+  }
+  else
+  if(CompareWindowsVersion(5, 1))
+  {
+    // Windows XP
+    strncpy(shortWinVer, "WinXP\0\0\0", 8);
+    strncpy(descrWinVer, "Windows XP (5.1)\0\0\0", 19);
+  }
+  else
+  if(CompareWindowsVersion(5, 0))
+  {
+    // Windows 2000
+    strncpy(shortWinVer, "Win2000\0\0\0", 10);
+    strncpy(descrWinVer, "Windows 2000 (5.1)\0\0\0", 21);
+  }
 
   consPrefix("[+] ", consGre);
   printf("Detected Windows Ver: %s\n", descrWinVer);
@@ -1391,12 +1399,12 @@ int main(int argc, char *argv[])
 
   if (access(TempDir, 0) == 0)
   {
-    strncpy(sNative, "NON-\0", 5);
+    strncpy (sNative, "NON-\0", 5);
     iNative = 0;
   }
   else
   {
-    strncpy(sNative, "\0\0\0\0\0", 5);
+    strncpy (sNative, "\0\0\0\0\0", 5);
     iNative = 1;
   }
   memset(TempDir, 0, 1024);
@@ -1424,9 +1432,9 @@ int main(int argc, char *argv[])
   fflush(stdout); //More PSExec Friendly
 
 
-                  /****************************************************************/
-                  /* Get Basic Security Priveleges we will need before starting   */
-                  /****************************************************************/
+  /****************************************************************/
+  /* Get Basic Security Priveleges we will need before starting   */
+  /****************************************************************/
   PrivSet = PrivOwn = PrivSec = PrivBac = PrivRes = 0;
 
   if (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, &SecTokn))
@@ -1496,7 +1504,7 @@ int main(int argc, char *argv[])
   fprintf(LogHndl, "[+] Input Script Set:\n     %s\n\n", IniFile);
 
 
-
+  
   /****************************************************************/
   /* If iRunMode=1 Create the BACQDir - Base Acquisition Dir      */
   /****************************************************************/
@@ -1530,8 +1538,8 @@ int main(int argc, char *argv[])
 
 
   // Should We Gather Case Information (/CSE)
-  if (iCase == 2)
-    getCaseInfo(1);
+  if(iCase == 2)
+   getCaseInfo(1);
 
 
   /****************************************************************/
@@ -1540,7 +1548,7 @@ int main(int argc, char *argv[])
   memset(Inrec, 0, 4096);
   memset(Tmprec, 0, 2048);
 
-  if (consOrFile == 1)
+  if(consOrFile == 1)
   {
     consPrefix("[+] ", consGre);
     printf("Switching to Console Input.\n");
@@ -1551,7 +1559,7 @@ int main(int argc, char *argv[])
     IniHndl = stdin;
   }
   else
-    IniHndl = fopen(IniFile, "r");
+   IniHndl = fopen(IniFile, "r");
 
   fflush(stdout); //More PSExec Friendly
 
@@ -1572,47 +1580,47 @@ int main(int argc, char *argv[])
         if (strnicmp(Tmprec, "32B:", 4) == 0)
           RunMe++;
         else
-          if (strnicmp(Tmprec, "64B:", 4) == 0)
-            RunMe++;
-          else
-            if (strnicmp(Tmprec, "VER:", 4) == 0)
-              RunMe++;
-            else
-              if (strnicmp(Tmprec, "CKY:", 4) == 0)
-                RunMe++;
-              else
-                if (strnicmp(Tmprec, "CKN:", 4) == 0)
-                  RunMe++;
-                else
-                  if (strnicmp(Tmprec, "EQU:", 4) == 0)
-                    RunMe++;
-                  else
-                    if (strnicmp(Tmprec, "NEQ:", 4) == 0)
-                      RunMe++;
-                    else
-                      if (strnicmp(Tmprec, "RC=:", 4) == 0)
-                        RunMe++;
-                      else
-                        if (strnicmp(Tmprec, "RC!:", 4) == 0)
-                          RunMe++;
-                        else
-                          if (strnicmp(Tmprec, "RC>:", 4) == 0)
-                            RunMe++;
-                          else
-                            if (strnicmp(Tmprec, "RC<:", 4) == 0)
-                              RunMe++;
-                            else
-                              if (strnicmp(Tmprec, "N>>:", 4) == 0)
-                                RunMe++;
-                              else
-                                if (strnicmp(Tmprec, "N<<:", 4) == 0)
-                                  RunMe++;
-                                else
-                                  if (strnicmp(Tmprec, "N==:", 4) == 0)
-                                    RunMe++;
-                                  else
-                                    if (strnicmp(Tmprec, "END:", 4) == 0)
-                                      RunMe--;
+        if (strnicmp(Tmprec, "64B:", 4) == 0)
+          RunMe++;
+        else
+        if (strnicmp(Tmprec, "VER:", 4) == 0)
+          RunMe++;
+        else
+        if (strnicmp(Tmprec, "CKY:", 4) == 0)
+          RunMe++;
+        else
+        if (strnicmp(Tmprec, "CKN:", 4) == 0)
+          RunMe++;
+        else
+        if (strnicmp(Tmprec, "EQU:", 4) == 0)
+          RunMe++;
+        else
+        if (strnicmp(Tmprec, "NEQ:", 4) == 0)
+          RunMe++;
+        else
+        if (strnicmp(Tmprec, "RC=:", 4) == 0)
+          RunMe++;
+        else
+        if (strnicmp(Tmprec, "RC!:", 4) == 0)
+          RunMe++;
+        else
+        if (strnicmp(Tmprec, "RC>:", 4) == 0)
+          RunMe++;
+        else
+        if (strnicmp(Tmprec, "RC<:", 4) == 0)
+          RunMe++;
+        else
+        if (strnicmp(Tmprec, "N>>:", 4) == 0)
+         RunMe++;
+        else
+        if (strnicmp(Tmprec, "N<<:", 4) == 0)
+         RunMe++;
+        else
+        if (strnicmp(Tmprec, "N==:", 4) == 0)
+         RunMe++;
+        else
+        if (strnicmp(Tmprec, "END:", 4) == 0)
+          RunMe--;
       }
       else
       {
@@ -1622,9 +1630,9 @@ int main(int argc, char *argv[])
         /* ForFiles Looper Setup                                        */
         /****************************************************************/
         if ((stristr(Tmprec, "&FOR") > 0) || (stristr(Tmprec, "&FO0") > 0) || (stristr(Tmprec, "&FO1") > 0)
-          || (stristr(Tmprec, "&FO2") > 0) || (stristr(Tmprec, "&FO3") > 0) || (stristr(Tmprec, "&FO4") > 0)
-          || (stristr(Tmprec, "&FO5") > 0) || (stristr(Tmprec, "&FO6") > 0) || (stristr(Tmprec, "&FO7") > 0)
-          || (stristr(Tmprec, "&FO8") > 0) || (stristr(Tmprec, "&FO9") > 0))
+         || (stristr(Tmprec, "&FO2") > 0) || (stristr(Tmprec, "&FO3") > 0) || (stristr(Tmprec, "&FO4") > 0)
+         || (stristr(Tmprec, "&FO5") > 0) || (stristr(Tmprec, "&FO6") > 0) || (stristr(Tmprec, "&FO7") > 0)
+         || (stristr(Tmprec, "&FO8") > 0) || (stristr(Tmprec, "&FO9") > 0))
         {
           ForMe = 1;
           memset(Filrec, 0, 2048);
@@ -1650,9 +1658,9 @@ int main(int argc, char *argv[])
         /* LstFiles Looper Setup                                        */
         /****************************************************************/
         if ((stristr(Tmprec, "&LST") > 0) || (stristr(Tmprec, "&LS0") > 0) || (stristr(Tmprec, "&LS1") > 0)
-          || (stristr(Tmprec, "&LS2") > 0) || (stristr(Tmprec, "&LS3") > 0) || (stristr(Tmprec, "&LS4") > 0)
-          || (stristr(Tmprec, "&LS5") > 0) || (stristr(Tmprec, "&LS6") > 0) || (stristr(Tmprec, "&LS7") > 0)
-          || (stristr(Tmprec, "&LS8") > 0) || (stristr(Tmprec, "&LS9") > 0))
+         || (stristr(Tmprec, "&LS2") > 0) || (stristr(Tmprec, "&LS3") > 0) || (stristr(Tmprec, "&LS4") > 0)
+         || (stristr(Tmprec, "&LS5") > 0) || (stristr(Tmprec, "&LS6") > 0) || (stristr(Tmprec, "&LS7") > 0)
+         || (stristr(Tmprec, "&LS8") > 0) || (stristr(Tmprec, "&LS9") > 0))
         {
           LstMe = 1;
           memset(Lstrec, 0, 2048);
@@ -1699,7 +1707,7 @@ int main(int argc, char *argv[])
         }
         else
           DskMe = 0;
-
+        
 
         /****************************************************************/
         /* Loop (FOR: and LST:) until Looper = 1                        */
@@ -1710,85 +1718,85 @@ int main(int argc, char *argv[])
           if ((ForMe == 0) && (LstMe == 0) && (DskMe == 0))
             Looper = 0;
           else
-            if ((ForMe == 1) && (LstMe == 0) && (DskMe == 0))
+          if ((ForMe == 1) && (LstMe == 0) && (DskMe == 0))
+          {
+            if (fgets(Filrec, 1000, ForHndl))
             {
-              if (fgets(Filrec, 1000, ForHndl))
+              Looper = 1;
+              LoopNum++;
+
+              strtok(Filrec, "\n");
+              strtok(Filrec, "\r");
+
+              if(setTrim == 1)
+               LRTrim(Filrec);
+
+              /****************************************************************/
+              /* Get Just the File Name                                       */
+              /****************************************************************/
+              if ((ForSlash = strrchr(Filrec, '\\')) != NULL)
               {
-                Looper = 1;
-                LoopNum++;
-
-                strtok(Filrec, "\n");
-                strtok(Filrec, "\r");
-
-                if (setTrim == 1)
-                  LRTrim(Filrec);
-
-                /****************************************************************/
-                /* Get Just the File Name                                       */
-                /****************************************************************/
-                if ((ForSlash = strrchr(Filrec, '\\')) != NULL)
-                {
-                  if (strlen(ForSlash + 1) > 1)
-                    strncpy(ForFName, ForSlash + 1, 250);
-                  else
-                    strncpy(ForFName, "Unknown\0", 8);
-                }
+                if (strlen(ForSlash + 1) > 1)
+                  strncpy(ForFName, ForSlash + 1, 250);
                 else
-                  strncpy(ForFName, Filrec, 250);
+                  strncpy(ForFName, "Unknown\0", 8);
               }
               else
-                break;
+                strncpy(ForFName, Filrec, 250);
             }
             else
-              if ((ForMe == 0) && (LstMe == 1) && (DskMe == 0))
-              {
-                if (fgets(Lstrec, 1000, LstHndl))
-                {
-                  Looper = 1;
-                  LoopNum++;
+              break;
+          }
+          else
+          if ((ForMe == 0) && (LstMe == 1) && (DskMe == 0))
+          {
+            if (fgets(Lstrec, 1000, LstHndl))
+            {
+              Looper = 1;
+              LoopNum++;
 
-                  strtok(Lstrec, "\n");
-                  strtok(Lstrec, "\r");
+              strtok(Lstrec, "\n");
+              strtok(Lstrec, "\r");
 
-                  if (setTrim == 1)
-                    LRTrim(Lstrec);
-                }
-                else
-                  break;
-              }
-              else
-                if ((ForMe == 0) && (LstMe == 0) && (DskMe == 1))
-                {
-                  if (fgets(Dskrec, 10, DskHndl))
-                  {
-                    Looper = 1;
-                    LoopNum++;
+              if (setTrim == 1)
+               LRTrim(Lstrec);
+            }
+            else
+              break;
+          }
+          else
+          if ((ForMe == 0) && (LstMe == 0) && (DskMe == 1))
+          {
+            if (fgets(Dskrec, 10, DskHndl))
+            {
+              Looper = 1;
+              LoopNum++;
 
-                    strtok(Dskrec, "\n");
-                    strtok(Dskrec, "\r");
+              strtok(Dskrec, "\n");
+              strtok(Dskrec, "\r");
 
-                    if (setTrim == 1)
-                      LRTrim(Dskrec);
-                  }
-                  else
-                    break;
-                }
-                else
-                {
-                  Looper = 0;
+              if (setTrim == 1)
+               LRTrim(Dskrec);
+            }
+            else
+              break;
+          }
+          else
+          {
+            Looper = 0;
 
-                  fprintf(LogHndl, "[!] AChoir does not yet support Nested Looping (&LST + &FOR)\n     > %s\n", Tmprec);
+            fprintf(LogHndl, "[!] AChoir does not yet support Nested Looping (&LST + &FOR)\n     > %s\n", Tmprec);
 
-                  consPrefix("[!] ", consRed);
-                  printf("AChoir does not yet support Nested Looping (&LST + &FOR)\n     > %s\n", Tmprec);
+            consPrefix("[!] ", consRed);
+            printf("AChoir does not yet support Nested Looping (&LST + &FOR)\n     > %s\n", Tmprec);
 
-                  strncpy(Tmprec, "***: Command Bypassed\0\0\0\0\0\0\0\0\0", 25);
+            strncpy(Tmprec, "***: Command Bypassed\0\0\0\0\0\0\0\0\0", 25);
 
-                  fflush(stdout); //More PSExec Friendly
+            fflush(stdout); //More PSExec Friendly
 
-                }
-
-
+          }
+          
+          
           /****************************************************************/
           /* Expand the record, replacing variables                       */
           /****************************************************************/
@@ -1818,516 +1826,516 @@ int main(int argc, char *argv[])
               iPtr += 3;
             }
             else
-              if (strnicmp(o32VarRec + iPtr, "&Fil", 4) == 0)
+            if (strnicmp(o32VarRec + iPtr, "&Fil", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%s", CurrFil);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Ntp", 4) == 0)
+            {
+              // Full Date and Time - mm/dd/yyyy - hh:mm:ss
+              if(strlen(ntpFQDN) > 0)
               {
-                sprintf(Inrec + oPtr, "%s", CurrFil);
+                memset(ntpDateTime, 0, 25);
+                ntpGetTime(ntpFQDN);
+                
+                sprintf(Inrec + oPtr, "%s", ntpDateTime);
+                oPtr = strlen(Inrec);
+              }
+              else
+              {
+                consPrefix("\n[!] ", consRed);
+                fprintf(LogHndl, "[!] NTP Server FQDN has not been set, Bypassing NTP.\n");
+                printf( "NTP Server FQDN has not been set, Bypassing NTP..\n" );
+              }
+
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Tim", 4) == 0)
+            {
+              // Full Date and Time - mm/dd/yyyy - hh:mm:ss
+              memset(FullDateTime, 0, 25);
+              showTime("&Tim");
+                
+              sprintf(Inrec + oPtr, "%s", FullDateTime);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Inp", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%s", Inprec);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Acq", 4) == 0)
+            {
+              if (strlen(ACQDir) > 0)
+                sprintf(Inrec + oPtr, "%s\\%s", BACQDir, ACQDir);
+              else
+                sprintf(Inrec + oPtr, "%s", BACQDir);
+
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Acn", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%s", ACQName);
+
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Win", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%s", WinRoot);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Tmp", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%s", TempVar);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Fo", 3) == 0)
+            {
+              TokMax = 0;
+              switch (o32VarRec[iPtr + 3])
+              {
+              case 'r':
+                TokMax = 0;
+                sprintf(Inrec + oPtr, "%s", Filrec);
+                oPtr = strlen(Inrec);
+                iPtr += 3;
+                break;
+              case 'R':
+                TokMax = 0;
+                sprintf(Inrec + oPtr, "%s", Filrec);
+                oPtr = strlen(Inrec);
+                iPtr += 3;
+                break;
+              case '0':
+                TokMax = 0;
+                memset(Tokrec, 0, 2048);
+                strncpy(Tokrec, Filrec, 2048);
+                TokPtr = strtok(Tokrec, Delims);
+
+                if (setTrim == 1)
+                  LRTrim(Tokrec);
+
+                sprintf(Inrec + oPtr, "%s", Tokrec);
+                oPtr = strlen(Inrec);
+                iPtr += 3;
+                break;
+              case '1':
+                TokMax = 1;
+                break;
+              case '2':
+                TokMax = 2;
+                break;
+              case '3':
+                TokMax = 3;
+                break;
+              case '4':
+                TokMax = 4;
+                break;
+              case '5':
+                TokMax = 5;
+                break;
+              case '6':
+                TokMax = 6;
+                break;
+              case '7':
+                TokMax = 7;
+                break;
+              case '8':
+                TokMax = 8;
+                break;
+              case '9':
+                TokMax = 9;
+                break;
+              default:
+                TokMax = -1;
+                iPtr += 3;
+                break;
+              }
+
+              /****************************************************************/
+              /* Now Tokenize the column if > 0                               */
+              /****************************************************************/
+              if (TokMax > 0)
+              {
+                memset(Tokrec, 0, 2048);
+                strncpy(Tokrec, Filrec, 2048);
+                TokPtr = strtok(Tokrec, Delims);
+
+                for (TokCnt = 0; TokCnt < TokMax; TokCnt++)
+                {
+                  if (TokPtr != NULL)
+                    TokPtr = strtok(NULL, Delims);
+                }
+
+                /****************************************************************/
+                /* If we got a Column, Add it.                                  */
+                /****************************************************************/
+                if (TokPtr != NULL)
+                {
+                  if (setTrim == 1)
+                    LRTrim(TokPtr);
+
+                  sprintf(Inrec + oPtr, "%s", TokPtr);
+                }
+                oPtr = strlen(Inrec);
+                iPtr += 3;
+              }
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Ls", 3) == 0)
+            {
+              TokMax = 0;
+              switch (o32VarRec[iPtr + 3])
+              {
+                case 't':
+                  TokMax = 0;
+                  sprintf(Inrec + oPtr, "%s", Lstrec);
+                  oPtr = strlen(Inrec);
+                  iPtr += 3;
+                break;
+                case 'T':
+                  TokMax = 0;
+                  sprintf(Inrec + oPtr, "%s", Lstrec);
+                  oPtr = strlen(Inrec);
+                  iPtr += 3;
+                break;
+                case '0':
+                  TokMax = 0;
+                  memset(Tokrec, 0, 2048);
+                  strncpy(Tokrec, Lstrec, 2048);
+                  TokPtr = strtok(Tokrec, Delims);
+                  
+                  if (setTrim == 1)
+                    LRTrim(Tokrec);
+
+                  sprintf(Inrec + oPtr, "%s", Tokrec);
+                  oPtr = strlen(Inrec);
+                  iPtr += 3;
+                break;
+                case '1':
+                  TokMax = 1;
+                break;
+                case '2':
+                  TokMax = 2;
+                break;
+                case '3':
+                  TokMax = 3;
+                break;
+                case '4':
+                  TokMax = 4;
+                break;
+                case '5':
+                  TokMax = 5;
+                break;
+                case '6':
+                  TokMax = 6;
+                break;
+                case '7':
+                  TokMax = 7;
+                break;
+                case '8':
+                  TokMax = 8;
+                break;
+                case '9':
+                  TokMax = 9;
+                break;
+                default:
+                  TokMax = -1;
+                  iPtr += 3;
+                break;
+              }
+
+              /****************************************************************/
+              /* Now Tokenize the column if > 0                               */
+              /****************************************************************/
+              if (TokMax > 0)
+              {
+                memset(Tokrec, 0, 2048);
+                strncpy(Tokrec, Lstrec, 2048);
+                TokPtr = strtok(Tokrec, Delims);
+
+                for (TokCnt = 0; TokCnt < TokMax; TokCnt++)
+                {
+                  if (TokPtr != NULL)
+                   TokPtr = strtok(NULL, Delims);
+                }
+
+                /****************************************************************/
+                /* If we got a Column, Add it.                                  */
+                /****************************************************************/
+                if (TokPtr != NULL)
+                {
+                  if (setTrim == 1)
+                    LRTrim(TokPtr);
+
+                  sprintf(Inrec + oPtr, "%s", TokPtr);
+                }
+                oPtr = strlen(Inrec);
+                iPtr += 3;
+              }
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Dsk", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%s", Dskrec);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Num", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%d\0", LoopNum);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Cnr", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%d\0", iMaxCnt);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Fnm", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%s\0", ForFName);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Rcd", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%d\0", LastRC);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Chk", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%s\0", ChkFile);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Drv", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%s\0", DiskDrive);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Map", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%s\0", MapDrive);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Prc", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%s\0", Procesr);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Vck", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%s", volType);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Mem", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%lld", CheckMemSpace());
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Dsa", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%lld", CheckDiskSpace(BACQDir));
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if ((o32VarRec[iPtr] == '*') && ((strnicmp(o32VarRec, "NCP:", 4) == 0) || (strnicmp(o32VarRec, "NCS:", 4) == 0)))
+            {
+              //Special Case to replace WildCard for NCP: with SQLite Wildcards (%)
+              sprintf(Inrec + oPtr, "%%\0");
+              oPtr = strlen(Inrec);
+            }
+            else
+            if ((o32VarRec[iPtr] == '?') && ((strnicmp(o32VarRec, "NCP:", 4) == 0) || (strnicmp(o32VarRec, "NCS:", 4) == 0)))
+            {
+              //Special Case to replace WildCards for NCP: with SQLite Wildcards (_)
+              sprintf(Inrec + oPtr, "_\0");
+              oPtr = strlen(Inrec);
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&VR", 3) == 0)
+            {
+              switch (o32VarRec[iPtr+3])
+              {
+                case '0':
+                  iVar = 0;
+                break;
+
+                case '1':
+                  iVar = 256;
+                break;
+
+                case '2':
+                  iVar = 256 * 2;
+                break;
+
+                case '3':
+                  iVar = 256 * 3;
+                break;
+
+                case '4':
+                  iVar = 256 * 4;
+                break;
+
+                case '5':
+                  iVar = 256 * 5;
+                break;
+
+                case '6':
+                  iVar = 256 * 6;
+                break;
+
+                case '7':
+                  iVar = 256 * 7;
+                break;
+
+                case '8':
+                  iVar = 256 * 8;
+                break;
+
+                case '9':
+                  iVar = 256 * 9;
+                break;
+
+                /**********************************************************/
+                /* Bad Var Name                                           */
+                /**********************************************************/
+                default:
+                  iVar = -1;
+                break;
+              }
+
+              if (iVar == -1)
+              {
+                fprintf(LogHndl, "[!] Invalid Variable: %.4s\n", o32VarRec + iPtr);
+
+                consPrefix("[!] ", consRed);
+                printf("Invalid Variable: %.4s\n", o32VarRec + iPtr);
+
+                sprintf(Inrec + oPtr, "%.4s\0", o32VarRec + iPtr);
                 oPtr = strlen(Inrec);
                 iPtr += 3;
               }
               else
-                if (strnicmp(o32VarRec + iPtr, "&Ntp", 4) == 0)
-                {
-                  // Full Date and Time - mm/dd/yyyy - hh:mm:ss
-                  if (strlen(ntpFQDN) > 0)
-                  {
-                    memset(ntpDateTime, 0, 25);
-                    ntpGetTime(ntpFQDN);
+              {
+                sprintf(Inrec + oPtr, "%s\0", VarArray+iVar);
+                oPtr = strlen(Inrec);
+                iPtr += 3;
+              }
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&CN", 3) == 0)
+            {
+              switch (o32VarRec[iPtr + 3])
+              {
+                case '0':
+                  iCnt = 0;
+                break;
 
-                    sprintf(Inrec + oPtr, "%s", ntpDateTime);
-                    oPtr = strlen(Inrec);
-                  }
-                  else
-                  {
-                    consPrefix("\n[!] ", consRed);
-                    fprintf(LogHndl, "[!] NTP Server FQDN has not been set, Bypassing NTP.\n");
-                    printf("NTP Server FQDN has not been set, Bypassing NTP..\n");
-                  }
+                case '1':
+                  iCnt = 1;
+                  break;
 
-                  iPtr += 3;
-                }
-                else
-                  if (strnicmp(o32VarRec + iPtr, "&Tim", 4) == 0)
-                  {
-                    // Full Date and Time - mm/dd/yyyy - hh:mm:ss
-                    memset(FullDateTime, 0, 25);
-                    showTime("&Tim");
+                case '2':
+                  iCnt = 2;
+                  break;
 
-                    sprintf(Inrec + oPtr, "%s", FullDateTime);
-                    oPtr = strlen(Inrec);
-                    iPtr += 3;
-                  }
-                  else
-                    if (strnicmp(o32VarRec + iPtr, "&Inp", 4) == 0)
-                    {
-                      sprintf(Inrec + oPtr, "%s", Inprec);
-                      oPtr = strlen(Inrec);
-                      iPtr += 3;
-                    }
-                    else
-                      if (strnicmp(o32VarRec + iPtr, "&Acq", 4) == 0)
-                      {
-                        if (strlen(ACQDir) > 0)
-                          sprintf(Inrec + oPtr, "%s\\%s", BACQDir, ACQDir);
-                        else
-                          sprintf(Inrec + oPtr, "%s", BACQDir);
+                case '3':
+                  iCnt = 3;
+                  break;
 
-                        oPtr = strlen(Inrec);
-                        iPtr += 3;
-                      }
-                      else
-                        if (strnicmp(o32VarRec + iPtr, "&Acn", 4) == 0)
-                        {
-                          sprintf(Inrec + oPtr, "%s", ACQName);
+                case '4':
+                  iCnt = 4;
+                break;
 
-                          oPtr = strlen(Inrec);
-                          iPtr += 3;
-                        }
-                        else
-                          if (strnicmp(o32VarRec + iPtr, "&Win", 4) == 0)
-                          {
-                            sprintf(Inrec + oPtr, "%s", WinRoot);
-                            oPtr = strlen(Inrec);
-                            iPtr += 3;
-                          }
-                          else
-                            if (strnicmp(o32VarRec + iPtr, "&Tmp", 4) == 0)
-                            {
-                              sprintf(Inrec + oPtr, "%s", TempVar);
-                              oPtr = strlen(Inrec);
-                              iPtr += 3;
-                            }
-                            else
-                              if (strnicmp(o32VarRec + iPtr, "&Fo", 3) == 0)
-                              {
-                                TokMax = 0;
-                                switch (o32VarRec[iPtr + 3])
-                                {
-                                case 'r':
-                                  TokMax = 0;
-                                  sprintf(Inrec + oPtr, "%s", Filrec);
-                                  oPtr = strlen(Inrec);
-                                  iPtr += 3;
-                                  break;
-                                case 'R':
-                                  TokMax = 0;
-                                  sprintf(Inrec + oPtr, "%s", Filrec);
-                                  oPtr = strlen(Inrec);
-                                  iPtr += 3;
-                                  break;
-                                case '0':
-                                  TokMax = 0;
-                                  memset(Tokrec, 0, 2048);
-                                  strncpy(Tokrec, Filrec, 2048);
-                                  TokPtr = strtok(Tokrec, Delims);
+                case '5':
+                  iCnt = 5;
+                break;
 
-                                  if (setTrim == 1)
-                                    LRTrim(Tokrec);
+                case '6':
+                  iCnt = 6;
+                break;
 
-                                  sprintf(Inrec + oPtr, "%s", Tokrec);
-                                  oPtr = strlen(Inrec);
-                                  iPtr += 3;
-                                  break;
-                                case '1':
-                                  TokMax = 1;
-                                  break;
-                                case '2':
-                                  TokMax = 2;
-                                  break;
-                                case '3':
-                                  TokMax = 3;
-                                  break;
-                                case '4':
-                                  TokMax = 4;
-                                  break;
-                                case '5':
-                                  TokMax = 5;
-                                  break;
-                                case '6':
-                                  TokMax = 6;
-                                  break;
-                                case '7':
-                                  TokMax = 7;
-                                  break;
-                                case '8':
-                                  TokMax = 8;
-                                  break;
-                                case '9':
-                                  TokMax = 9;
-                                  break;
-                                default:
-                                  TokMax = -1;
-                                  iPtr += 3;
-                                  break;
-                                }
+                case '7':
+                  iCnt = 7;
+                break;
 
-                                /****************************************************************/
-                                /* Now Tokenize the column if > 0                               */
-                                /****************************************************************/
-                                if (TokMax > 0)
-                                {
-                                  memset(Tokrec, 0, 2048);
-                                  strncpy(Tokrec, Filrec, 2048);
-                                  TokPtr = strtok(Tokrec, Delims);
+                case '8':
+                  iCnt = 8;
+                break;
 
-                                  for (TokCnt = 0; TokCnt < TokMax; TokCnt++)
-                                  {
-                                    if (TokPtr != NULL)
-                                      TokPtr = strtok(NULL, Delims);
-                                  }
+                case '9':
+                  iCnt = 9;
+                break;
 
-                                  /****************************************************************/
-                                  /* If we got a Column, Add it.                                  */
-                                  /****************************************************************/
-                                  if (TokPtr != NULL)
-                                  {
-                                    if (setTrim == 1)
-                                      LRTrim(TokPtr);
+                /**********************************************************/
+                /* Bad Var Name                                           */
+                /**********************************************************/
+                default:
+                  iCnt = -1;
+                  break;
+              }
 
-                                    sprintf(Inrec + oPtr, "%s", TokPtr);
-                                  }
-                                  oPtr = strlen(Inrec);
-                                  iPtr += 3;
-                                }
-                              }
-                              else
-                                if (strnicmp(o32VarRec + iPtr, "&Ls", 3) == 0)
-                                {
-                                  TokMax = 0;
-                                  switch (o32VarRec[iPtr + 3])
-                                  {
-                                  case 't':
-                                    TokMax = 0;
-                                    sprintf(Inrec + oPtr, "%s", Lstrec);
-                                    oPtr = strlen(Inrec);
-                                    iPtr += 3;
-                                    break;
-                                  case 'T':
-                                    TokMax = 0;
-                                    sprintf(Inrec + oPtr, "%s", Lstrec);
-                                    oPtr = strlen(Inrec);
-                                    iPtr += 3;
-                                    break;
-                                  case '0':
-                                    TokMax = 0;
-                                    memset(Tokrec, 0, 2048);
-                                    strncpy(Tokrec, Lstrec, 2048);
-                                    TokPtr = strtok(Tokrec, Delims);
+              if (iCnt == -1)
+              {
+                fprintf(LogHndl, "[!] Invalid Counter: %.4s\n", o32VarRec + iPtr);
 
-                                    if (setTrim == 1)
-                                      LRTrim(Tokrec);
+                consPrefix("[!] ", consRed);
+                printf("Invalid Counter: %.4s\n", o32VarRec + iPtr);
 
-                                    sprintf(Inrec + oPtr, "%s", Tokrec);
-                                    oPtr = strlen(Inrec);
-                                    iPtr += 3;
-                                    break;
-                                  case '1':
-                                    TokMax = 1;
-                                    break;
-                                  case '2':
-                                    TokMax = 2;
-                                    break;
-                                  case '3':
-                                    TokMax = 3;
-                                    break;
-                                  case '4':
-                                    TokMax = 4;
-                                    break;
-                                  case '5':
-                                    TokMax = 5;
-                                    break;
-                                  case '6':
-                                    TokMax = 6;
-                                    break;
-                                  case '7':
-                                    TokMax = 7;
-                                    break;
-                                  case '8':
-                                    TokMax = 8;
-                                    break;
-                                  case '9':
-                                    TokMax = 9;
-                                    break;
-                                  default:
-                                    TokMax = -1;
-                                    iPtr += 3;
-                                    break;
-                                  }
-
-                                  /****************************************************************/
-                                  /* Now Tokenize the column if > 0                               */
-                                  /****************************************************************/
-                                  if (TokMax > 0)
-                                  {
-                                    memset(Tokrec, 0, 2048);
-                                    strncpy(Tokrec, Lstrec, 2048);
-                                    TokPtr = strtok(Tokrec, Delims);
-
-                                    for (TokCnt = 0; TokCnt < TokMax; TokCnt++)
-                                    {
-                                      if (TokPtr != NULL)
-                                        TokPtr = strtok(NULL, Delims);
-                                    }
-
-                                    /****************************************************************/
-                                    /* If we got a Column, Add it.                                  */
-                                    /****************************************************************/
-                                    if (TokPtr != NULL)
-                                    {
-                                      if (setTrim == 1)
-                                        LRTrim(TokPtr);
-
-                                      sprintf(Inrec + oPtr, "%s", TokPtr);
-                                    }
-                                    oPtr = strlen(Inrec);
-                                    iPtr += 3;
-                                  }
-                                }
-                                else
-                                  if (strnicmp(o32VarRec + iPtr, "&Dsk", 4) == 0)
-                                  {
-                                    sprintf(Inrec + oPtr, "%s", Dskrec);
-                                    oPtr = strlen(Inrec);
-                                    iPtr += 3;
-                                  }
-                                  else
-                                    if (strnicmp(o32VarRec + iPtr, "&Num", 4) == 0)
-                                    {
-                                      sprintf(Inrec + oPtr, "%d\0", LoopNum);
-                                      oPtr = strlen(Inrec);
-                                      iPtr += 3;
-                                    }
-                                    else
-                                      if (strnicmp(o32VarRec + iPtr, "&Cnr", 4) == 0)
-                                      {
-                                        sprintf(Inrec + oPtr, "%d\0", iMaxCnt);
-                                        oPtr = strlen(Inrec);
-                                        iPtr += 3;
-                                      }
-                                      else
-                                        if (strnicmp(o32VarRec + iPtr, "&Fnm", 4) == 0)
-                                        {
-                                          sprintf(Inrec + oPtr, "%s\0", ForFName);
-                                          oPtr = strlen(Inrec);
-                                          iPtr += 3;
-                                        }
-                                        else
-                                          if (strnicmp(o32VarRec + iPtr, "&Rcd", 4) == 0)
-                                          {
-                                            sprintf(Inrec + oPtr, "%d\0", LastRC);
-                                            oPtr = strlen(Inrec);
-                                            iPtr += 3;
-                                          }
-                                          else
-                                            if (strnicmp(o32VarRec + iPtr, "&Chk", 4) == 0)
-                                            {
-                                              sprintf(Inrec + oPtr, "%s\0", ChkFile);
-                                              oPtr = strlen(Inrec);
-                                              iPtr += 3;
-                                            }
-                                            else
-                                              if (strnicmp(o32VarRec + iPtr, "&Drv", 4) == 0)
-                                              {
-                                                sprintf(Inrec + oPtr, "%s\0", DiskDrive);
-                                                oPtr = strlen(Inrec);
-                                                iPtr += 3;
-                                              }
-                                              else
-                                                if (strnicmp(o32VarRec + iPtr, "&Map", 4) == 0)
-                                                {
-                                                  sprintf(Inrec + oPtr, "%s\0", MapDrive);
-                                                  oPtr = strlen(Inrec);
-                                                  iPtr += 3;
-                                                }
-                                                else
-                                                  if (strnicmp(o32VarRec + iPtr, "&Prc", 4) == 0)
-                                                  {
-                                                    sprintf(Inrec + oPtr, "%s\0", Procesr);
-                                                    oPtr = strlen(Inrec);
-                                                    iPtr += 3;
-                                                  }
-                                                  else
-                                                    if (strnicmp(o32VarRec + iPtr, "&Vck", 4) == 0)
-                                                    {
-                                                      sprintf(Inrec + oPtr, "%s", volType);
-                                                      oPtr = strlen(Inrec);
-                                                      iPtr += 3;
-                                                    }
-                                                    else
-                                                      if (strnicmp(o32VarRec + iPtr, "&Mem", 4) == 0)
-                                                      {
-                                                        sprintf(Inrec + oPtr, "%lld", CheckMemSpace());
-                                                        oPtr = strlen(Inrec);
-                                                        iPtr += 3;
-                                                      }
-                                                      else
-                                                        if (strnicmp(o32VarRec + iPtr, "&Dsa", 4) == 0)
-                                                        {
-                                                          sprintf(Inrec + oPtr, "%lld", CheckDiskSpace(BACQDir));
-                                                          oPtr = strlen(Inrec);
-                                                          iPtr += 3;
-                                                        }
-                                                        else
-                                                          if ((o32VarRec[iPtr] == '*') && ((strnicmp(o32VarRec, "NCP:", 4) == 0) || (strnicmp(o32VarRec, "NCS:", 4) == 0)))
-                                                          {
-                                                            //Special Case to replace WildCard for NCP: with SQLite Wildcards (%)
-                                                            sprintf(Inrec + oPtr, "%%\0");
-                                                            oPtr = strlen(Inrec);
-                                                          }
-                                                          else
-                                                            if ((o32VarRec[iPtr] == '?') && ((strnicmp(o32VarRec, "NCP:", 4) == 0) || (strnicmp(o32VarRec, "NCS:", 4) == 0)))
-                                                            {
-                                                              //Special Case to replace WildCards for NCP: with SQLite Wildcards (_)
-                                                              sprintf(Inrec + oPtr, "_\0");
-                                                              oPtr = strlen(Inrec);
-                                                            }
-                                                            else
-                                                              if (strnicmp(o32VarRec + iPtr, "&VR", 3) == 0)
-                                                              {
-                                                                switch (o32VarRec[iPtr + 3])
-                                                                {
-                                                                case '0':
-                                                                  iVar = 0;
-                                                                  break;
-
-                                                                case '1':
-                                                                  iVar = 256;
-                                                                  break;
-
-                                                                case '2':
-                                                                  iVar = 256 * 2;
-                                                                  break;
-
-                                                                case '3':
-                                                                  iVar = 256 * 3;
-                                                                  break;
-
-                                                                case '4':
-                                                                  iVar = 256 * 4;
-                                                                  break;
-
-                                                                case '5':
-                                                                  iVar = 256 * 5;
-                                                                  break;
-
-                                                                case '6':
-                                                                  iVar = 256 * 6;
-                                                                  break;
-
-                                                                case '7':
-                                                                  iVar = 256 * 7;
-                                                                  break;
-
-                                                                case '8':
-                                                                  iVar = 256 * 8;
-                                                                  break;
-
-                                                                case '9':
-                                                                  iVar = 256 * 9;
-                                                                  break;
-
-                                                                  /**********************************************************/
-                                                                  /* Bad Var Name                                           */
-                                                                  /**********************************************************/
-                                                                default:
-                                                                  iVar = -1;
-                                                                  break;
-                                                                }
-
-                                                                if (iVar == -1)
-                                                                {
-                                                                  fprintf(LogHndl, "[!] Invalid Variable: %.4s\n", o32VarRec + iPtr);
-
-                                                                  consPrefix("[!] ", consRed);
-                                                                  printf("Invalid Variable: %.4s\n", o32VarRec + iPtr);
-
-                                                                  sprintf(Inrec + oPtr, "%.4s\0", o32VarRec + iPtr);
-                                                                  oPtr = strlen(Inrec);
-                                                                  iPtr += 3;
-                                                                }
-                                                                else
-                                                                {
-                                                                  sprintf(Inrec + oPtr, "%s\0", VarArray + iVar);
-                                                                  oPtr = strlen(Inrec);
-                                                                  iPtr += 3;
-                                                                }
-                                                              }
-                                                              else
-                                                                if (strnicmp(o32VarRec + iPtr, "&CN", 3) == 0)
-                                                                {
-                                                                  switch (o32VarRec[iPtr + 3])
-                                                                  {
-                                                                  case '0':
-                                                                    iCnt = 0;
-                                                                    break;
-
-                                                                  case '1':
-                                                                    iCnt = 1;
-                                                                    break;
-
-                                                                  case '2':
-                                                                    iCnt = 2;
-                                                                    break;
-
-                                                                  case '3':
-                                                                    iCnt = 3;
-                                                                    break;
-
-                                                                  case '4':
-                                                                    iCnt = 4;
-                                                                    break;
-
-                                                                  case '5':
-                                                                    iCnt = 5;
-                                                                    break;
-
-                                                                  case '6':
-                                                                    iCnt = 6;
-                                                                    break;
-
-                                                                  case '7':
-                                                                    iCnt = 7;
-                                                                    break;
-
-                                                                  case '8':
-                                                                    iCnt = 8;
-                                                                    break;
-
-                                                                  case '9':
-                                                                    iCnt = 9;
-                                                                    break;
-
-                                                                    /**********************************************************/
-                                                                    /* Bad Var Name                                           */
-                                                                    /**********************************************************/
-                                                                  default:
-                                                                    iCnt = -1;
-                                                                    break;
-                                                                  }
-
-                                                                  if (iCnt == -1)
-                                                                  {
-                                                                    fprintf(LogHndl, "[!] Invalid Counter: %.4s\n", o32VarRec + iPtr);
-
-                                                                    consPrefix("[!] ", consRed);
-                                                                    printf("Invalid Counter: %.4s\n", o32VarRec + iPtr);
-
-                                                                    sprintf(Inrec + oPtr, "%.4s\0", o32VarRec + iPtr);
-                                                                    oPtr = strlen(Inrec);
-                                                                    iPtr += 3;
-                                                                  }
-                                                                  else
-                                                                  {
-                                                                    sprintf(Inrec + oPtr, "%d\0", CntArray[iCnt]);
-                                                                    oPtr = strlen(Inrec);
-                                                                    iPtr += 3;
-                                                                  }
-                                                                }
-                                                                else
-                                                                {
-                                                                  Inrec[oPtr] = o32VarRec[iPtr];
-                                                                  oPtr++;
-                                                                  Inrec[oPtr] = '\0';
-                                                                }
+                sprintf(Inrec + oPtr, "%.4s\0", o32VarRec + iPtr);
+                oPtr = strlen(Inrec);
+                iPtr += 3;
+              }
+              else
+              {
+                sprintf(Inrec + oPtr, "%d\0", CntArray[iCnt]);
+                oPtr = strlen(Inrec);
+                iPtr += 3;
+              }
+            }
+            else
+            {
+              Inrec[oPtr] = o32VarRec[iPtr];
+              oPtr++;
+              Inrec[oPtr] = '\0';
+            }
 
             fflush(stdout); //More PSExec Friendly
 
@@ -2339,2744 +2347,2763 @@ int main(int argc, char *argv[])
           /****************************************************************/
           if (Inrec[0] == '*');
           else
-            if (strlen(Inrec) < 5);
+          if (strlen(Inrec) < 5);
+          else
+          if (strnicmp(Inrec, "Lbl:", 4) == 0); // Just acknowledge its OK
+          else
+          if (strnicmp(Inrec, "Jmp:", 4) == 0)
+          {
+            if(consOrFile == 1)
+            {
+              consPrefix("[*] ", consYel);
+              fprintf(LogHndl, "[*] Jumping Does not make sense in Interactive Mode.  Ignoring...\n");
+              printf("Jumping Does not make sense in Interactive Mode.  Ignoring...\n");
+            }
             else
-              if (strnicmp(Inrec, "Lbl:", 4) == 0); // Just acknowledge its OK
+            {
+              // Jump to a Label (LBL:)
+              RunMe = 0;
+              rewind(IniHndl);
+
+              memset(JmpLbl, 0, 255);
+              sprintf(JmpLbl, "Lbl:%.200s", Inrec + 4);
+              strtok(JmpLbl, "\n"); strtok(JmpLbl, "\r");
+
+              while (fgets(Tmprec, 1000, IniHndl))
+              {
+                strtok(Tmprec, "\n"); strtok(Tmprec, "\r");
+
+                if (strnicmp(Tmprec, JmpLbl, 200) == 0)
+                  break;
+              }
+            }
+          }
+          else
+          if (strnicmp(Inrec, "Cse:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Get Case Information                                         */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            if (strnicmp(Inrec+4, "Get", 3) == 0)
+             getCaseInfo(1);
+            else
+             getCaseInfo(0);
+          }
+          else
+          if (strnicmp(Inrec, "Acq:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Create/Set ACQ Directory                                     */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            // Have we created the Base Acquisition Directory Yet?
+            if (access(BACQDir, 0) != 0)
+            {
+              // Set iRunMode=1 to be sure we post-process the Acquired Artifacts
+              // (In case we had not set it originally due to remote BACQDIR)
+              iRunMode = 1;
+
+              //mkdir(BACQDir);
+              //mkdir(CachDir);
+              DirAllocErr(BACQDir);
+              DirAllocErr(CachDir);
+              PreIndex();
+            }
+
+            // Explicit Path
+            if (Inrec[4] == '\\')
+            {
+              memset(ACQDir, 0, 1024);
+
+              if (strlen(Inrec) > 5)
+              {
+                sprintf(ACQDir, "%s\0", Inrec + 5);
+                sprintf(TempDir, "%s\\%s\0", BACQDir, ACQDir);
+              }
               else
-                if (strnicmp(Inrec, "Jmp:", 4) == 0)
+                sprintf(TempDir, "%s\0", BACQDir);
+            }
+            else
+            {
+              if (strlen(Inrec) > 4)
+              {
+                //Check to see if it is an append or new &Acq
+                //Dont add // if it's new!
+                if(strlen(ACQDir) > 0)
+                 strcat(ACQDir, "\\\0");
+
+                strcat(ACQDir, Inrec + 4);
+                sprintf(TempDir, "%s\\%s\0", BACQDir, ACQDir);
+              }
+            }
+
+            if (access(TempDir, 0) != 0)
+            {
+              fprintf(LogHndl, "SET: Creating Acquisition Sub-Directory: %s\n", ACQDir);
+
+              consPrefix("SET: ", consBlu);
+              printf("Creating Acquisition Sub-Directory: %s\n", ACQDir);
+              //mkdir(TempDir);
+              ExpandDirs(TempDir);
+
+              if (iHtmMode == 1)
+              {
+                /**********************************************************/
+                /* Only Disply the FIRST Level                            */
+                /**********************************************************/
+                ForSlash = strrchr(TempDir, '\\');
+                RootSlash = TempDir + strlen(BACQDir);
+
+                //if (strrchr(ACQDir, '\\') == NULL)
+                if (ForSlash == RootSlash)
+                {
+                  fprintf(HtmHndl, "</td><td align=center>\n");
+                  fprintf(HtmHndl, "<a href=file:%s target=AFrame> %s </a>\n", ACQDir, ACQDir);
+                }
+              }
+            }
+
+            fprintf(LogHndl, "SET: Acquisition Sub-Directory Has Been Set To: %s\n", ACQDir);
+            consPrefix("SET: ", consBlu);
+            printf("Acquisition Sub-Directory Has Been Set To: %s\n", ACQDir);
+
+          }
+          else
+          if (strnicmp(Inrec, "Dir:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Set Current Directory                                        */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            if (Inrec[4] == '\\')
+            {
+              memset(CurrDir, 0, 1024);
+
+              if (strlen(Inrec) > 5)
+              {
+                strncpy(CurrDir, Inrec + 5, 1000);
+                sprintf(TempDir, "%s\\%s\0", BaseDir, CurrDir);
+              }
+              else
+                sprintf(TempDir, "%s\0", BaseDir);
+            }
+            else
+            {
+              if (strlen(Inrec) > 4)
+              {
+                if(strlen(CurrDir) > 0 )
+                 strcat(CurrDir, "\\\0"); // Only add backslash for appended Directories
+
+                strcat(CurrDir, Inrec + 4);
+                sprintf(TempDir, "%s\\%s\0", BaseDir, CurrDir);
+              }
+            }
+
+
+            if (access(TempDir, 0) != 0)
+            {
+              fprintf(LogHndl, "SET: Creating Directory: %s\n", CurrDir);
+              consPrefix("SET: ", consBlu);
+              printf("Creating Directory: %s\n", CurrDir);
+              //mkdir(TempDir);
+              ExpandDirs(TempDir);
+            }
+
+            fprintf(LogHndl, "SET: Directory Has Been Set To: %s\n", CurrDir);
+            consPrefix("SET: ", consBlu);
+            printf("Directory Has Been Set To: %s\n", CurrDir);
+
+            // Reset The WorkingDirectory to the new Directory
+            sprintf(CurrWorkDir, "%s\\%s\0", BaseDir, CurrDir);
+            _chdir(CurrWorkDir); 
+          }
+          else
+          if (strnicmp(Inrec, "Fil:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Set Current File                                             */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            memset(CurrFil, 0, 255);
+            strncpy(CurrFil, Inrec + 4, 250);
+
+            sprintf(TempDir, "%s\\%s\0", BaseDir, CurrDir);
+            if (access(TempDir, 0) != 0)
+            {
+              fprintf(LogHndl, "SET: Creating Directory: %s\n", CurrDir);
+              consPrefix("SET: ", consBlu);
+              printf("Creating Directory: %s\n", CurrDir);
+              //mkdir(TempDir);
+              ExpandDirs(TempDir);
+
+            }
+
+            fprintf(LogHndl, "SET: File Has Been Set To: %s\n", CurrFil);
+            consPrefix("SET: ", consBlu);
+            printf("File Has Been Set To: %s\n", CurrFil);
+
+          }
+          else
+          if ((strnicmp(Inrec, "VR", 2) == 0) && (Inrec[3] == ':'))
+          {
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            switch (Inrec[2])
+            {
+              case '0':
+                iVar = 0;
+              break;
+
+              case '1':
+                iVar = 256;
+              break;
+
+              case '2':
+                iVar = 256 * 2;
+              break;
+
+              case '3':
+                iVar = 256 * 3;
+              break;
+
+              case '4':
+                iVar = 256 * 4;
+              break;
+
+              case '5':
+                iVar = 256 * 5;
+              break;
+
+              case '6':
+                iVar = 256 * 6;
+              break;
+
+              case '7':
+                iVar = 256 * 7;
+              break;
+
+              case '8':
+                iVar = 256 * 8;
+              break;
+
+              case '9':
+                iVar = 256 * 9;
+              break;
+              
+              /**********************************************************/
+              /* Bad Var Name                                           */
+              /**********************************************************/
+              default:
+                iVar = -1;
+              break;
+            }
+
+            if (iVar == -1)
+            {
+              fprintf(LogHndl, "[!] Invalid Variable Define Action: %.4s\n", Inrec);
+
+              consPrefix("[!] ", consRed);
+              printf("Invalid Variable Define Action: %.4s\n", Inrec);
+            }
+            else
+            {
+              strncpy(VarArray+iVar, Inrec+4, 255);
+            }
+          }
+          else
+          if ((strnicmp(Inrec, "CN", 2) == 0) && (Inrec[3] == ':'))
+          {
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            switch (Inrec[2])
+            {
+              case '0':
+                iCnt = 0;
+              break;
+
+              case '1':
+                iCnt = 1;
+              break;
+
+              case '2':
+                iCnt = 2;
+              break;
+
+              case '3':
+                iCnt = 3;
+              break;
+
+              case '4':
+                iCnt = 4;
+              break;
+
+              case '5':
+                iCnt = 5;
+              break;
+
+              case '6':
+                iCnt = 6;
+              break;
+
+              case '7':
+                iCnt = 7;
+              break;
+
+              case '8':
+                iCnt = 8;
+              break;
+
+              case '9':
+                iCnt = 9;
+              break;
+
+              /**********************************************************/
+              /* Bad Var Name                                           */
+              /**********************************************************/
+              default:
+                iCnt = -1;
+              break;
+            }
+
+            if (iCnt == -1)
+            {
+              fprintf(LogHndl, "[!] Invalid Counter Define Action: %.4s\n", Inrec);
+
+              consPrefix("[!] ", consRed);
+              printf("Invalid Counter Define Action: %.4s\n", Inrec);
+            }
+            else
+            {
+              if (strnicmp(Inrec + 4, "++", 2) == 0)
+               CntArray[iCnt]++;
+              else
+              if (strnicmp(Inrec + 4, "--", 2) == 0)
+               CntArray[iCnt]--;
+              else
+               CntArray[iCnt] = atoi(Inrec + 4);
+            }
+          }
+          else
+          if (strnicmp(Inrec, "Drv:", 4) == 0)
+          {
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            if ((Inrec[5] == ':') && (strlen(Inrec) == 6))
+            {
+              strncpy(DiskDrive, Inrec + 4, 2);
+              consPrefix("SET: ", consBlu);
+              printf("Disk Drive Set: %s\n", DiskDrive);
+            }
+            else
+            {
+              consPrefix("[!] ", consRed);
+              printf("Invalid Disk Drive Setting: %s\n", Inrec + 4);
+            }
+          }
+          else
+          if (strnicmp(Inrec, "Ini:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Close the Old INI File and use this new one                  */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            sprintf(IniFile, "%s\0", Inrec + 4);
+
+            if(strnicmp(IniFile, "Console", 7) == 0)
+            {
+              // If we are not ALREADY in Interactive Mode, Switch
+              if(consOrFile == 0)
+              {
+                strncpy(RunMode, "Con\0", 4);
+                strncpy(inFnam, "Console\0", 8);
+
+                iRunMode = 1;
+                consOrFile = 1;
+                strncpy(inFnam, "Console\0", 8);
+
+                consPrefix("[+] ", consGre);
+                printf("Switching to Console (Interactive) Mode\n");
+                fprintf(LogHndl, "[+] Switching to Console (Interactive) Mode.\n");
+
+                fclose(IniHndl);
+                IniHndl = stdin;
+              }
+            }
+            else
+            if (access(IniFile, 0) != 0)
+            {
+              fprintf(LogHndl, "[!] Requested INI File Not Found: %s - Ignored.\n", Inrec + 4);
+
+              consPrefix("[!] ", consRed);
+              printf("Requested INI File Not Found: %s - Ignored.\n", Inrec + 4);
+            }
+            else
+            {
+              fprintf(LogHndl, "[+] Switching to INI File: %s\n", Inrec + 4);
+
+              consPrefix("[+] ", consGre);
+              printf("Switching to INI File: %s\n", Inrec + 4);
+
+              if (iSyslogLvl > 0)
+              {
+                memset(SyslogTMSG, 0, 2048);
+                sprintf(SyslogTMSG, "INI: Switching to INI File: %s", Inrec + 4);
+                AChSyslog(SyslogTMSG);
+              }
+
+
+              // Only close the handle if its not Console. If it is Console Set it back to File
+              if(consOrFile == 0)
+               fclose(IniHndl);
+              else
+               consOrFile = 0;
+
+              IniHndl = fopen(IniFile, "r");
+
+              if (IniHndl != NULL)
+                RunMe = 0;  // Conditional run Script default is yes
+              else
+              {
+                fprintf(LogHndl, "[!] Could Not Open INI File: %s - Exiting.\n", Inrec + 4);
+ 
+                consPrefix("[!] ", consRed);
+                printf("Could Not Open INI File: %s - Exiting.\n", Inrec + 4);
+                cleanUp_Exit(3);
+                exit (3);
+              }
+            }
+          }
+          else
+          if (strnicmp(Inrec, "ADM:Check", 9) == 0)
+          {
+            /****************************************************************/
+            /* Should we Enforce Admin                                   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            if(iIsAdmin == 1)
+            {
+              consPrefix("[+] ", consGre);
+              printf("Running As Admin\n");
+              fprintf(LogHndl, "[+] Running As Admin\n");
+            }
+            else
+            {
+              consPrefix("[+] ", consGre);
+              printf("Running As NON-Admin\n");
+              fprintf(LogHndl, "[+] Running As NON-Admin\n");
+            }
+          }
+          else
+          if (strnicmp(Inrec, "ADM:Force", 9) == 0)
+          {
+            /****************************************************************/
+            /* Should we Enforce Admin                                   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            if (iIsAdmin == 1)
+            {
+              consPrefix("[+] ", consGre);
+              printf("Running As Admin - Continuing....\n");
+              fprintf(LogHndl, "[+] Running As Admin - Continuing...\n");
+            }
+            else
+            {
+              consPrefix("[!] ", consRed);
+              printf("Script IS NOT Running As Admin!\n     Please Re-Run As Admin!\n     Exiting.\n");
+              fprintf(LogHndl, "[!] Running As NON-Admin\n     Please Re-Run as Admin!\n     Exiting.");
+              cleanUp_Exit(3);
+              exit (3);
+            }
+          }
+          else
+          if (strnicmp(Inrec, "Ntp:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Save NTP FQDN                                                */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+            
+            memset(ntpFQDN, 0, 255);
+            sprintf(ntpFQDN, "%s\0", Inrec + 4);
+
+            consPrefix("[+] ", consGre);
+            printf("NTP Server FQDN Set to: %s\n", ntpFQDN);
+            fprintf(LogHndl, "NTP Server FQDN Set to: %s\n", ntpFQDN);
+          }
+          else
+          if (strnicmp(Inrec, "Con:Hide", 8) == 0)
+          {
+            /****************************************************************/
+            /* Free The Console and Go Dark                                 */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            iConMode = 0;
+            ShowWindow(conHndl, SW_MINIMIZE);
+            ShowWindow(conHndl, SW_HIDE);
+
+          }
+          else
+          if (strnicmp(Inrec, "Con:Show", 8) == 0)
+          {
+            /****************************************************************/
+            /* Free The Console and Go Dark                                 */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            ShowWindow(conHndl, SW_SHOW);
+            ShowWindow(conHndl, SW_RESTORE);
+
+          }
+          else
+          if (strnicmp(Inrec, "Slp:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Sleep for number of Seconds                                  */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            iSleep = atoi(Inrec + 4);
+            Sleep(iSleep*1000);
+          }
+          else
+          if (strnicmp(Inrec, "Inp:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Check Last Return Code = n                                   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            consInput(Inrec + 4, 1, 0);
+            strncpy(Inprec, Conrec, 254);
+          }
+          else
+          if (strnicmp(Inrec, "USB:Protect", 11) == 0)
+          {
+            /****************************************************************/
+            /* Check Last Return Code = n                                   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            USB_Protect(1);
+          }
+          else
+          if (strnicmp(Inrec, "USB:Enable", 10) == 0)
+          {
+            /****************************************************************/
+            /* Check Last Return Code = n                                   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            USB_Protect(0);
+          }
+          else
+          if (strnicmp(Inrec, "Vck:", 4) == 0)
+          {
+            /****************************************************************/
+            /* See if it is on an NTFS Volume                               */
+            /****************************************************************/
+            memset(volType, 0, 10);
+            isNTFS = 0;
+
+            if (Inrec[5] == ':')
+            {
+              memset(rootDrive, 0, 5);
+              strncpy(rootDrive, Inrec+4, 2);
+              rootDrive[2] = '\\';
+
+              if (GetVolumeInformation(rootDrive, volumeName, ARRAYSIZE(volumeName), &serialNumber,
+                  &maxComponentLen, &fileSystemFlags, fileSystemName, ARRAYSIZE(fileSystemName)))
+              {
+
+                if(consOrFile == 1)
+                {
+                  consPrefix("[+] ", consGre);
+                  printf("Detected File System (%s): %s\n", rootDrive, fileSystemName);
+                  fprintf(LogHndl, "[+] Detected File System (%s): %s\n", rootDrive, fileSystemName);
+                }
+
+                //What kind of File System is on this Volume?
+                if (strnicmp(fileSystemName, "NTFS", 4) == 0)
+                {
+                  strncpy(volType, "NTFS", 4);
+                  isNTFS = 1;
+                }
+                else
+                if (strnicmp(fileSystemName, "FAT32", 5) == 0)
+                 strncpy(volType, "FAT32", 5);
+                else
+                if (strnicmp(fileSystemName, "CDFS", 4) == 0)
+                 strncpy(volType, "CDFS", 4);
+                else
+                 strncpy(volType, "OTHER", 5);
+              }
+              else
+              {
+                // Error Trying to get Volume Info
+                if(consOrFile == 1)
+                {
+                  consPrefix("[!] ", consRed);
+                  printf("Volume Not Detected on %s\n", rootDrive);
+                  fprintf(LogHndl, "[+] Volume Not Detected on %s\n", rootDrive);
+                }
+ 
+                strncpy(volType, "NONE", 4);
+
+              }
+            }
+          }
+          else
+          if ((strnicmp(Inrec, "CPY:", 4) == 0) || (strnicmp(Inrec, "CPS:", 4) == 0))
+          {
+            /****************************************************************/
+            /* Binary Copy From => To                                       */
+            /****************************************************************/
+            if (strnicmp(Inrec, "CPS:", 4) == 0)
+             iCPS = 1;
+            else
+             iCPS = 0;
+
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            Squish(Inrec);
+
+            if (iSyslogLvl > 0)
+            {
+              memset(SyslogTMSG, 0, 2048);
+              sprintf(SyslogTMSG, "%.3s: %s", Inrec, Inrec+4);
+              AChSyslog(SyslogTMSG);
+            }
+
+            memset(Cpyrec, 0, 4096);
+            strncpy(Cpyrec, Inrec + 4, 4092);
+            twoSplit(Cpyrec);
+
+            if (iPrm2 == 0)
+            {
+              fprintf(LogHndl, "[!] Copying Requires both a FROM and a TO File\n");
+
+              consPrefix("[!] ", consRed);
+              printf("Copying Requires both a FROM and a TO File\n");
+            }
+            else
+            {
+              fprintf(LogHndl, "\nCPY: %s\n", Cpyrec + iPrm1);
+              consPrefix("\nCPY: ", consBlu);
+              printf("%s\n", Cpyrec + iPrm1);
+
+              /****************************************************************/
+              /* If we see any wildcards, do search for multiple occurances   */
+              /****************************************************************/
+              if ((strchr(Cpyrec + iPrm1, '*') != NULL) || (strchr(Cpyrec + iPrm1, '?') != NULL))
+              {
+                //Make Cache Movable based on iCacheType & CachDir
+                //sprintf(MD5File, "%s\\%s\\Cache\\MCpFiles\0", BaseDir, ACQName);
+                sprintf(MD5File, "%s\\MCpFiles\0", CachDir);
+                MD5Hndl = fopen(MD5File, "w");
+
+                if (MD5Hndl != NULL)
+                {
+                  iMaxCnt = 0;
+                  ListDir(Cpyrec + iPrm1, "FOR");
+
+                  if (iNative == 0)
+                  {
+                    if (strnicmp(Cpyrec + iPrm1 + strlen(WinRoot), "\\System32\\", 10) == 0)
+                    {
+                      memset(TempDir, 0, 1024);
+                      sprintf(TempDir, "%s\\Sysnative\\%s\0", WinRoot, Cpyrec + iPrm1 + strlen(WinRoot) + 10);
+
+                      if (iLogOpen == 1)
+                        fprintf(LogHndl, "[*] Non-Native Flag Has Been Detected - Adding Sysnative Redirection: \n %s\n", TempDir);
+
+                      consPrefix("[*] ", consYel);
+                      printf("Non-Native Flag Has Been Detected - Adding Sysnative Redirection: \n %s\n", TempDir);
+
+                      ListDir(TempDir, "FOR");
+                    }
+                  }
+
+                  fclose(MD5Hndl);
+
+                  memset(MCprcI, 0, 2048);
+                  memset(MCprcO, 0, 2048);
+                  MCpHndl = fopen(MCpFile, "r");
+
+                  if (MCpHndl != NULL)
+                  {
+                    while (fgets(MCprcI, 1000, MCpHndl))
+                    {
+                      strtok(MCprcI, "\n"); strtok(MCprcI, "\r");
+
+                      /****************************************************************/
+                      /* Get Just the File Name                                       */
+                      /****************************************************************/
+                      if ((ForSlash = strrchr(MCprcI, '\\')) != NULL)
+                      {
+                        if (strlen(ForSlash + 1) > 1)
+                          strncpy(MCpFName, ForSlash + 1, 250);
+                        else
+                          strncpy(MCpFName, "Unknown\0", 8);
+                      }
+                      else
+                        strncpy(MCpFName, MCprcI, 250);
+
+
+                      /****************************************************************/
+                      /* Copy it to Output File Name                                  */
+                      /****************************************************************/
+                      strncpy(MCprcO, Cpyrec + iPrm2, 1000);
+                      if ((ForSlash = strrchr(MCprcO, '\\')) != NULL)
+                      {
+                        if (strlen(ForSlash + 1) > 1)
+                          strncpy(ForSlash + 1, MCpFName, 250);
+                        else
+                          strncpy(ForSlash + 1, "Unknown\0", 8);
+                      }
+                      else
+                        strncpy(MCprcO, MCpFName, 250);
+
+                      binCopy(MCprcI, MCprcO, 1);
+                    }
+
+                    fclose(MCpHndl);
+
+                  }
+                }
+              }
+              else
+               binCopy(Cpyrec + iPrm1, Cpyrec + iPrm2, 1);
+            }
+          }
+          else
+          if ((strnicmp(Inrec, "NCP:", 4) == 0) || (strnicmp(Inrec, "NCS:", 4) == 0))
+          {
+            /****************************************************************/
+            /* First Test Grabbing Max Mem - Error out if you cant          */
+            /****************************************************************/
+            do
+            {
+              bufT  = (UCHAR *) malloc(maxMemBytes)  ;
+
+              if(bufT == NULL)
+               maxMemBytes -= 26214400; // Subtract 25M
+
+              if (maxMemBytes < 52428800)
+              {
+                MemAllocErr("Test Data Buffer") ; // Less than 50M - Error Out
+              }
+
+            } while (bufT == NULL);
+
+
+            // Allocation Worked - Delete the buffer and continue...
+            free (bufT);
+
+            /****************************************************************/
+            /* Binary Copy From => To                                       */
+            /****************************************************************/
+            if (strnicmp(Inrec, "NCS:", 4) == 0)
+             iNCS = 1;
+            else
+             iNCS = 0;
+
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            Squish(Inrec);
+
+            if (iSyslogLvl > 0)
+            {
+              memset(SyslogTMSG, 0, 2048);
+              sprintf(SyslogTMSG, "%.3s: %s", Inrec, Inrec + 4);
+              AChSyslog(SyslogTMSG);
+            }
+
+            memset(Cpyrec, 0, 4096);
+            strncpy(Cpyrec, Inrec + 4, 4092);
+            twoSplit(Cpyrec);
+
+            if (iPrm2 == 0)
+            {
+              fprintf(LogHndl, "[!] Raw Copying Requires both a FROM (File) and a TO (Directory)\n");
+
+              consPrefix("[!] ", consRed);
+              printf("Raw Copying Requires both a FROM (File)and a TO (Directory)\n");
+            }
+            else
+            {
+              fprintf(LogHndl, "\n%.4s %s\n     %s\n", Inrec, Cpyrec + iPrm1, Cpyrec + iPrm2);
+
+              memset(consTemp, 0, 10);
+              sprintf(consTemp, "\n%.4s ", Inrec);
+              consPrefix(consTemp, consBlu);
+              printf("%s\n     %s\n", Cpyrec + iPrm1, Cpyrec + iPrm2);
+
+              rawCopy(Cpyrec + iPrm1, Cpyrec + iPrm2, 1);
+
+            }
+          } 
+          else
+          if ((strnicmp(Inrec, "ARN:", 4) == 0) && (strlen(Inrec) > 6))
+          {
+            /****************************************************************/
+            /* Dump AutoRun Keys from OFFLINE Registry in Command           */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            Squish(Inrec);
+
+            fprintf(LogHndl, "\nARN: Parsing Offline Registry AutoRun Keys:\n     %s\n", Inrec + 4);
+            consPrefix("\nARN: ", consBlu);
+            printf("Parsing Offline Registry AutoRun Keys:\n     %s\n", Inrec + 4);
+
+
+            /****************************************************************/
+            /* Lets generate a Full Path Name to get the drive letter       */
+            /****************************************************************/
+            rcDword = GetFullPathName(Inrec + 4, FILENAME_MAX, FullFName, NULL);
+
+
+            /****************************************************************/
+            /* Convert the File Name to a Wide String first                 */
+            /****************************************************************/
+            convertedChars = 0;
+            sizeofChars = strlen(Inrec + 3); // Really its +4 but we want a 1 byte buffer
+            mbstowcs_s(&convertedChars, lpORFName, sizeofChars, Inrec + 4, _TRUNCATE);
+            
+                          
+            /****************************************************************/
+            /* Open the Offline Registry Hive                               */
+            /****************************************************************/
+            ORRetcd = OROpenHive(lpORFName, &ORhKey) ;
+            if (ORRetcd != ERROR_SUCCESS)
+            {
+              fprintf(LogHndl, "ARN: COULD NOT Open Offline Registry: %ls (RC: %d)\n", lpORFName, ORRetcd);
+              consPrefix("ARN: ", consRed);
+              printf("COULD NOT Open Offline Registry: %ls (RC: %d)\n", lpORFName, ORRetcd);
+              break;
+            }
+              
+
+            /****************************************************************/
+            /* Run Registry Scan Twice - First Time Native,                 */
+            /*              2nd Time Check Wow6432Node Keys                 */
+            /****************************************************************/
+            for (samLoop = 0; samLoop < 2; samLoop++)
+            {
+              /****************************************************************/
+              /* Dump Offline Registry AutoRun Keys                           */
+              /****************************************************************/
+              if (samLoop == 0)
+                OpenK = OROpenKey(ORhKey, ORlpSubKey, &ORphkResult);
+              else
+                OpenK = OROpenKey(ORhKey, ORlp6432, &ORphkResult);
+
+              if (OpenK == ERROR_SUCCESS)
+              {
+                for (dwIndex = 0; dwIndex < 1000; dwIndex++)
+                {
+                  lpcchValueName = 2048;
+                  lpcbData = 2048;
+
+                  OpenRC = OREnumValue(ORphkResult, dwIndex, ORlpValueName, &lpcchValueName, NULL, (LPBYTE)lpData, &lpcbData);
+                  if (OpenRC == ERROR_SUCCESS)
+                  {
+                    /****************************************************************/
+                    /* Parse out the .exe - Ignore quotes                           */
+                    /****************************************************************/
+                    memset(Arnrec, 0, 2048);
+                    memset(Cpyrec, 0, 4096);
+
+
+                    /****************************************************************/
+                    /* Check for possibl caller program (rundll32, cmd, etc...)     */
+                    /****************************************************************/
+                    snprintf(Arnrec, 2047, "%ls\0", (LPBYTE)lpData);
+                                            
+                    ArnLen = strlen(Arnrec);
+                    for (ArnPtr = 0; ArnPtr < ArnLen; ArnPtr++)
+                    {
+                      if (strnicmp(Arnrec + ArnPtr, "rundll32", 8) == 0)
+                        ArnPtr += 7;
+                      else
+                      if (strnicmp(Arnrec + ArnPtr, "rundll32.exe", 12) == 0)
+                        ArnPtr += 11;
+                      else
+                      if (strnicmp(Arnrec + ArnPtr, "cmd /c", 6) == 0)
+                        ArnPtr += 5;
+                      else
+                       if (strnicmp(Arnrec + ArnPtr, "cmd.exe /c", 10) == 0)
+                        ArnPtr += 9;
+                      else
+                      if (Arnrec[ArnPtr] == ' ');
+                      else
+                      if (Arnrec[ArnPtr] == '"');
+                      else
+                       break;
+                    }
+                    iPtr1 = Arnrec + ArnPtr;
+
+                    /****************************************************************/
+                    /* Check for .dll or .exe                                       */
+                    /****************************************************************/
+                    iPtr2 = stristr(Arnrec, ".dll");
+                    if (iPtr2 > 0)
+                      iPtr2[4] = '\0';
+                    else
+                    {
+                      iPtr2 = stristr(Arnrec, ".exe");
+                      if (iPtr2 > 0)
+                        iPtr2[4] = '\0';
+                    }
+                    
+                    if ((iPtr3 = strrchr(iPtr1, '\\')) != NULL)
+                    {
+                      if (strlen(iPtr3 + 1) > 1)
+                        iPtr3++;
+                      else
+                        iPtr3 = iPtr1;
+                    }
+                    else
+                      iPtr3 = iPtr1;
+
+
+                    /****************************************************************/
+                    /* If the program is there, Copy it                             */
+                    /****************************************************************/
+                    varConvert(iPtr1);
+
+
+                    /****************************************************************/
+                    /* Substitute the drive letter from the Full path               */
+                    /*  I am doing this because in a deadbox analysis, the registry */
+                    /*  entries would point to the system drive - BUT since this is */
+                    /*  an Offline Registry, It likely points to a mounted drive    */
+                    /*  which will probably have a different drive letter.  So we   */
+                    /*  assume here that the Reg and Progs will be the same drive   */
+                    /****************************************************************/
+                    if (o32VarRec[1] == ':')
+                      o32VarRec[0] = FullFName[0];
+
+                    if (o64VarRec[1] == ':')
+                      o64VarRec[0] = FullFName[0];
+
+                    if (access(o32VarRec, 0) == 0)
+                    {
+                      sprintf(Cpyrec, "%s\\%s\\%ls-%s\0", BACQDir, ACQDir, ORlpValueName, iPtr3);
+
+                      fprintf(LogHndl, "\nARN: %ls\n     %s\n", ORlpValueName, o32VarRec);
+                      consPrefix("\nARN: ", consBlu);
+                      printf("%ls\n     %s\n", ORlpValueName, o32VarRec);
+
+                      binCopy(o32VarRec, Cpyrec, 1);
+                    }
+                    else
+                    {
+                      fprintf(LogHndl, "\nARN: Not Found - %ls\n     %s\n", ORlpValueName, o32VarRec);
+                      consPrefix("\nARN: ", consRed);
+                      printf("Not Found - %ls\n     %s\n", ORlpValueName, o32VarRec);
+                    }
+
+
+                    /****************************************************************/
+                    /* Always check for 64bit versions - Since this is DeadBox      */
+                    /****************************************************************/
+                    if (access(o64VarRec, 0) == 0)
+                    {
+                      sprintf(Cpyrec, "%s\\%s\\%ls(64)-%s\0", BACQDir, ACQDir, ORlpValueName, iPtr3);
+
+                      fprintf(LogHndl, "\nARN: (64bit)%ls\n     %s\n", ORlpValueName, o64VarRec);
+                      consPrefix("\nARN: ", consBlu);
+                      printf("(64bit)%Ls\n     %s\n", ORlpValueName, o64VarRec);
+
+                      binCopy(o64VarRec, Cpyrec, 1);
+                    }
+                    else
+                    {
+                      fprintf(LogHndl, "\nARN: Not Found (64bit) - %ls\n     %s\n", ORlpValueName, o64VarRec);
+                      consPrefix("\nARN: ", consRed);
+                      printf("Not Found (64bit) - %ls\n     %s\n", ORlpValueName, o64VarRec);
+                    }
+                  }
+                  else
+                  if (OpenRC == ERROR_NO_MORE_ITEMS)
+                    break;
+                  else
+                  {
+                    consPrefix("[!] ", consRed);
+                    printf("Error: %d\n", OpenRC);
+                  }
+                }
+
+                ORCloseKey(ORphkResult);
+              }
+              else if (OpenK == ERROR_FILE_NOT_FOUND)
+              {
+                consPrefix("\nARN: ", consRed);
+                printf("Run Key Doesnt exist\n");
+              }
+              else if (OpenK == ERROR_ACCESS_DENIED)
+              {
+                consPrefix("\nARN: ", consRed);
+                printf("Run Key Access Denied\n");
+              }
+              else
+              {
+                consPrefix("\nARN: ", consRed);
+                printf("Registry Error: %d\n", OpenK);
+              }
+            }
+          }
+          else
+          if ((strnicmp(Inrec, "ARN:", 4) == 0) && (strlen(Inrec) < 7))
+          {
+            /****************************************************************/
+            /* Dump AutoRun Keys (Live Registry)                            */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            Squish(Inrec);
+            
+            fprintf(LogHndl, "\nARN: Parsing Live Registry AutoRun Keys\n");
+            consPrefix("\nARN: ", consBlu);
+            printf("Parsing Live Registry AutoRun Keys\n");
+
+            if (iSyslogLvl > 0)
+            {
+              memset(SyslogTMSG, 0, 2048);
+              sprintf(SyslogTMSG, "ARN: Parsing Live Registry AutoRun Keys");
+              AChSyslog(SyslogTMSG);
+            }
+
+
+            /****************************************************************/
+            /* If 32B - Run Registry Scan Twice - First Time Native,        */
+            /*          2nd Time Disable Wow6432Node to get the Keys        */
+            /****************************************************************/
+            for (samLoop = 0; samLoop < 4; samLoop++)
+            {
+              /****************************************************************/
+              /* Dump AutoRun Keys - HKLM and HKCU                            */
+              /****************************************************************/
+              if (samLoop == 0)
+                OpenK = RegOpenKeyEx(hKey, lpSubKey, ulOptions, samDesired, &phkResult);
+              else
+              if (samLoop == 1)
+              {
+                /****************************************************************/
+                /* If we are 64bit dump 32 bit Keys and visa-versa              */
+                /****************************************************************/
+                if (strnicmp(Procesr, "AMD64", 5) == 0)
+                  OpenK = RegOpenKeyEx(hKey, lpSubKey, ulOptions, samWOW32, &phkResult);
+                else
+                  OpenK = RegOpenKeyEx(hKey, lpSubKey, ulOptions, samWOW64, &phkResult);
+              }
+              else
+              if (samLoop == 2)
+                OpenK = RegOpenKeyEx(hKCU, lpSubKey, ulOptions, samDesired, &phkResult);
+              else
+              if (samLoop == 3)
+              {
+                /****************************************************************/
+                /* If we are 64bit dump 32 bit Keys and visa-versa              */
+                /****************************************************************/
+                if (strnicmp(Procesr, "AMD64", 5) == 0)
+                  OpenK = RegOpenKeyEx(hKCU, lpSubKey, ulOptions, samWOW32, &phkResult);
+                else
+                  OpenK = RegOpenKeyEx(hKCU, lpSubKey, ulOptions, samWOW64, &phkResult);
+              }
+
+
+              if (OpenK == ERROR_SUCCESS)
+              {
+                for (dwIndex = 0; dwIndex < 1000; dwIndex++)
+                {
+                  lpcchValueName = 2048;
+                  lpcbData = 2048;
+
+                  OpenRC = RegEnumValue(phkResult, dwIndex, lpValueName, &lpcchValueName, NULL, NULL, (LPBYTE)lpData, &lpcbData);
+                  if (OpenRC == ERROR_SUCCESS)
+                  {
+                    /****************************************************************/
+                    /* Parse out the .exe - Ignore quotes                           */
+                    /****************************************************************/
+                    memset(Arnrec, 0, 2048);
+                    memset(Cpyrec, 0, 4096);
+
+
+                    /****************************************************************/
+                    /* Check for possibl caller program (rundll32, cmd, etc...)     */
+                    /****************************************************************/
+                    snprintf(Arnrec, 2047, "%s", (LPTSTR) lpData);
+                    ArnLen = strlen(Arnrec);
+                    for (ArnPtr = 0; ArnPtr < ArnLen; ArnPtr++)
+                    {
+                      if (strnicmp(Arnrec + ArnPtr, "rundll32", 8) == 0)
+                        ArnPtr += 7;
+                      else
+                      if (strnicmp(Arnrec + ArnPtr, "rundll32.exe", 12) == 0)
+                        ArnPtr += 11;
+                      else
+                      if (strnicmp(Arnrec + ArnPtr, "cmd /c", 6) == 0)
+                        ArnPtr += 5;
+                      else
+                      if (strnicmp(Arnrec + ArnPtr, "cmd.exe /c", 10) == 0)
+                        ArnPtr += 9;
+                      else
+                      if (Arnrec[ArnPtr] == ' ');
+                      else
+                      if (Arnrec[ArnPtr] == '"');
+                      else
+                        break;
+                    }
+                    iPtr1 = Arnrec + ArnPtr;
+
+                    /****************************************************************/
+                    /* Check for .dll or .exe                                       */
+                    /****************************************************************/
+                    iPtr2 = stristr(Arnrec, ".dll");
+                    if (iPtr2 > 0)
+                      iPtr2[4] = '\0';
+                    else
+                    {
+                      iPtr2 = stristr(Arnrec, ".exe");
+                      if (iPtr2 > 0)
+                        iPtr2[4] = '\0';
+                    }
+                    
+                    if ((iPtr3 = strrchr(iPtr1, '\\')) != NULL)
+                    {
+                      if (strlen(iPtr3 + 1) > 1)
+                        iPtr3++;
+                      else
+                        iPtr3 = iPtr1;
+                    }
+                    else
+                      iPtr3 = iPtr1;
+
+
+                    /****************************************************************/
+                    /* If the program is there, Copy it                             */
+                    /****************************************************************/
+                    varConvert(iPtr1);
+
+
+                    /****************************************************************/
+                    /* See if it is on an NTFS Volume                               */
+                    /****************************************************************/
+                    isNTFS = 0;
+                    if ((o32VarRec[1] == ':') && (o32VarRec[2] == '\\'))
+                    {
+                      memset(rootDrive, 0, 5);
+                      strncpy(rootDrive, o32VarRec, 3);
+
+                      if (GetVolumeInformation(rootDrive, volumeName, ARRAYSIZE(volumeName), &serialNumber,
+                        &maxComponentLen, &fileSystemFlags, fileSystemName, ARRAYSIZE(fileSystemName)))
+                      {
+                        if (strnicmp(fileSystemName, "NTFS", 4) == 0)
+                          isNTFS = 1;
+                      }
+                    }
+
+
+                    if (access(o32VarRec, 0) == 0)
+                    {
+                      fprintf(LogHndl, "\nARN: %s\n     %s\n", lpValueName, (LPTSTR)lpData);
+                      consPrefix("\nARN: ", consBlu);
+                      printf("%s\n     %s\n", lpValueName, (LPTSTR)lpData);
+
+                      if (isNTFS == 1)
+                      {
+                        sprintf(Cpyrec, "%s\\%s\0", BACQDir, ACQDir);
+
+                        fprintf(LogHndl, "     Searching %s Volume(Raw Copy)...\n", fileSystemName);
+                        printf("     Searching %s Volume(Raw Copy)...\n", fileSystemName);
+
+                        rawCopy(o32VarRec, Cpyrec, 1);
+
+                      }
+                      else
+                      {
+                        sprintf(Cpyrec, "%s\\%s\\%s-%s\0", BACQDir, ACQDir, lpValueName, iPtr3);
+                        binCopy(o32VarRec, Cpyrec, 1);
+                      }
+                    }
+                    else
+                    {
+                      fprintf(LogHndl, "\nARN: Not Found - %s\n     %s\n", lpValueName, (LPTSTR)lpData);
+                      consPrefix("\nARN: ", consRed);
+                      printf("Not Found - %s\n     %s\n", lpValueName, (LPTSTR)lpData);
+                    }
+
+
+                    /****************************************************************/
+                    /* Check for 64bit versions (if set)                            */
+                    /****************************************************************/
+                    if (i64x32 == 1)
+                    {
+                      if (access(o64VarRec, 0) == 0)
+                      {
+                        fprintf(LogHndl, "\nARN: (64bit)%s\n     %s\n", lpValueName, (LPTSTR)lpData);
+                        consPrefix("\nARN: ", consBlu);
+                        printf("(64bit)%s\n     %s\n", lpValueName, (LPTSTR)lpData);
+
+                        if (isNTFS == 1)
+                        {
+                          sprintf(Cpyrec, "%s\\%s\0", BACQDir, ACQDir);
+
+                          fprintf(LogHndl, "     Searching %s Volume(Raw Copy)...\n", fileSystemName);
+                          printf("     Searching %s Volume(Raw Copy)...\n", fileSystemName);
+
+                          rawCopy(o64VarRec, Cpyrec, 1);
+
+                        }
+                        else
+                        {
+                          sprintf(Cpyrec, "%s\\%s\\%s(64)-%s\0", BACQDir, ACQDir, lpValueName, iPtr3);
+                          binCopy(o64VarRec, Cpyrec, 1);
+                        }
+                      }
+                      else
+                      {
+                        fprintf(LogHndl, "\nARN: Not Found (64bit) - %s\n     %s\n", lpValueName, (LPTSTR) lpData);
+                        consPrefix("\nARN: ", consBlu);
+                        printf("Not Found (64bit) - %s\n     %s\n", lpValueName, (LPTSTR) lpData);
+                      }
+                    }
+                  }
+                  else
+                  if (OpenRC == ERROR_NO_MORE_ITEMS)
+                    break;
+                  else
+                  {
+                    consPrefix("[!] ", consRed);
+                    printf("Error: %d\n", OpenRC);
+                  }
+                }
+
+                RegCloseKey(phkResult);
+              }
+              else if (OpenK == ERROR_FILE_NOT_FOUND)
+              {
+                consPrefix("[!] ", consRed);
+                printf("Run Key Doesnt exist\n");
+              }
+              else if (OpenK == ERROR_ACCESS_DENIED)
+              {
+                 consPrefix("[!] ", consRed);
+                 printf("Run Key Access Denied\n");
+              }
+              else
+              {
+                 consPrefix("[!] ", consRed);
+                 printf("Registry Error: %d\n", OpenK);
+              }
+            }
+          }
+          else
+          if (strnicmp(Inrec, "Sig:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Clear the File Signature Table, or Load a signature          */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            if (strnicmp(Inrec + 4, "Clear", 5) == 0)
+            {
+              iSigCount = 0;
+
+              memset(SigTabl, 0, iSigTMax * iSigSize);
+              memset(TypTabl, 0, iSigTMax * iTypSize);
+
+              for(i=0; i<iSigTMax; i++)
+                SizTabl[iSigCount] = 0;
+            }
+            else
+            if (strchr(Inrec, '=') != NULL)
+            {
+              //Parse File Type and signature
+              equDelim = strchr(Inrec, '=');
+              strncpy(TypTabl+(iSigCount*iTypSize), Inrec+4, equDelim-Inrec-4);
+
+              equDelim++;
+              strncpy(SigTabl+(iSigCount*iSigSize), equDelim, iSigSize-1);
+
+              SizTabl[iSigCount] = (int) strlen(equDelim);
+
+              // Sanity Check - Only Bump Counter if we got something!
+              if (SizTabl[iSigCount] > 0)
+               iSigCount++ ; 
+            }
+          }
+          else
+          if (strnicmp(Inrec, "EQU:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Check Lasy Volume Type                                       */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            memset(Cmprec, 0, 4096);
+            strncpy(Cmprec, Inrec + 4, 4092);
+            twoSplit(Cmprec);
+
+            if (iPrm2 == 0)
+            {
+              fprintf(LogHndl, "[!] Comparing Requires TWO strings\n");
+
+              consPrefix("[!] ", consRed);
+              printf("Comparing Requires TWO Strings\n");
+            }
+            else
+            {
+              if(consOrFile == 1)
+              {
+                consPrefix("[*] ", consYel);
+
+                if(strnicmp(Cmprec + iPrm1, Cmprec + iPrm2, 255) != 0)
+                {
+                  fprintf(LogHndl, "[*] Strings Are NOT Equal: %s != %s\n", Cmprec + iPrm1, Cmprec + iPrm2);
+                  printf("Strings Are NOT Equal: %s != %s\n", Cmprec + iPrm1, Cmprec + iPrm2);
+                }
+                else
+                {
+                  fprintf(LogHndl, "[*] Strings ARE Equal: %s\n", Cmprec + iPrm1);
+                  printf("Strings ARE Equal: %s\n", Cmprec + iPrm1);
+                }
+              }
+              else
+              if(strnicmp(Cmprec + iPrm1, Cmprec + iPrm2, 255) != 0)
+               RunMe++;
+            }
+          }
+          else
+          if ((strnicmp(Inrec, "N>>:", 4) == 0) || (strnicmp(Inrec, "N<<:", 4) == 0) || (strnicmp(Inrec, "N==:", 4) == 0))
+          {
+            /****************************************************************/
+            /* Check Last Return Code = n                                   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            memset(Cmprec, 0, 4096);
+            strncpy(Cmprec, Inrec + 4, 4092);
+            twoSplit(Cmprec);
+
+            if (iPrm2 == 0)
+            {
+              fprintf(LogHndl, "[!] Number Comparing Requires TWO Numbers\n");
+
+              consPrefix("[!] ", consRed);
+              printf("Number Comparing Requires TWO Numbers\n");
+            }
+            else
+            {
+              longParm1 = atoll(Cmprec + iPrm1);
+              longParm2 = atoll(Cmprec + iPrm2);
+
+              if (consOrFile == 1)
+               consPrefix("[*] ", consYel);
+
+              if (strnicmp(Inrec, "N>>:", 4) == 0)
+              {
+                if (longParm1 > longParm2)
                 {
                   if (consOrFile == 1)
                   {
-                    consPrefix("[*] ", consYel);
-                    fprintf(LogHndl, "[*] Jumping Does not make sense in Interactive Mode.  Ignoring...\n");
-                    printf("Jumping Does not make sense in Interactive Mode.  Ignoring...\n");
-                  }
-                  else
-                  {
-                    // Jump to a Label (LBL:)
-                    RunMe = 0;
-                    rewind(IniHndl);
-
-                    memset(JmpLbl, 0, 255);
-                    sprintf(JmpLbl, "Lbl:%.200s", Inrec + 4);
-                    strtok(JmpLbl, "\n"); strtok(JmpLbl, "\r");
-
-                    while (fgets(Tmprec, 1000, IniHndl))
-                    {
-                      strtok(Tmprec, "\n"); strtok(Tmprec, "\r");
-
-                      if (strnicmp(Tmprec, JmpLbl, 200) == 0)
-                        break;
-                    }
+                    fprintf(LogHndl, "[*] %lld is Greater Than %lld\n", longParm1, longParm2);
+                    printf("%lld is Greater than %lld\n", longParm1, longParm2);
                   }
                 }
                 else
-                  if (strnicmp(Inrec, "Cse:", 4) == 0)
+                {
+                  if (consOrFile == 1)
                   {
-                    /****************************************************************/
-                    /* Get Case Information                                         */
-                    /****************************************************************/
-                    strtok(Inrec, "\n");
-                    strtok(Inrec, "\r");
-
-                    if (strnicmp(Inrec + 4, "Get", 3) == 0)
-                      getCaseInfo(1);
-                    else
-                      getCaseInfo(0);
+                    fprintf(LogHndl, "[*] %lld is NOT Greater than %lld\n", longParm1, longParm2);
+                    printf("%lld is NOT Greater than %lld\n", longParm1, longParm2);
                   }
                   else
-                    if (strnicmp(Inrec, "Acq:", 4) == 0)
-                    {
-                      /****************************************************************/
-                      /* Create/Set ACQ Directory                                     */
-                      /****************************************************************/
-                      strtok(Inrec, "\n");
-                      strtok(Inrec, "\r");
-
-                      // Have we created the Base Acquisition Directory Yet?
-                      if (access(BACQDir, 0) != 0)
-                      {
-                        // Set iRunMode=1 to be sure we post-process the Acquired Artifacts
-                        // (In case we had not set it originally due to remote BACQDIR)
-                        iRunMode = 1;
-
-                        //mkdir(BACQDir);
-                        //mkdir(CachDir);
-                        DirAllocErr(BACQDir);
-                        DirAllocErr(CachDir);
-                        PreIndex();
-                      }
-
-                      // Explicit Path
-                      if (Inrec[4] == '\\')
-                      {
-                        memset(ACQDir, 0, 1024);
-
-                        if (strlen(Inrec) > 5)
-                        {
-                          sprintf(ACQDir, "%s\0", Inrec + 5);
-                          sprintf(TempDir, "%s\\%s\0", BACQDir, ACQDir);
-                        }
-                        else
-                          sprintf(TempDir, "%s\0", BACQDir);
-                      }
-                      else
-                      {
-                        if (strlen(Inrec) > 4)
-                        {
-                          //Check to see if it is an append or new &Acq
-                          //Dont add // if it's new!
-                          if (strlen(ACQDir) > 0)
-                            strcat(ACQDir, "\\\0");
-
-                          strcat(ACQDir, Inrec + 4);
-                          sprintf(TempDir, "%s\\%s\0", BACQDir, ACQDir);
-                        }
-                      }
-
-                      if (access(TempDir, 0) != 0)
-                      {
-                        fprintf(LogHndl, "SET: Creating Acquisition Sub-Directory: %s\n", ACQDir);
-
-                        consPrefix("SET: ", consBlu);
-                        printf("Creating Acquisition Sub-Directory: %s\n", ACQDir);
-                        //mkdir(TempDir);
-                        ExpandDirs(TempDir);
-
-                        if (iHtmMode == 1)
-                        {
-                          /**********************************************************/
-                          /* Only Disply the FIRST Level                            */
-                          /**********************************************************/
-                          ForSlash = strrchr(TempDir, '\\');
-                          RootSlash = TempDir + strlen(BACQDir);
-
-                          //if (strrchr(ACQDir, '\\') == NULL)
-                          if (ForSlash == RootSlash)
-                          {
-                            fprintf(HtmHndl, "</td><td align=center>\n");
-                            fprintf(HtmHndl, "<a href=file:%s target=AFrame> %s </a>\n", ACQDir, ACQDir);
-                          }
-                        }
-                      }
-
-                      fprintf(LogHndl, "SET: Acquisition Sub-Directory Has Been Set To: %s\n", ACQDir);
-                      consPrefix("SET: ", consBlu);
-                      printf("Acquisition Sub-Directory Has Been Set To: %s\n", ACQDir);
-
-                    }
-                    else
-                      if (strnicmp(Inrec, "Dir:", 4) == 0)
-                      {
-                        /****************************************************************/
-                        /* Set Current Directory                                        */
-                        /****************************************************************/
-                        strtok(Inrec, "\n");
-                        strtok(Inrec, "\r");
-
-                        if (Inrec[4] == '\\')
-                        {
-                          memset(CurrDir, 0, 1024);
-
-                          if (strlen(Inrec) > 5)
-                          {
-                            strncpy(CurrDir, Inrec + 5, 1000);
-                            sprintf(TempDir, "%s\\%s\0", BaseDir, CurrDir);
-                          }
-                          else
-                            sprintf(TempDir, "%s\0", BaseDir);
-                        }
-                        else
-                        {
-                          if (strlen(Inrec) > 4)
-                          {
-                            if (strlen(CurrDir) > 0)
-                              strcat(CurrDir, "\\\0"); // Only add backslash for appended Directories
-
-                            strcat(CurrDir, Inrec + 4);
-                            sprintf(TempDir, "%s\\%s\0", BaseDir, CurrDir);
-                          }
-                        }
-
-
-                        if (access(TempDir, 0) != 0)
-                        {
-                          fprintf(LogHndl, "SET: Creating Directory: %s\n", CurrDir);
-                          consPrefix("SET: ", consBlu);
-                          printf("Creating Directory: %s\n", CurrDir);
-                          //mkdir(TempDir);
-                          ExpandDirs(TempDir);
-                        }
-
-                        fprintf(LogHndl, "SET: Directory Has Been Set To: %s\n", CurrDir);
-                        consPrefix("SET: ", consBlu);
-                        printf("Directory Has Been Set To: %s\n", CurrDir);
-
-                        // Reset The WorkingDirectory to the new Directory
-                        sprintf(CurrWorkDir, "%s\\%s\0", BaseDir, CurrDir);
-                        _chdir(CurrWorkDir);
-                      }
-                      else
-                        if (strnicmp(Inrec, "Fil:", 4) == 0)
-                        {
-                          /****************************************************************/
-                          /* Set Current File                                             */
-                          /****************************************************************/
-                          strtok(Inrec, "\n");
-                          strtok(Inrec, "\r");
-
-                          memset(CurrFil, 0, 255);
-                          strncpy(CurrFil, Inrec + 4, 250);
-
-                          sprintf(TempDir, "%s\\%s\0", BaseDir, CurrDir);
-                          if (access(TempDir, 0) != 0)
-                          {
-                            fprintf(LogHndl, "SET: Creating Directory: %s\n", CurrDir);
-                            consPrefix("SET: ", consBlu);
-                            printf("Creating Directory: %s\n", CurrDir);
-                            //mkdir(TempDir);
-                            ExpandDirs(TempDir);
-
-                          }
-
-                          fprintf(LogHndl, "SET: File Has Been Set To: %s\n", CurrFil);
-                          consPrefix("SET: ", consBlu);
-                          printf("File Has Been Set To: %s\n", CurrFil);
-
-                        }
-                        else
-                          if ((strnicmp(Inrec, "VR", 2) == 0) && (Inrec[3] == ':'))
-                          {
-                            strtok(Inrec, "\n");
-                            strtok(Inrec, "\r");
-
-                            switch (Inrec[2])
-                            {
-                            case '0':
-                              iVar = 0;
-                              break;
-
-                            case '1':
-                              iVar = 256;
-                              break;
-
-                            case '2':
-                              iVar = 256 * 2;
-                              break;
-
-                            case '3':
-                              iVar = 256 * 3;
-                              break;
-
-                            case '4':
-                              iVar = 256 * 4;
-                              break;
-
-                            case '5':
-                              iVar = 256 * 5;
-                              break;
-
-                            case '6':
-                              iVar = 256 * 6;
-                              break;
-
-                            case '7':
-                              iVar = 256 * 7;
-                              break;
-
-                            case '8':
-                              iVar = 256 * 8;
-                              break;
-
-                            case '9':
-                              iVar = 256 * 9;
-                              break;
-
-                              /**********************************************************/
-                              /* Bad Var Name                                           */
-                              /**********************************************************/
-                            default:
-                              iVar = -1;
-                              break;
-                            }
-
-                            if (iVar == -1)
-                            {
-                              fprintf(LogHndl, "[!] Invalid Variable Define Action: %.4s\n", Inrec);
-
-                              consPrefix("[!] ", consRed);
-                              printf("Invalid Variable Define Action: %.4s\n", Inrec);
-                            }
-                            else
-                            {
-                              strncpy(VarArray + iVar, Inrec + 4, 255);
-                            }
-                          }
-                          else
-                            if ((strnicmp(Inrec, "CN", 2) == 0) && (Inrec[3] == ':'))
-                            {
-                              strtok(Inrec, "\n");
-                              strtok(Inrec, "\r");
-
-                              switch (Inrec[2])
-                              {
-                              case '0':
-                                iCnt = 0;
-                                break;
-
-                              case '1':
-                                iCnt = 1;
-                                break;
-
-                              case '2':
-                                iCnt = 2;
-                                break;
-
-                              case '3':
-                                iCnt = 3;
-                                break;
-
-                              case '4':
-                                iCnt = 4;
-                                break;
-
-                              case '5':
-                                iCnt = 5;
-                                break;
-
-                              case '6':
-                                iCnt = 6;
-                                break;
-
-                              case '7':
-                                iCnt = 7;
-                                break;
-
-                              case '8':
-                                iCnt = 8;
-                                break;
-
-                              case '9':
-                                iCnt = 9;
-                                break;
-
-                                /**********************************************************/
-                                /* Bad Var Name                                           */
-                                /**********************************************************/
-                              default:
-                                iCnt = -1;
-                                break;
-                              }
-
-                              if (iCnt == -1)
-                              {
-                                fprintf(LogHndl, "[!] Invalid Counter Define Action: %.4s\n", Inrec);
-
-                                consPrefix("[!] ", consRed);
-                                printf("Invalid Counter Define Action: %.4s\n", Inrec);
-                              }
-                              else
-                              {
-                                if (strnicmp(Inrec + 4, "++", 2) == 0)
-                                  CntArray[iCnt]++;
-                                else
-                                  if (strnicmp(Inrec + 4, "--", 2) == 0)
-                                    CntArray[iCnt]--;
-                                  else
-                                    CntArray[iCnt] = atoi(Inrec + 4);
-                              }
-                            }
-                            else
-                              if (strnicmp(Inrec, "Drv:", 4) == 0)
-                              {
-                                strtok(Inrec, "\n");
-                                strtok(Inrec, "\r");
-
-                                if ((Inrec[5] == ':') && (strlen(Inrec) == 6))
-                                {
-                                  strncpy(DiskDrive, Inrec + 4, 2);
-                                  consPrefix("SET: ", consBlu);
-                                  printf("Disk Drive Set: %s\n", DiskDrive);
-                                }
-                                else
-                                {
-                                  consPrefix("[!] ", consRed);
-                                  printf("Invalid Disk Drive Setting: %s\n", Inrec + 4);
-                                }
-                              }
-                              else
-                                if (strnicmp(Inrec, "Ini:", 4) == 0)
-                                {
-                                  /****************************************************************/
-                                  /* Close the Old INI File and use this new one                  */
-                                  /****************************************************************/
-                                  strtok(Inrec, "\n");
-                                  strtok(Inrec, "\r");
-
-                                  sprintf(IniFile, "%s\0", Inrec + 4);
-
-                                  if (strnicmp(IniFile, "Console", 7) == 0)
-                                  {
-                                    // If we are not ALREADY in Interactive Mode, Switch
-                                    if (consOrFile == 0)
-                                    {
-                                      strncpy(RunMode, "Con\0", 4);
-                                      strncpy(inFnam, "Console\0", 8);
-
-                                      iRunMode = 1;
-                                      consOrFile = 1;
-                                      strncpy(inFnam, "Console\0", 8);
-
-                                      consPrefix("[+] ", consGre);
-                                      printf("Switching to Console (Interactive) Mode\n");
-                                      fprintf(LogHndl, "[+] Switching to Console (Interactive) Mode.\n");
-
-                                      fclose(IniHndl);
-                                      IniHndl = stdin;
-                                    }
-                                  }
-                                  else
-                                    if (access(IniFile, 0) != 0)
-                                    {
-                                      fprintf(LogHndl, "[!] Requested INI File Not Found: %s - Ignored.\n", Inrec + 4);
-
-                                      consPrefix("[!] ", consRed);
-                                      printf("Requested INI File Not Found: %s - Ignored.\n", Inrec + 4);
-                                    }
-                                    else
-                                    {
-                                      fprintf(LogHndl, "[+] Switching to INI File: %s\n", Inrec + 4);
-
-                                      consPrefix("[+] ", consGre);
-                                      printf("Switching to INI File: %s\n", Inrec + 4);
-
-                                      if (iSyslogLvl > 0)
-                                      {
-                                        memset(SyslogTMSG, 0, 2048);
-                                        sprintf(SyslogTMSG, "INI: Switching to INI File: %s", Inrec + 4);
-                                        AChSyslog(SyslogTMSG);
-                                      }
-
-
-                                      // Only close the handle if its not Console. If it is Console Set it back to File
-                                      if (consOrFile == 0)
-                                        fclose(IniHndl);
-                                      else
-                                        consOrFile = 0;
-
-                                      IniHndl = fopen(IniFile, "r");
-
-                                      if (IniHndl != NULL)
-                                        RunMe = 0;  // Conditional run Script default is yes
-                                      else
-                                      {
-                                        fprintf(LogHndl, "[!] Could Not Open INI File: %s - Exiting.\n", Inrec + 4);
-
-                                        consPrefix("[!] ", consRed);
-                                        printf("Could Not Open INI File: %s - Exiting.\n", Inrec + 4);
-                                        cleanUp_Exit(3);
-                                        exit(3);
-                                      }
-                                    }
-                                }
-                                else
-                                  if (strnicmp(Inrec, "ADM:Check", 9) == 0)
-                                  {
-                                    /****************************************************************/
-                                    /* Should we Enforce Admin                                   */
-                                    /****************************************************************/
-                                    strtok(Inrec, "\n");
-                                    strtok(Inrec, "\r");
-
-                                    if (iIsAdmin == 1)
-                                    {
-                                      consPrefix("[+] ", consGre);
-                                      printf("Running As Admin\n");
-                                      fprintf(LogHndl, "[+] Running As Admin\n");
-                                    }
-                                    else
-                                    {
-                                      consPrefix("[+] ", consGre);
-                                      printf("Running As NON-Admin\n");
-                                      fprintf(LogHndl, "[+] Running As NON-Admin\n");
-                                    }
-                                  }
-                                  else
-                                    if (strnicmp(Inrec, "ADM:Force", 9) == 0)
-                                    {
-                                      /****************************************************************/
-                                      /* Should we Enforce Admin                                   */
-                                      /****************************************************************/
-                                      strtok(Inrec, "\n");
-                                      strtok(Inrec, "\r");
-
-                                      if (iIsAdmin == 1)
-                                      {
-                                        consPrefix("[+] ", consGre);
-                                        printf("Running As Admin - Continuing....\n");
-                                        fprintf(LogHndl, "[+] Running As Admin - Continuing...\n");
-                                      }
-                                      else
-                                      {
-                                        consPrefix("[!] ", consRed);
-                                        printf("Script IS NOT Running As Admin!\n     Please Re-Run As Admin!\n     Exiting.\n");
-                                        fprintf(LogHndl, "[!] Running As NON-Admin\n     Please Re-Run as Admin!\n     Exiting.");
-                                        cleanUp_Exit(3);
-                                        exit(3);
-                                      }
-                                    }
-                                    else
-                                      if (strnicmp(Inrec, "Ntp:", 4) == 0)
-                                      {
-                                        /****************************************************************/
-                                        /* Save NTP FQDN                                                */
-                                        /****************************************************************/
-                                        strtok(Inrec, "\n");
-                                        strtok(Inrec, "\r");
-
-                                        memset(ntpFQDN, 0, 255);
-                                        sprintf(ntpFQDN, "%s\0", Inrec + 4);
-
-                                        consPrefix("[+] ", consGre);
-                                        printf("NTP Server FQDN Set to: %s\n", ntpFQDN);
-                                        fprintf(LogHndl, "NTP Server FQDN Set to: %s\n", ntpFQDN);
-                                      }
-                                      else
-                                        if (strnicmp(Inrec, "Con:Hide", 8) == 0)
-                                        {
-                                          /****************************************************************/
-                                          /* Free The Console and Go Dark                                 */
-                                          /****************************************************************/
-                                          strtok(Inrec, "\n");
-                                          strtok(Inrec, "\r");
-
-                                          iConMode = 0;
-                                          ShowWindow(conHndl, SW_MINIMIZE);
-                                          ShowWindow(conHndl, SW_HIDE);
-
-                                        }
-                                        else
-                                          if (strnicmp(Inrec, "Con:Show", 8) == 0)
-                                          {
-                                            /****************************************************************/
-                                            /* Free The Console and Go Dark                                 */
-                                            /****************************************************************/
-                                            strtok(Inrec, "\n");
-                                            strtok(Inrec, "\r");
-
-                                            ShowWindow(conHndl, SW_SHOW);
-                                            ShowWindow(conHndl, SW_RESTORE);
-
-                                          }
-                                          else
-                                            if (strnicmp(Inrec, "Slp:", 4) == 0)
-                                            {
-                                              /****************************************************************/
-                                              /* Sleep for number of Seconds                                  */
-                                              /****************************************************************/
-                                              strtok(Inrec, "\n");
-                                              strtok(Inrec, "\r");
-
-                                              iSleep = atoi(Inrec + 4);
-                                              Sleep(iSleep * 1000);
-                                            }
-                                            else
-                                              if (strnicmp(Inrec, "Inp:", 4) == 0)
-                                              {
-                                                /****************************************************************/
-                                                /* Check Last Return Code = n                                   */
-                                                /****************************************************************/
-                                                strtok(Inrec, "\n");
-                                                strtok(Inrec, "\r");
-
-                                                consInput(Inrec + 4, 1, 0);
-                                                strncpy(Inprec, Conrec, 254);
-                                              }
-                                              else
-                                                if (strnicmp(Inrec, "USB:Protect", 11) == 0)
-                                                {
-                                                  /****************************************************************/
-                                                  /* Check Last Return Code = n                                   */
-                                                  /****************************************************************/
-                                                  strtok(Inrec, "\n");
-                                                  strtok(Inrec, "\r");
-
-                                                  USB_Protect(1);
-                                                }
-                                                else
-                                                  if (strnicmp(Inrec, "USB:Enable", 10) == 0)
-                                                  {
-                                                    /****************************************************************/
-                                                    /* Check Last Return Code = n                                   */
-                                                    /****************************************************************/
-                                                    strtok(Inrec, "\n");
-                                                    strtok(Inrec, "\r");
-
-                                                    USB_Protect(0);
-                                                  }
-                                                  else
-                                                    if (strnicmp(Inrec, "Vck:", 4) == 0)
-                                                    {
-                                                      /****************************************************************/
-                                                      /* See if it is on an NTFS Volume                               */
-                                                      /****************************************************************/
-                                                      memset(volType, 0, 10);
-                                                      isNTFS = 0;
-
-                                                      if (Inrec[5] == ':')
-                                                      {
-                                                        memset(rootDrive, 0, 5);
-                                                        strncpy(rootDrive, Inrec + 4, 2);
-                                                        rootDrive[2] = '\\';
-
-                                                        if (GetVolumeInformation(rootDrive, volumeName, ARRAYSIZE(volumeName), &serialNumber,
-                                                          &maxComponentLen, &fileSystemFlags, fileSystemName, ARRAYSIZE(fileSystemName)))
-                                                        {
-
-                                                          if (consOrFile == 1)
-                                                          {
-                                                            consPrefix("[+] ", consGre);
-                                                            printf("Detected File System (%s): %s\n", rootDrive, fileSystemName);
-                                                            fprintf(LogHndl, "[+] Detected File System (%s): %s\n", rootDrive, fileSystemName);
-                                                          }
-
-                                                          //What kind of File System is on this Volume?
-                                                          if (strnicmp(fileSystemName, "NTFS", 4) == 0)
-                                                          {
-                                                            strncpy(volType, "NTFS", 4);
-                                                            isNTFS = 1;
-                                                          }
-                                                          else
-                                                            if (strnicmp(fileSystemName, "FAT32", 5) == 0)
-                                                              strncpy(volType, "FAT32", 5);
-                                                            else
-                                                              if (strnicmp(fileSystemName, "CDFS", 4) == 0)
-                                                                strncpy(volType, "CDFS", 4);
-                                                              else
-                                                                strncpy(volType, "OTHER", 5);
-                                                        }
-                                                        else
-                                                        {
-                                                          // Error Trying to get Volume Info
-                                                          if (consOrFile == 1)
-                                                          {
-                                                            consPrefix("[!] ", consRed);
-                                                            printf("Volume Not Detected on %s\n", rootDrive);
-                                                            fprintf(LogHndl, "[+] Volume Not Detected on %s\n", rootDrive);
-                                                          }
-
-                                                          strncpy(volType, "NONE", 4);
-
-                                                        }
-                                                      }
-                                                    }
-                                                    else
-                                                      if ((strnicmp(Inrec, "CPY:", 4) == 0) || (strnicmp(Inrec, "CPS:", 4) == 0))
-                                                      {
-                                                        /****************************************************************/
-                                                        /* Binary Copy From => To                                       */
-                                                        /****************************************************************/
-                                                        if (strnicmp(Inrec, "CPS:", 4) == 0)
-                                                          iCPS = 1;
-                                                        else
-                                                          iCPS = 0;
-
-                                                        strtok(Inrec, "\n");
-                                                        strtok(Inrec, "\r");
-
-                                                        Squish(Inrec);
-
-                                                        if (iSyslogLvl > 0)
-                                                        {
-                                                          memset(SyslogTMSG, 0, 2048);
-                                                          sprintf(SyslogTMSG, "%.3s: %s", Inrec, Inrec + 4);
-                                                          AChSyslog(SyslogTMSG);
-                                                        }
-
-                                                        memset(Cpyrec, 0, 4096);
-                                                        strncpy(Cpyrec, Inrec + 4, 4092);
-                                                        twoSplit(Cpyrec);
-
-                                                        if (iPrm2 == 0)
-                                                        {
-                                                          fprintf(LogHndl, "[!] Copying Requires both a FROM and a TO File\n");
-
-                                                          consPrefix("[!] ", consRed);
-                                                          printf("Copying Requires both a FROM and a TO File\n");
-                                                        }
-                                                        else
-                                                        {
-                                                          fprintf(LogHndl, "\nCPY: %s\n", Cpyrec + iPrm1);
-                                                          consPrefix("\nCPY: ", consBlu);
-                                                          printf("%s\n", Cpyrec + iPrm1);
-
-                                                          /****************************************************************/
-                                                          /* If we see any wildcards, do search for multiple occurances   */
-                                                          /****************************************************************/
-                                                          if ((strchr(Cpyrec + iPrm1, '*') != NULL) || (strchr(Cpyrec + iPrm1, '?') != NULL))
-                                                          {
-                                                            sprintf(MD5File, "%s\\%s\\Cache\\MCpFiles\0", BaseDir, ACQName);
-                                                            MD5Hndl = fopen(MD5File, "w");
-
-                                                            if (MD5Hndl != NULL)
-                                                            {
-                                                              iMaxCnt = 0;
-                                                              ListDir(Cpyrec + iPrm1, "FOR");
-
-                                                              if (iNative == 0)
-                                                              {
-                                                                if (strnicmp(Cpyrec + iPrm1 + strlen(WinRoot), "\\System32\\", 10) == 0)
-                                                                {
-                                                                  memset(TempDir, 0, 1024);
-                                                                  sprintf(TempDir, "%s\\Sysnative\\%s\0", WinRoot, Cpyrec + iPrm1 + strlen(WinRoot) + 10);
-
-                                                                  if (iLogOpen == 1)
-                                                                    fprintf(LogHndl, "[*] Non-Native Flag Has Been Detected - Adding Sysnative Redirection: \n %s\n", TempDir);
-
-                                                                  consPrefix("[*] ", consYel);
-                                                                  printf("Non-Native Flag Has Been Detected - Adding Sysnative Redirection: \n %s\n", TempDir);
-
-                                                                  ListDir(TempDir, "FOR");
-                                                                }
-                                                              }
-
-                                                              fclose(MD5Hndl);
-
-                                                              memset(MCprcI, 0, 2048);
-                                                              memset(MCprcO, 0, 2048);
-                                                              MCpHndl = fopen(MCpFile, "r");
-
-                                                              if (MCpHndl != NULL)
-                                                              {
-                                                                while (fgets(MCprcI, 1000, MCpHndl))
-                                                                {
-                                                                  strtok(MCprcI, "\n"); strtok(MCprcI, "\r");
-
-                                                                  /****************************************************************/
-                                                                  /* Get Just the File Name                                       */
-                                                                  /****************************************************************/
-                                                                  if ((ForSlash = strrchr(MCprcI, '\\')) != NULL)
-                                                                  {
-                                                                    if (strlen(ForSlash + 1) > 1)
-                                                                      strncpy(MCpFName, ForSlash + 1, 250);
-                                                                    else
-                                                                      strncpy(MCpFName, "Unknown\0", 8);
-                                                                  }
-                                                                  else
-                                                                    strncpy(MCpFName, MCprcI, 250);
-
-
-                                                                  /****************************************************************/
-                                                                  /* Copy it to Output File Name                                  */
-                                                                  /****************************************************************/
-                                                                  strncpy(MCprcO, Cpyrec + iPrm2, 1000);
-                                                                  if ((ForSlash = strrchr(MCprcO, '\\')) != NULL)
-                                                                  {
-                                                                    if (strlen(ForSlash + 1) > 1)
-                                                                      strncpy(ForSlash + 1, MCpFName, 250);
-                                                                    else
-                                                                      strncpy(ForSlash + 1, "Unknown\0", 8);
-                                                                  }
-                                                                  else
-                                                                    strncpy(MCprcO, MCpFName, 250);
-
-                                                                  binCopy(MCprcI, MCprcO, 1);
-                                                                }
-
-                                                                fclose(MCpHndl);
-
-                                                              }
-                                                            }
-                                                          }
-                                                          else
-                                                            binCopy(Cpyrec + iPrm1, Cpyrec + iPrm2, 1);
-                                                        }
-                                                      }
-                                                      else
-                                                        if ((strnicmp(Inrec, "NCP:", 4) == 0) || (strnicmp(Inrec, "NCS:", 4) == 0))
-                                                        {
-                                                          /****************************************************************/
-                                                          /* First Test Grabbing Max Mem - Error out if you cant          */
-                                                          /****************************************************************/
-                                                          do
-                                                          {
-                                                            bufT = (UCHAR *)malloc(maxMemBytes);
-
-                                                            if (bufT == NULL)
-                                                              maxMemBytes -= 26214400; // Subtract 25M
-
-                                                            if (maxMemBytes < 52428800)
-                                                            {
-                                                              MemAllocErr("Test Data Buffer"); // Less than 50M - Error Out
-                                                            }
-
-                                                          } while (bufT == NULL);
-
-
-                                                          // Allocation Worked - Delete the buffer and continue...
-                                                          free(bufT);
-
-                                                          /****************************************************************/
-                                                          /* Binary Copy From => To                                       */
-                                                          /****************************************************************/
-                                                          if (strnicmp(Inrec, "NCS:", 4) == 0)
-                                                            iNCS = 1;
-                                                          else
-                                                            iNCS = 0;
-
-                                                          strtok(Inrec, "\n");
-                                                          strtok(Inrec, "\r");
-
-                                                          Squish(Inrec);
-
-                                                          if (iSyslogLvl > 0)
-                                                          {
-                                                            memset(SyslogTMSG, 0, 2048);
-                                                            sprintf(SyslogTMSG, "%.3s: %s", Inrec, Inrec + 4);
-                                                            AChSyslog(SyslogTMSG);
-                                                          }
-
-                                                          memset(Cpyrec, 0, 4096);
-                                                          strncpy(Cpyrec, Inrec + 4, 4092);
-                                                          twoSplit(Cpyrec);
-
-                                                          if (iPrm2 == 0)
-                                                          {
-                                                            fprintf(LogHndl, "[!] Raw Copying Requires both a FROM (File) and a TO (Directory)\n");
-
-                                                            consPrefix("[!] ", consRed);
-                                                            printf("Raw Copying Requires both a FROM (File)and a TO (Directory)\n");
-                                                          }
-                                                          else
-                                                          {
-                                                            fprintf(LogHndl, "\n%.4s %s\n     %s\n", Inrec, Cpyrec + iPrm1, Cpyrec + iPrm2);
-
-                                                            memset(consTemp, 0, 10);
-                                                            sprintf(consTemp, "\n%.4s ", Inrec);
-                                                            consPrefix(consTemp, consBlu);
-                                                            printf("%s\n     %s\n", Cpyrec + iPrm1, Cpyrec + iPrm2);
-
-                                                            rawCopy(Cpyrec + iPrm1, Cpyrec + iPrm2, 1);
-
-                                                          }
-                                                        }
-                                                        else
-                                                          if ((strnicmp(Inrec, "ARN:", 4) == 0) && (strlen(Inrec) > 6))
-                                                          {
-                                                            /****************************************************************/
-                                                            /* Dump AutoRun Keys from OFFLINE Registry in Command           */
-                                                            /****************************************************************/
-                                                            strtok(Inrec, "\n");
-                                                            strtok(Inrec, "\r");
-
-                                                            Squish(Inrec);
-
-                                                            fprintf(LogHndl, "\nARN: Parsing Offline Registry AutoRun Keys:\n     %s\n", Inrec + 4);
-                                                            consPrefix("\nARN: ", consBlu);
-                                                            printf("Parsing Offline Registry AutoRun Keys:\n     %s\n", Inrec + 4);
-
-
-                                                            /****************************************************************/
-                                                            /* Lets generate a Full Path Name to get the drive letter       */
-                                                            /****************************************************************/
-                                                            rcDword = GetFullPathName(Inrec + 4, FILENAME_MAX, FullFName, NULL);
-
-
-                                                            /****************************************************************/
-                                                            /* Convert the File Name to a Wide String first                 */
-                                                            /****************************************************************/
-                                                            convertedChars = 0;
-                                                            sizeofChars = strlen(Inrec + 3); // Really its +4 but we want a 1 byte buffer
-                                                            mbstowcs_s(&convertedChars, lpORFName, sizeofChars, Inrec + 4, _TRUNCATE);
-
-
-                                                            /****************************************************************/
-                                                            /* Open the Offline Registry Hive                               */
-                                                            /****************************************************************/
-                                                            ORRetcd = OROpenHive(lpORFName, &ORhKey);
-                                                            if (ORRetcd != ERROR_SUCCESS)
-                                                            {
-                                                              fprintf(LogHndl, "ARN: COULD NOT Open Offline Registry: %ls (RC: %d)\n", lpORFName, ORRetcd);
-                                                              consPrefix("ARN: ", consRed);
-                                                              printf("COULD NOT Open Offline Registry: %ls (RC: %d)\n", lpORFName, ORRetcd);
-                                                              break;
-                                                            }
-
-
-                                                            /****************************************************************/
-                                                            /* Run Registry Scan Twice - First Time Native,                 */
-                                                            /*              2nd Time Check Wow6432Node Keys                 */
-                                                            /****************************************************************/
-                                                            for (samLoop = 0; samLoop < 2; samLoop++)
-                                                            {
-                                                              /****************************************************************/
-                                                              /* Dump Offline Registry AutoRun Keys                           */
-                                                              /****************************************************************/
-                                                              if (samLoop == 0)
-                                                                OpenK = OROpenKey(ORhKey, ORlpSubKey, &ORphkResult);
-                                                              else
-                                                                OpenK = OROpenKey(ORhKey, ORlp6432, &ORphkResult);
-
-                                                              if (OpenK == ERROR_SUCCESS)
-                                                              {
-                                                                for (dwIndex = 0; dwIndex < 1000; dwIndex++)
-                                                                {
-                                                                  lpcchValueName = 2048;
-                                                                  lpcbData = 2048;
-
-                                                                  OpenRC = OREnumValue(ORphkResult, dwIndex, ORlpValueName, &lpcchValueName, NULL, (LPBYTE)lpData, &lpcbData);
-                                                                  if (OpenRC == ERROR_SUCCESS)
-                                                                  {
-                                                                    /****************************************************************/
-                                                                    /* Parse out the .exe - Ignore quotes                           */
-                                                                    /****************************************************************/
-                                                                    memset(Arnrec, 0, 2048);
-                                                                    memset(Cpyrec, 0, 4096);
-
-
-                                                                    /****************************************************************/
-                                                                    /* Check for possibl caller program (rundll32, cmd, etc...)     */
-                                                                    /****************************************************************/
-                                                                    snprintf(Arnrec, 2047, "%ls\0", (LPBYTE)lpData);
-
-                                                                    ArnLen = strlen(Arnrec);
-                                                                    for (ArnPtr = 0; ArnPtr < ArnLen; ArnPtr++)
-                                                                    {
-                                                                      if (strnicmp(Arnrec + ArnPtr, "rundll32", 8) == 0)
-                                                                        ArnPtr += 7;
-                                                                      else
-                                                                        if (strnicmp(Arnrec + ArnPtr, "rundll32.exe", 12) == 0)
-                                                                          ArnPtr += 11;
-                                                                        else
-                                                                          if (strnicmp(Arnrec + ArnPtr, "cmd /c", 6) == 0)
-                                                                            ArnPtr += 5;
-                                                                          else
-                                                                            if (strnicmp(Arnrec + ArnPtr, "cmd.exe /c", 10) == 0)
-                                                                              ArnPtr += 9;
-                                                                            else
-                                                                              if (Arnrec[ArnPtr] == ' ');
-                                                                              else
-                                                                                if (Arnrec[ArnPtr] == '"');
-                                                                                else
-                                                                                  break;
-                                                                    }
-                                                                    iPtr1 = Arnrec + ArnPtr;
-
-                                                                    /****************************************************************/
-                                                                    /* Check for .dll or .exe                                       */
-                                                                    /****************************************************************/
-                                                                    iPtr2 = stristr(Arnrec, ".dll");
-                                                                    if (iPtr2 > 0)
-                                                                      iPtr2[4] = '\0';
-                                                                    else
-                                                                    {
-                                                                      iPtr2 = stristr(Arnrec, ".exe");
-                                                                      if (iPtr2 > 0)
-                                                                        iPtr2[4] = '\0';
-                                                                    }
-
-                                                                    if ((iPtr3 = strrchr(iPtr1, '\\')) != NULL)
-                                                                    {
-                                                                      if (strlen(iPtr3 + 1) > 1)
-                                                                        iPtr3++;
-                                                                      else
-                                                                        iPtr3 = iPtr1;
-                                                                    }
-                                                                    else
-                                                                      iPtr3 = iPtr1;
-
-
-                                                                    /****************************************************************/
-                                                                    /* If the program is there, Copy it                             */
-                                                                    /****************************************************************/
-                                                                    varConvert(iPtr1);
-
-
-                                                                    /****************************************************************/
-                                                                    /* Substitute the drive letter from the Full path               */
-                                                                    /*  I am doing this because in a deadbox analysis, the registry */
-                                                                    /*  entries would point to the system drive - BUT since this is */
-                                                                    /*  an Offline Registry, It likely points to a mounted drive    */
-                                                                    /*  which will probably have a different drive letter.  So we   */
-                                                                    /*  assume here that the Reg and Progs will be the same drive   */
-                                                                    /****************************************************************/
-                                                                    if (o32VarRec[1] == ':')
-                                                                      o32VarRec[0] = FullFName[0];
-
-                                                                    if (o64VarRec[1] == ':')
-                                                                      o64VarRec[0] = FullFName[0];
-
-                                                                    if (access(o32VarRec, 0) == 0)
-                                                                    {
-                                                                      sprintf(Cpyrec, "%s\\%s\\%ls-%s\0", BACQDir, ACQDir, ORlpValueName, iPtr3);
-
-                                                                      fprintf(LogHndl, "\nARN: %ls\n     %s\n", ORlpValueName, o32VarRec);
-                                                                      consPrefix("\nARN: ", consBlu);
-                                                                      printf("%ls\n     %s\n", ORlpValueName, o32VarRec);
-
-                                                                      binCopy(o32VarRec, Cpyrec, 1);
-                                                                    }
-                                                                    else
-                                                                    {
-                                                                      fprintf(LogHndl, "\nARN: Not Found - %ls\n     %s\n", ORlpValueName, o32VarRec);
-                                                                      consPrefix("\nARN: ", consRed);
-                                                                      printf("Not Found - %ls\n     %s\n", ORlpValueName, o32VarRec);
-                                                                    }
-
-
-                                                                    /****************************************************************/
-                                                                    /* Always check for 64bit versions - Since this is DeadBox      */
-                                                                    /****************************************************************/
-                                                                    if (access(o64VarRec, 0) == 0)
-                                                                    {
-                                                                      sprintf(Cpyrec, "%s\\%s\\%ls(64)-%s\0", BACQDir, ACQDir, ORlpValueName, iPtr3);
-
-                                                                      fprintf(LogHndl, "\nARN: (64bit)%ls\n     %s\n", ORlpValueName, o64VarRec);
-                                                                      consPrefix("\nARN: ", consBlu);
-                                                                      printf("(64bit)%Ls\n     %s\n", ORlpValueName, o64VarRec);
-
-                                                                      binCopy(o64VarRec, Cpyrec, 1);
-                                                                    }
-                                                                    else
-                                                                    {
-                                                                      fprintf(LogHndl, "\nARN: Not Found (64bit) - %ls\n     %s\n", ORlpValueName, o64VarRec);
-                                                                      consPrefix("\nARN: ", consRed);
-                                                                      printf("Not Found (64bit) - %ls\n     %s\n", ORlpValueName, o64VarRec);
-                                                                    }
-                                                                  }
-                                                                  else
-                                                                    if (OpenRC == ERROR_NO_MORE_ITEMS)
-                                                                      break;
-                                                                    else
-                                                                    {
-                                                                      consPrefix("[!] ", consRed);
-                                                                      printf("Error: %d\n", OpenRC);
-                                                                    }
-                                                                }
-
-                                                                ORCloseKey(ORphkResult);
-                                                              }
-                                                              else if (OpenK == ERROR_FILE_NOT_FOUND)
-                                                              {
-                                                                consPrefix("\nARN: ", consRed);
-                                                                printf("Run Key Doesnt exist\n");
-                                                              }
-                                                              else if (OpenK == ERROR_ACCESS_DENIED)
-                                                              {
-                                                                consPrefix("\nARN: ", consRed);
-                                                                printf("Run Key Access Denied\n");
-                                                              }
-                                                              else
-                                                              {
-                                                                consPrefix("\nARN: ", consRed);
-                                                                printf("Registry Error: %d\n", OpenK);
-                                                              }
-                                                            }
-                                                          }
-                                                          else
-                                                            if ((strnicmp(Inrec, "ARN:", 4) == 0) && (strlen(Inrec) < 7))
-                                                            {
-                                                              /****************************************************************/
-                                                              /* Dump AutoRun Keys (Live Registry)                            */
-                                                              /****************************************************************/
-                                                              strtok(Inrec, "\n");
-                                                              strtok(Inrec, "\r");
-
-                                                              Squish(Inrec);
-
-                                                              fprintf(LogHndl, "\nARN: Parsing Live Registry AutoRun Keys\n");
-                                                              consPrefix("\nARN: ", consBlu);
-                                                              printf("Parsing Live Registry AutoRun Keys\n");
-
-                                                              if (iSyslogLvl > 0)
-                                                              {
-                                                                memset(SyslogTMSG, 0, 2048);
-                                                                sprintf(SyslogTMSG, "ARN: Parsing Live Registry AutoRun Keys");
-                                                                AChSyslog(SyslogTMSG);
-                                                              }
-
-
-                                                              /****************************************************************/
-                                                              /* If 32B - Run Registry Scan Twice - First Time Native,        */
-                                                              /*          2nd Time Disable Wow6432Node to get the Keys        */
-                                                              /****************************************************************/
-                                                              for (samLoop = 0; samLoop < 4; samLoop++)
-                                                              {
-                                                                /****************************************************************/
-                                                                /* Dump AutoRun Keys - HKLM and HKCU                            */
-                                                                /****************************************************************/
-                                                                if (samLoop == 0)
-                                                                  OpenK = RegOpenKeyEx(hKey, lpSubKey, ulOptions, samDesired, &phkResult);
-                                                                else
-                                                                  if (samLoop == 1)
-                                                                  {
-                                                                    /****************************************************************/
-                                                                    /* If we are 64bit dump 32 bit Keys and visa-versa              */
-                                                                    /****************************************************************/
-                                                                    if (strnicmp(Procesr, "AMD64", 5) == 0)
-                                                                      OpenK = RegOpenKeyEx(hKey, lpSubKey, ulOptions, samWOW32, &phkResult);
-                                                                    else
-                                                                      OpenK = RegOpenKeyEx(hKey, lpSubKey, ulOptions, samWOW64, &phkResult);
-                                                                  }
-                                                                  else
-                                                                    if (samLoop == 2)
-                                                                      OpenK = RegOpenKeyEx(hKCU, lpSubKey, ulOptions, samDesired, &phkResult);
-                                                                    else
-                                                                      if (samLoop == 3)
-                                                                      {
-                                                                        /****************************************************************/
-                                                                        /* If we are 64bit dump 32 bit Keys and visa-versa              */
-                                                                        /****************************************************************/
-                                                                        if (strnicmp(Procesr, "AMD64", 5) == 0)
-                                                                          OpenK = RegOpenKeyEx(hKCU, lpSubKey, ulOptions, samWOW32, &phkResult);
-                                                                        else
-                                                                          OpenK = RegOpenKeyEx(hKCU, lpSubKey, ulOptions, samWOW64, &phkResult);
-                                                                      }
-
-
-                                                                if (OpenK == ERROR_SUCCESS)
-                                                                {
-                                                                  for (dwIndex = 0; dwIndex < 1000; dwIndex++)
-                                                                  {
-                                                                    lpcchValueName = 2048;
-                                                                    lpcbData = 2048;
-
-                                                                    OpenRC = RegEnumValue(phkResult, dwIndex, lpValueName, &lpcchValueName, NULL, NULL, (LPBYTE)lpData, &lpcbData);
-                                                                    if (OpenRC == ERROR_SUCCESS)
-                                                                    {
-                                                                      /****************************************************************/
-                                                                      /* Parse out the .exe - Ignore quotes                           */
-                                                                      /****************************************************************/
-                                                                      memset(Arnrec, 0, 2048);
-                                                                      memset(Cpyrec, 0, 4096);
-
-
-                                                                      /****************************************************************/
-                                                                      /* Check for possibl caller program (rundll32, cmd, etc...)     */
-                                                                      /****************************************************************/
-                                                                      snprintf(Arnrec, 2047, "%s", (LPTSTR)lpData);
-                                                                      ArnLen = strlen(Arnrec);
-                                                                      for (ArnPtr = 0; ArnPtr < ArnLen; ArnPtr++)
-                                                                      {
-                                                                        if (strnicmp(Arnrec + ArnPtr, "rundll32", 8) == 0)
-                                                                          ArnPtr += 7;
-                                                                        else
-                                                                          if (strnicmp(Arnrec + ArnPtr, "rundll32.exe", 12) == 0)
-                                                                            ArnPtr += 11;
-                                                                          else
-                                                                            if (strnicmp(Arnrec + ArnPtr, "cmd /c", 6) == 0)
-                                                                              ArnPtr += 5;
-                                                                            else
-                                                                              if (strnicmp(Arnrec + ArnPtr, "cmd.exe /c", 10) == 0)
-                                                                                ArnPtr += 9;
-                                                                              else
-                                                                                if (Arnrec[ArnPtr] == ' ');
-                                                                                else
-                                                                                  if (Arnrec[ArnPtr] == '"');
-                                                                                  else
-                                                                                    break;
-                                                                      }
-                                                                      iPtr1 = Arnrec + ArnPtr;
-
-                                                                      /****************************************************************/
-                                                                      /* Check for .dll or .exe                                       */
-                                                                      /****************************************************************/
-                                                                      iPtr2 = stristr(Arnrec, ".dll");
-                                                                      if (iPtr2 > 0)
-                                                                        iPtr2[4] = '\0';
-                                                                      else
-                                                                      {
-                                                                        iPtr2 = stristr(Arnrec, ".exe");
-                                                                        if (iPtr2 > 0)
-                                                                          iPtr2[4] = '\0';
-                                                                      }
-
-                                                                      if ((iPtr3 = strrchr(iPtr1, '\\')) != NULL)
-                                                                      {
-                                                                        if (strlen(iPtr3 + 1) > 1)
-                                                                          iPtr3++;
-                                                                        else
-                                                                          iPtr3 = iPtr1;
-                                                                      }
-                                                                      else
-                                                                        iPtr3 = iPtr1;
-
-
-                                                                      /****************************************************************/
-                                                                      /* If the program is there, Copy it                             */
-                                                                      /****************************************************************/
-                                                                      varConvert(iPtr1);
-
-
-                                                                      /****************************************************************/
-                                                                      /* See if it is on an NTFS Volume                               */
-                                                                      /****************************************************************/
-                                                                      isNTFS = 0;
-                                                                      if ((o32VarRec[1] == ':') && (o32VarRec[2] == '\\'))
-                                                                      {
-                                                                        memset(rootDrive, 0, 5);
-                                                                        strncpy(rootDrive, o32VarRec, 3);
-
-                                                                        if (GetVolumeInformation(rootDrive, volumeName, ARRAYSIZE(volumeName), &serialNumber,
-                                                                          &maxComponentLen, &fileSystemFlags, fileSystemName, ARRAYSIZE(fileSystemName)))
-                                                                        {
-                                                                          if (strnicmp(fileSystemName, "NTFS", 4) == 0)
-                                                                            isNTFS = 1;
-                                                                        }
-                                                                      }
-
-
-                                                                      if (access(o32VarRec, 0) == 0)
-                                                                      {
-                                                                        fprintf(LogHndl, "\nARN: %s\n     %s\n", lpValueName, (LPTSTR)lpData);
-                                                                        consPrefix("\nARN: ", consBlu);
-                                                                        printf("%s\n     %s\n", lpValueName, (LPTSTR)lpData);
-
-                                                                        if (isNTFS == 1)
-                                                                        {
-                                                                          sprintf(Cpyrec, "%s\\%s\0", BACQDir, ACQDir);
-
-                                                                          fprintf(LogHndl, "     Searching %s Volume(Raw Copy)...\n", fileSystemName);
-                                                                          printf("     Searching %s Volume(Raw Copy)...\n", fileSystemName);
-
-                                                                          rawCopy(o32VarRec, Cpyrec, 1);
-
-                                                                        }
-                                                                        else
-                                                                        {
-                                                                          sprintf(Cpyrec, "%s\\%s\\%s-%s\0", BACQDir, ACQDir, lpValueName, iPtr3);
-                                                                          binCopy(o32VarRec, Cpyrec, 1);
-                                                                        }
-                                                                      }
-                                                                      else
-                                                                      {
-                                                                        fprintf(LogHndl, "\nARN: Not Found - %s\n     %s\n", lpValueName, (LPTSTR)lpData);
-                                                                        consPrefix("\nARN: ", consRed);
-                                                                        printf("Not Found - %s\n     %s\n", lpValueName, (LPTSTR)lpData);
-                                                                      }
-
-
-                                                                      /****************************************************************/
-                                                                      /* Check for 64bit versions (if set)                            */
-                                                                      /****************************************************************/
-                                                                      if (i64x32 == 1)
-                                                                      {
-                                                                        if (access(o64VarRec, 0) == 0)
-                                                                        {
-                                                                          fprintf(LogHndl, "\nARN: (64bit)%s\n     %s\n", lpValueName, (LPTSTR)lpData);
-                                                                          consPrefix("\nARN: ", consBlu);
-                                                                          printf("(64bit)%s\n     %s\n", lpValueName, (LPTSTR)lpData);
-
-                                                                          if (isNTFS == 1)
-                                                                          {
-                                                                            sprintf(Cpyrec, "%s\\%s\0", BACQDir, ACQDir);
-
-                                                                            fprintf(LogHndl, "     Searching %s Volume(Raw Copy)...\n", fileSystemName);
-                                                                            printf("     Searching %s Volume(Raw Copy)...\n", fileSystemName);
-
-                                                                            rawCopy(o64VarRec, Cpyrec, 1);
-
-                                                                          }
-                                                                          else
-                                                                          {
-                                                                            sprintf(Cpyrec, "%s\\%s\\%s(64)-%s\0", BACQDir, ACQDir, lpValueName, iPtr3);
-                                                                            binCopy(o64VarRec, Cpyrec, 1);
-                                                                          }
-                                                                        }
-                                                                        else
-                                                                        {
-                                                                          fprintf(LogHndl, "\nARN: Not Found (64bit) - %s\n     %s\n", lpValueName, (LPTSTR)lpData);
-                                                                          consPrefix("\nARN: ", consBlu);
-                                                                          printf("Not Found (64bit) - %s\n     %s\n", lpValueName, (LPTSTR)lpData);
-                                                                        }
-                                                                      }
-                                                                    }
-                                                                    else
-                                                                      if (OpenRC == ERROR_NO_MORE_ITEMS)
-                                                                        break;
-                                                                      else
-                                                                      {
-                                                                        consPrefix("[!] ", consRed);
-                                                                        printf("Error: %d\n", OpenRC);
-                                                                      }
-                                                                  }
-
-                                                                  RegCloseKey(phkResult);
-                                                                }
-                                                                else if (OpenK == ERROR_FILE_NOT_FOUND)
-                                                                {
-                                                                  consPrefix("[!] ", consRed);
-                                                                  printf("Run Key Doesnt exist\n");
-                                                                }
-                                                                else if (OpenK == ERROR_ACCESS_DENIED)
-                                                                {
-                                                                  consPrefix("[!] ", consRed);
-                                                                  printf("Run Key Access Denied\n");
-                                                                }
-                                                                else
-                                                                {
-                                                                  consPrefix("[!] ", consRed);
-                                                                  printf("Registry Error: %d\n", OpenK);
-                                                                }
-                                                              }
-                                                            }
-                                                            else
-                                                              if (strnicmp(Inrec, "Sig:", 4) == 0)
-                                                              {
-                                                                /****************************************************************/
-                                                                /* Clear the File Signature Table, or Load a signature          */
-                                                                /****************************************************************/
-                                                                strtok(Inrec, "\n");
-                                                                strtok(Inrec, "\r");
-
-                                                                if (strnicmp(Inrec + 4, "Clear", 5) == 0)
-                                                                {
-                                                                  iSigCount = 0;
-
-                                                                  memset(SigTabl, 0, iSigTMax * iSigSize);
-                                                                  memset(TypTabl, 0, iSigTMax * iTypSize);
-
-                                                                  for (i = 0; i<iSigTMax; i++)
-                                                                    SizTabl[iSigCount] = 0;
-                                                                }
-                                                                else
-                                                                  if (strchr(Inrec, '=') != NULL)
-                                                                  {
-                                                                    //Parse File Type and signature
-                                                                    equDelim = strchr(Inrec, '=');
-                                                                    strncpy(TypTabl + (iSigCount*iTypSize), Inrec + 4, equDelim - Inrec - 4);
-
-                                                                    equDelim++;
-                                                                    strncpy(SigTabl + (iSigCount*iSigSize), equDelim, iSigSize - 1);
-
-                                                                    SizTabl[iSigCount] = (int)strlen(equDelim);
-
-                                                                    // Sanity Check - Only Bump Counter if we got something!
-                                                                    if (SizTabl[iSigCount] > 0)
-                                                                      iSigCount++;
-                                                                  }
-                                                              }
-                                                              else
-                                                                if (strnicmp(Inrec, "EQU:", 4) == 0)
-                                                                {
-                                                                  /****************************************************************/
-                                                                  /* Check Lasy Volume Type                                       */
-                                                                  /****************************************************************/
-                                                                  strtok(Inrec, "\n");
-                                                                  strtok(Inrec, "\r");
-
-                                                                  memset(Cmprec, 0, 4096);
-                                                                  strncpy(Cmprec, Inrec + 4, 4092);
-                                                                  twoSplit(Cmprec);
-
-                                                                  if (iPrm2 == 0)
-                                                                  {
-                                                                    fprintf(LogHndl, "[!] Comparing Requires TWO strings\n");
-
-                                                                    consPrefix("[!] ", consRed);
-                                                                    printf("Comparing Requires TWO Strings\n");
-                                                                  }
-                                                                  else
-                                                                  {
-                                                                    if (consOrFile == 1)
-                                                                    {
-                                                                      consPrefix("[*] ", consYel);
-
-                                                                      if (strnicmp(Cmprec + iPrm1, Cmprec + iPrm2, 255) != 0)
-                                                                      {
-                                                                        fprintf(LogHndl, "[*] Strings Are NOT Equal: %s != %s\n", Cmprec + iPrm1, Cmprec + iPrm2);
-                                                                        printf("Strings Are NOT Equal: %s != %s\n", Cmprec + iPrm1, Cmprec + iPrm2);
-                                                                      }
-                                                                      else
-                                                                      {
-                                                                        fprintf(LogHndl, "[*] Strings ARE Equal: %s\n", Cmprec + iPrm1);
-                                                                        printf("Strings ARE Equal: %s\n", Cmprec + iPrm1);
-                                                                      }
-                                                                    }
-                                                                    else
-                                                                      if (strnicmp(Cmprec + iPrm1, Cmprec + iPrm2, 255) != 0)
-                                                                        RunMe++;
-                                                                  }
-                                                                }
-                                                                else
-                                                                  if ((strnicmp(Inrec, "N>>:", 4) == 0) || (strnicmp(Inrec, "N<<:", 4) == 0) || (strnicmp(Inrec, "N==:", 4) == 0))
-                                                                  {
-                                                                    /****************************************************************/
-                                                                    /* Check Last Return Code = n                                   */
-                                                                    /****************************************************************/
-                                                                    strtok(Inrec, "\n");
-                                                                    strtok(Inrec, "\r");
-
-                                                                    memset(Cmprec, 0, 4096);
-                                                                    strncpy(Cmprec, Inrec + 4, 4092);
-                                                                    twoSplit(Cmprec);
-
-                                                                    if (iPrm2 == 0)
-                                                                    {
-                                                                      fprintf(LogHndl, "[!] Number Comparing Requires TWO Numbers\n");
-
-                                                                      consPrefix("[!] ", consRed);
-                                                                      printf("Number Comparing Requires TWO Numbers\n");
-                                                                    }
-                                                                    else
-                                                                    {
-                                                                      longParm1 = atoll(Cmprec + iPrm1);
-                                                                      longParm2 = atoll(Cmprec + iPrm2);
-
-                                                                      if (consOrFile == 1)
-                                                                        consPrefix("[*] ", consYel);
-
-                                                                      if (strnicmp(Inrec, "N>>:", 4) == 0)
-                                                                      {
-                                                                        if (longParm1 > longParm2)
-                                                                        {
-                                                                          if (consOrFile == 1)
-                                                                          {
-                                                                            fprintf(LogHndl, "[*] %lld is Greater Than %lld\n", longParm1, longParm2);
-                                                                            printf("%lld is Greater than %lld\n", longParm1, longParm2);
-                                                                          }
-                                                                        }
-                                                                        else
-                                                                        {
-                                                                          if (consOrFile == 1)
-                                                                          {
-                                                                            fprintf(LogHndl, "[*] %lld is NOT Greater than %lld\n", longParm1, longParm2);
-                                                                            printf("%lld is NOT Greater than %lld\n", longParm1, longParm2);
-                                                                          }
-                                                                          else
-                                                                            RunMe++;
-                                                                        }
-                                                                      }
-                                                                      else
-                                                                        if (strnicmp(Inrec, "N<<:", 4) == 0)
-                                                                        {
-                                                                          if (longParm1 < longParm2)
-                                                                          {
-                                                                            if (consOrFile == 1)
-                                                                            {
-                                                                              fprintf(LogHndl, "[*] %lld is Less than %lld\n", longParm1, longParm2);
-                                                                              printf("%lld is Less than %lld\n", longParm1, longParm2);
-                                                                            }
-                                                                          }
-                                                                          else
-                                                                          {
-                                                                            if (consOrFile == 1)
-                                                                            {
-                                                                              fprintf(LogHndl, "[*] %lld is NOT Less than %lld\n", longParm1, longParm2);
-                                                                              printf("%lld is NOT Less than %lld\n", longParm1, longParm2);
-                                                                            }
-                                                                            else
-                                                                              RunMe++;
-                                                                          }
-                                                                        }
-                                                                        else
-                                                                          if (strnicmp(Inrec, "N==:", 4) == 0)
-                                                                          {
-                                                                            if (longParm1 == longParm2)
-                                                                            {
-                                                                              if (consOrFile == 1)
-                                                                              {
-                                                                                fprintf(LogHndl, "[*] Numbers are Equal: %lld\n", longParm1);
-                                                                                printf("Numbers are Equal: %lld\n", longParm1);
-                                                                              }
-                                                                            }
-                                                                            else
-                                                                            {
-                                                                              if (consOrFile == 1)
-                                                                              {
-                                                                                fprintf(LogHndl, "[*] %lld is NOT Equal to %lld\n", longParm1, longParm2);
-                                                                                printf("%lld is NOT Equal to %lld\n", longParm1, longParm2);
-                                                                              }
-                                                                              else
-                                                                                RunMe++;
-                                                                            }
-                                                                          }
-                                                                    }
-                                                                  }
-                                                                  else
-                                                                    if (strnicmp(Inrec, "NEQ:", 4) == 0)
-                                                                    {
-                                                                      /****************************************************************/
-                                                                      /* Check Last Return Code = n                                   */
-                                                                      /****************************************************************/
-                                                                      strtok(Inrec, "\n");
-                                                                      strtok(Inrec, "\r");
-
-                                                                      memset(Cmprec, 0, 4096);
-                                                                      strncpy(Cmprec, Inrec + 4, 4092);
-                                                                      twoSplit(Cmprec);
-
-                                                                      if (iPrm2 == 0)
-                                                                      {
-                                                                        fprintf(LogHndl, "[!] Comparing Requires TWO strings\n");
-
-                                                                        consPrefix("[!] ", consRed);
-                                                                        printf("Comparing Requires TWO Strings\n");
-                                                                      }
-                                                                      else
-                                                                      {
-                                                                        if (consOrFile == 1)
-                                                                        {
-                                                                          consPrefix("[*] ", consYel);
-                                                                          if (strnicmp(Cmprec + iPrm1, Cmprec + iPrm2, 255) == 0)
-                                                                          {
-                                                                            fprintf(LogHndl, "[*] Strings are (not not) Equal: %s\n", Cmprec + iPrm1);
-                                                                            printf("Strings are (not not) Equal: %s\n", Cmprec + iPrm1);
-                                                                          }
-                                                                          else
-                                                                          {
-                                                                            fprintf(LogHndl, "[*] Strings are NOT Equal: %s != %s\n", Cmprec + iPrm1, Cmprec + iPrm2);
-                                                                            printf("Strings are NOT Equal: %s != %s\n", Cmprec + iPrm1, Cmprec + iPrm2);
-                                                                          }
-                                                                        }
-                                                                        else
-                                                                          if (strnicmp(Cmprec + iPrm1, Cmprec + iPrm2, 255) == 0)
-                                                                            RunMe++;
-                                                                      }
-                                                                    }
-                                                                    else
-                                                                      if (strnicmp(Inrec, "VER:", 4) == 0)
-                                                                      {
-                                                                        /****************************************************************/
-                                                                        /* Check Running OS Version or Type (Server, Client)            */
-                                                                        /****************************************************************/
-                                                                        strtok(Inrec, "\n");
-                                                                        strtok(Inrec, "\r");
-
-                                                                        if (consOrFile == 1)
-                                                                        {
-                                                                          consPrefix("[*] ", consYel);
-
-                                                                          if (strnicmp(Inrec + 4, "Server", 6) == 0)
-                                                                          {
-                                                                            if (iIsServer == 1)
-                                                                            {
-                                                                              fprintf(LogHndl, "[*] Windows OS Type is: Server\n");
-                                                                              printf("Windows OS Type is: Server\n");
-                                                                            }
-                                                                            else
-                                                                            {
-                                                                              fprintf(LogHndl, "[*] Windows OS Type is: Client - Not: Server\n");
-                                                                              printf("Windows OS Type is: Client - Not: Server\n");
-                                                                            }
-                                                                          }
-                                                                          else
-                                                                            if (strnicmp(Inrec + 4, "Client", 6) == 0)
-                                                                            {
-                                                                              if (iIsServer == 0)
-                                                                              {
-                                                                                fprintf(LogHndl, "[*] Windows OS Type is: Client\n");
-                                                                                printf("Windows OS Type is: Client\n");
-                                                                              }
-                                                                              else
-                                                                              {
-                                                                                fprintf(LogHndl, "[*] Windows OS Type is: Server - Not: Client\n");
-                                                                                printf("Windows OS Type is: Server - Not: Client\n");
-                                                                              }
-                                                                            }
-                                                                            else
-                                                                              if (strnicmp(shortWinVer, Inrec + 4, 10) != 0)
-                                                                              {
-                                                                                fprintf(LogHndl, "[*] Windows OS is: %s - Not: %s\n", shortWinVer, Inrec + 4);
-                                                                                printf("Windows OS is: %s - Not: %s\n", shortWinVer, Inrec + 4);
-                                                                              }
-                                                                              else
-                                                                              {
-                                                                                fprintf(LogHndl, "[*] Windows OS is: %s\n", shortWinVer);
-                                                                                printf("Windows OS is: %s\n", shortWinVer);
-                                                                              }
-                                                                        }
-                                                                        else
-                                                                        {
-                                                                          if (strnicmp(Inrec + 4, "Server", 6) == 0)
-                                                                          {
-                                                                            if (iIsServer != 1)
-                                                                              RunMe++;
-                                                                          }
-                                                                          else
-                                                                            if (strnicmp(Inrec + 4, "Client", 6) == 0)
-                                                                            {
-                                                                              if (iIsServer != 0)
-                                                                                RunMe++;
-                                                                            }
-                                                                            else
-                                                                              if (strnicmp(shortWinVer, Inrec + 4, 10) != 0)
-                                                                                RunMe++;
-                                                                        }
-                                                                      }
-                                                                      else
-                                                                        if (strnicmp(Inrec, "RC=:", 4) == 0)
-                                                                        {
-                                                                          /****************************************************************/
-                                                                          /* Check Last Return Code = n                                   */
-                                                                          /****************************************************************/
-                                                                          strtok(Inrec, "\n");
-                                                                          strtok(Inrec, "\r");
-
-                                                                          ChkRC = atoi(Inrec + 4);
-
-                                                                          if (consOrFile == 1)
-                                                                          {
-                                                                            consPrefix("[*] ", consYel);
-                                                                            if (LastRC != ChkRC)
-                                                                            {
-                                                                              fprintf(LogHndl, "[*] Last Return Code was not: %d - It was: %d\n", ChkRC, LastRC);
-                                                                              printf("Last Return Code was not: %d - It was: %d\n", ChkRC, LastRC);
-                                                                            }
-                                                                            else
-                                                                            {
-                                                                              fprintf(LogHndl, "[*] Last Return was: %d\n", LastRC);
-                                                                              printf("Last Return Code was: %d\n", LastRC);
-                                                                            }
-                                                                          }
-                                                                          else
-                                                                            if (LastRC != ChkRC)
-                                                                              RunMe++;
-                                                                        }
-                                                                        else
-                                                                          if (strnicmp(Inrec, "RC!:", 4) == 0)
-                                                                          {
-                                                                            /****************************************************************/
-                                                                            /* Check Last Return Code = n                                   */
-                                                                            /****************************************************************/
-                                                                            strtok(Inrec, "\n");
-                                                                            strtok(Inrec, "\r");
-
-                                                                            ChkRC = atoi(Inrec + 4);
-
-                                                                            if (consOrFile == 1)
-                                                                            {
-                                                                              consPrefix("[*] ", consYel);
-                                                                              if (LastRC == ChkRC)
-                                                                              {
-                                                                                fprintf(LogHndl, "[*] Last Return was (not not): %d\n", LastRC);
-                                                                                printf("Last Return Code was (not not): %d\n", LastRC);
-                                                                              }
-                                                                              else
-                                                                              {
-                                                                                fprintf(LogHndl, "[*] Last Return Code was not: %d - It was: %d\n", ChkRC, LastRC);
-                                                                                printf("Last Return Code was not: %d - It was: %d\n", ChkRC, LastRC);
-                                                                              }
-                                                                            }
-                                                                            else
-                                                                              if (LastRC == ChkRC)
-                                                                                RunMe++;
-                                                                          }
-                                                                          else
-                                                                            if (strnicmp(Inrec, "RC<:", 4) == 0)
-                                                                            {
-                                                                              /****************************************************************/
-                                                                              /* Check Last Return Code < n                                   */
-                                                                              /****************************************************************/
-                                                                              strtok(Inrec, "\n");
-                                                                              strtok(Inrec, "\r");
-
-                                                                              ChkRC = atoi(Inrec + 4);
-
-                                                                              if (consOrFile == 1)
-                                                                              {
-                                                                                consPrefix("[*] ", consYel);
-                                                                                if (LastRC >= ChkRC)
-                                                                                {
-                                                                                  fprintf(LogHndl, "[*] Last Return Code was not Less Than: %d - It was: %d\n", ChkRC, LastRC);
-                                                                                  printf("Last Return Code was not Less Than: %d - It was: %d\n", ChkRC, LastRC);
-                                                                                }
-                                                                                else
-                                                                                {
-                                                                                  fprintf(LogHndl, "[*] Last Return was Less Than: %d - It was: %d\n", ChkRC, LastRC);
-                                                                                  printf("Last Return Code was Less Than: %d - It was: %d\n", ChkRC, LastRC);
-                                                                                }
-                                                                              }
-                                                                              else
-                                                                                if (LastRC >= ChkRC)
-                                                                                  RunMe++;
-                                                                            }
-                                                                            else
-                                                                              if (strnicmp(Inrec, "RC>:", 4) == 0)
-                                                                              {
-                                                                                /****************************************************************/
-                                                                                /* Check Last Return Code > n                                   */
-                                                                                /****************************************************************/
-                                                                                strtok(Inrec, "\n");
-                                                                                strtok(Inrec, "\r");
-
-                                                                                ChkRC = atoi(Inrec + 4);
-
-                                                                                if (consOrFile == 1)
-                                                                                {
-                                                                                  consPrefix("[*] ", consYel);
-                                                                                  if (LastRC <= ChkRC)
-                                                                                  {
-                                                                                    fprintf(LogHndl, "[*] Last Return Code was not Greate Than: %d - It was: %d\n", ChkRC, LastRC);
-                                                                                    printf("Last Return Code was not Greater Than: %d - It was: %d\n", ChkRC, LastRC);
-                                                                                  }
-                                                                                  else
-                                                                                  {
-                                                                                    fprintf(LogHndl, "[*] Last Return was Greater Than: %d - It was: %d\n", ChkRC, LastRC);
-                                                                                    printf("Last Return Code was Greater Than: %d - It was: %d\n", ChkRC, LastRC);
-                                                                                  }
-                                                                                }
-                                                                                else
-                                                                                  if (LastRC <= ChkRC)
-                                                                                    RunMe++;
-                                                                              }
-                                                                              else
-                                                                                if (strnicmp(Inrec, "CKY:", 4) == 0)
-                                                                                {
-                                                                                  /****************************************************************/
-                                                                                  /* Check for File - If not there, bump RunMe (Dont Run)         */
-                                                                                  /****************************************************************/
-                                                                                  strtok(Inrec, "\n");
-                                                                                  strtok(Inrec, "\r");
-
-                                                                                  memset(ChkFile, 0, 1024);
-                                                                                  strncpy(ChkFile, Inrec + 4, 1000);
-
-                                                                                  if (consOrFile == 1)
-                                                                                  {
-                                                                                    consPrefix("[*] ", consYel);
-                                                                                    if (access(ChkFile, 0) != 0)
-                                                                                    {
-                                                                                      fprintf(LogHndl, "[*] File Does Not Exist: %s\n", ChkFile);
-                                                                                      printf("File Does Not Exist: %s\n", ChkFile);
-                                                                                    }
-                                                                                    else
-                                                                                    {
-                                                                                      fprintf(LogHndl, "File Exists: %s\n", ChkFile);
-                                                                                      printf("File Exists: %s\n", ChkFile);
-                                                                                    }
-                                                                                  }
-                                                                                  else
-                                                                                    if (access(ChkFile, 0) != 0)
-                                                                                      RunMe++;
-                                                                                }
-                                                                                else
-                                                                                  if (strnicmp(Inrec, "64B:", 4) == 0)
-                                                                                  {
-                                                                                    /****************************************************************/
-                                                                                    /* Only Run if we are 64 bit Architecture                       */
-                                                                                    /****************************************************************/
-                                                                                    strtok(Inrec, "\n");
-                                                                                    strtok(Inrec, "\r");
-
-                                                                                    if (consOrFile == 1)
-                                                                                    {
-                                                                                      consPrefix("[*] ", consYel);
-                                                                                      if (strnicmp(Procesr, "AMD64", 5) != 0)
-                                                                                      {
-                                                                                        fprintf(LogHndl, "[*] Not running in 64Bit. Processor: %s\n", Procesr);
-                                                                                        printf("Not running in 64Bit. Processor: %s\n", Procesr);
-                                                                                      }
-                                                                                      else
-                                                                                      {
-                                                                                        fprintf(LogHndl, "Running in 64Bit. Processor: %s\n", Procesr);
-                                                                                        printf("Running in 64Bit. Processor: %s\n", Procesr);
-                                                                                      }
-                                                                                    }
-                                                                                    else
-                                                                                      if (strnicmp(Procesr, "AMD64", 5) != 0)
-                                                                                        RunMe++;
-                                                                                  }
-                                                                                  else
-                                                                                    if (strnicmp(Inrec, "32B:", 4) == 0)
-                                                                                    {
-                                                                                      /****************************************************************/
-                                                                                      /* Only Run if we are 32 bit Architecture                       */
-                                                                                      /****************************************************************/
-                                                                                      strtok(Inrec, "\n");
-                                                                                      strtok(Inrec, "\r");
-
-                                                                                      if (consOrFile == 1)
-                                                                                      {
-                                                                                        consPrefix("[*] ", consYel);
-                                                                                        if (strnicmp(Procesr, "X86", 3) != 0)
-                                                                                        {
-                                                                                          fprintf(LogHndl, "[*] Not running in 32Bit. Processor: %s\n", Procesr);
-                                                                                          printf("Not running in 32Bit. Processor: %s\n", Procesr);
-                                                                                        }
-                                                                                        else
-                                                                                        {
-                                                                                          fprintf(LogHndl, "Running in 32Bit. Processor: %s\n", Procesr);
-                                                                                          printf("Running in 32Bit. Processor: %s\n", Procesr);
-                                                                                        }
-                                                                                      }
-                                                                                      else
-                                                                                        if (strnicmp(Procesr, "X86", 3) != 0)
-                                                                                          RunMe++;
-                                                                                    }
-                                                                                    else
-                                                                                      if (strnicmp(Inrec, "CKN:", 4) == 0)
-                                                                                      {
-                                                                                        /****************************************************************/
-                                                                                        /* Check for File - If not there, bump RunMe (Dont Run)         */
-                                                                                        /****************************************************************/
-                                                                                        strtok(Inrec, "\n");
-                                                                                        strtok(Inrec, "\r");
-
-                                                                                        memset(ChkFile, 0, 1024);
-                                                                                        strncpy(ChkFile, Inrec + 4, 1000);
-
-                                                                                        if (consOrFile == 1)
-                                                                                        {
-                                                                                          consPrefix("[*] ", consYel);
-                                                                                          if (access(ChkFile, 0) == 0)
-                                                                                          {
-                                                                                            fprintf(LogHndl, "[*] File Does (not not) Exist: %s\n", ChkFile);
-                                                                                            printf("File Does (not not) Exist: %s\n", ChkFile);
-                                                                                          }
-                                                                                          else
-                                                                                          {
-                                                                                            fprintf(LogHndl, "File Does Not Exist: %s\n", ChkFile);
-                                                                                            printf("File Does Not Exist: %s\n", ChkFile);
-                                                                                          }
-                                                                                        }
-                                                                                        else
-                                                                                          if (access(ChkFile, 0) == 0)
-                                                                                            RunMe++;
-                                                                                      }
-                                                                                      else
-                                                                                        if (strnicmp(Inrec, "REQ:", 4) == 0)
-                                                                                        {
-                                                                                          /****************************************************************/
-                                                                                          /* This File is REQUIRED (Or exit with an Error)                */
-                                                                                          /****************************************************************/
-                                                                                          strtok(Inrec, "\n");
-                                                                                          strtok(Inrec, "\r");
-
-                                                                                          if (access(Inrec + 4, 0) != 0)
-                                                                                          {
-                                                                                            fprintf(LogHndl, "[!] Required File Not Found: %s - Exiting!\n", Inrec + 4);
-                                                                                            consPrefix("[!] ", consRed);
-                                                                                            printf("Required File Not Found: %s - Exiting!\n", Inrec + 4);
-
-                                                                                            if (iSyslogLvl > 1)
-                                                                                            {
-                                                                                              memset(SyslogTMSG, 0, 2048);
-                                                                                              sprintf(SyslogTMSG, "REQ: Required File Not Found: %s - Exiting!", Inrec + 4);
-                                                                                              AChSyslog(SyslogTMSG);
-                                                                                            }
-
-                                                                                            cleanUp_Exit(3);
-                                                                                            exit(3);
-                                                                                          }
-                                                                                          else
-                                                                                          {
-                                                                                            fprintf(LogHndl, "[+] Required File Found: %s\n", Inrec + 4);
-                                                                                            consPrefix("[+] ", consGre);
-                                                                                            printf("Required File Found: %s\n", Inrec + 4);
-
-                                                                                            if (iSyslogLvl > 1)
-                                                                                            {
-                                                                                              memset(SyslogTMSG, 0, 2048);
-                                                                                              sprintf(SyslogTMSG, "REQ: Required File Found: %s", Inrec + 4);
-                                                                                              AChSyslog(SyslogTMSG);
-                                                                                            }
-                                                                                          }
-                                                                                        }
-                                                                                        else
-                                                                                          if (strnicmp(Inrec, "SAY:", 4) == 0)
-                                                                                          {
-                                                                                            // Echo To Screen and Log
-                                                                                            strtok(Inrec, "\n");
-                                                                                            strtok(Inrec, "\r");
-
-                                                                                            fprintf(LogHndl, "%s\n", Inrec + 4);
-                                                                                            printf("%s\n", Inrec + 4);
-
-                                                                                            if ((iSyslogLvl > 0) && (strlen(Inrec) > 4))
-                                                                                              AChSyslog(Inrec);
-                                                                                          }
-                                                                                          else
-                                                                                            if (strnicmp(Inrec, "PZZ:", 4) == 0)
-                                                                                            {
-                                                                                              /****************************************************************/
-                                                                                              /* Echo and Pause                                               */
-                                                                                              /****************************************************************/
-                                                                                              strtok(Inrec, "\n");
-                                                                                              strtok(Inrec, "\r");
-
-                                                                                              fprintf(LogHndl, "%s\n", Inrec + 4);
-                                                                                              printf("%s\n", Inrec + 4);
-                                                                                              getKey = getchar();
-
-                                                                                              if ((getKey == 81) || (getKey == 113))
-                                                                                              {
-                                                                                                fprintf(LogHndl, "\n[!] You have requested Achoir to Quit.\n");
-                                                                                                consPrefix("\n[!] ", consRed);
-                                                                                                printf("You have requested Achoir to Quit.\n");
-                                                                                                cleanUp_Exit(0);
-                                                                                                exit(0);
-                                                                                              }
-                                                                                            }
-                                                                                            else
-                                                                                              if (strnicmp(Inrec, "HSH:ACQ", 7) == 0)
-                                                                                              {
-                                                                                                /****************************************************************/
-                                                                                                /* Hash The Acquisition Directory                               */
-                                                                                                /****************************************************************/
-                                                                                                strtok(Inrec, "\n");
-                                                                                                strtok(Inrec, "\r");
-
-                                                                                                fprintf(LogHndl, "[+] Now Hashing Acquisition Files\n");
-
-                                                                                                consPrefix("[+] ", consGre);
-                                                                                                printf("Now Hashing Acquisition Files\n");
-                                                                                                sprintf(MD5File, "%s\\ACQHash.txt\0", BACQDir);
-                                                                                                sprintf(TempDir, "%s\\*.*\0", BACQDir);
-
-                                                                                                MD5Hndl = fopen(MD5File, "w");
-                                                                                                if (MD5Hndl != NULL)
-                                                                                                {
-                                                                                                  iMaxCnt = 0;
-                                                                                                  ListDir(TempDir, "MD5");
-                                                                                                  fclose(MD5Hndl);
-                                                                                                }
-                                                                                              }
-                                                                                              else
-                                                                                                if (strnicmp(Inrec, "HSH:Dir", 7) == 0)
-                                                                                                {
-                                                                                                  /****************************************************************/
-                                                                                                  /* Hash The Acquisition Directory                               */
-                                                                                                  /****************************************************************/
-                                                                                                  strtok(Inrec, "\n");
-                                                                                                  strtok(Inrec, "\r");
-
-                                                                                                  fprintf(LogHndl, "[+] Now Hashing AChoir Files\n");
-                                                                                                  consPrefix("[+] ", consGre);
-                                                                                                  printf("Now Hashing AChoir Files\n");
-                                                                                                  sprintf(MD5File, "%s\\DirHash.txt\0", BaseDir);
-                                                                                                  sprintf(TempDir, "%s\\*.*\0", BaseDir);
-
-                                                                                                  MD5Hndl = fopen(MD5File, "w");
-                                                                                                  if (MD5Hndl != NULL)
-                                                                                                  {
-                                                                                                    iMaxCnt = 0;
-                                                                                                    ListDir(TempDir, "MD5");
-                                                                                                    fclose(MD5Hndl);
-                                                                                                  }
-                                                                                                }
-                                                                                                else
-                                                                                                  if (strnicmp(Inrec, "DSK:", 4) == 0)
-                                                                                                  {
-                                                                                                    /****************************************************************/
-                                                                                                    /* Get the Attached Disk Drives for the &DSK variable (Loop)    */
-                                                                                                    /****************************************************************/
-                                                                                                    strtok(Inrec, "\n");
-                                                                                                    strtok(Inrec, "\r");
-
-                                                                                                    if (strnicmp(Inrec + 4, "Remov", 5) == 0)
-                                                                                                      dskTyp = 2;
-                                                                                                    else
-                                                                                                      if (strnicmp(Inrec + 4, "Fixed", 5) == 0)
-                                                                                                        dskTyp = 3;
-                                                                                                      else
-                                                                                                        if (strnicmp(Inrec + 4, "Remot", 5) == 0)
-                                                                                                          dskTyp = 4;
-                                                                                                        else
-                                                                                                          if (strnicmp(Inrec + 4, "Cdrom", 5) == 0)
-                                                                                                            dskTyp = 5;
-                                                                                                          else
-                                                                                                            if (strnicmp(Inrec + 4, "Ramdi", 5) == 0)
-                                                                                                              dskTyp = 6;
-                                                                                                            else
-                                                                                                              dskTyp = 3;
-
-
-                                                                                                    //If Disk Type Matches, Write it Out
-                                                                                                    DskHndl = fopen(ForDisk, "w");
-                                                                                                    if (DskHndl != NULL)
-                                                                                                    {
-                                                                                                      iMaxCnt = 0;
-                                                                                                      for (dskNum = 0; dskNum < 26; dskNum++)
-                                                                                                      {
-                                                                                                        memset(dskNam, 0, 10);
-                                                                                                        sprintf(dskNam, "%c:\\", Alphabet[dskNum]);
-
-                                                                                                        if (GetDriveType(dskNam) == dskTyp)
-                                                                                                        {
-                                                                                                          iMaxCnt++;
-                                                                                                          fprintf(DskHndl, "%c\n", Alphabet[dskNum]);
-                                                                                                        }
-                                                                                                      }
-                                                                                                      fclose(DskHndl);
-                                                                                                    }
-                                                                                                  }
-                                                                                                  else
-                                                                                                    if (strnicmp(Inrec, "FOR:", 4) == 0)
-                                                                                                    {
-                                                                                                      /****************************************************************/
-                                                                                                      /* Get the Directory Listing for the &For variable (Loop)       */
-                                                                                                      /****************************************************************/
-                                                                                                      strtok(Inrec, "\n");
-                                                                                                      strtok(Inrec, "\r");
-
-                                                                                                      sprintf(MD5File, "%s\\ForFiles\0", CachDir);
-                                                                                                      MD5Hndl = fopen(MD5File, "w");
-
-                                                                                                      if (MD5Hndl != NULL)
-                                                                                                      {
-                                                                                                        iMaxCnt = 0;
-                                                                                                        ListDir(Inrec + 4, "FOR");
-
-                                                                                                        if (iNative == 0)
-                                                                                                        {
-                                                                                                          if (strnicmp(Inrec + 4 + strlen(WinRoot), "\\System32\\", 10) == 0)
-                                                                                                          {
-                                                                                                            memset(TempDir, 0, 1024);
-                                                                                                            sprintf(TempDir, "%s\\Sysnative\\%s\0", WinRoot, Inrec + 4 + strlen(WinRoot) + 10);
-
-                                                                                                            if (iLogOpen == 1)
-                                                                                                              fprintf(LogHndl, "[*] Non-Native Flag Has Been Detected - Adding Sysnative Redirection: \n %s\n", TempDir);
-
-                                                                                                            consPrefix("[*] ", consYel);
-                                                                                                            printf("Non-Native Flag Has Been Detected - Adding Sysnative Redirection: \n %s\n", TempDir);
-
-                                                                                                            ListDir(TempDir, "FOR");
-                                                                                                          }
-                                                                                                        }
-
-                                                                                                        fclose(MD5Hndl);
-
-                                                                                                      }
-                                                                                                    }
-                                                                                                    else
-                                                                                                      if (strnicmp(Inrec, "LST:", 4) == 0)
-                                                                                                      {
-                                                                                                        /****************************************************************/
-                                                                                                        /* Get the Object Listing for the &LST variable (Loop)          */
-                                                                                                        /****************************************************************/
-                                                                                                        strtok(Inrec, "\n");
-                                                                                                        strtok(Inrec, "\r");
-
-                                                                                                        sprintf(LstFile, "%s\\%s\0", BaseDir, Inrec + 4);
-                                                                                                      }
-                                                                                                      else
-                                                                                                        if (strnicmp(Inrec, "END:", 4) == 0)
-                                                                                                        {
-                                                                                                          /****************************************************************/
-                                                                                                          /* Decrement Conditional Pointer                                */
-                                                                                                          /****************************************************************/
-                                                                                                          if (RunMe > 0)
-                                                                                                            RunMe--;
-                                                                                                        }
-                                                                                                        else
-                                                                                                          if (strnicmp(Inrec, "BYE:", 4) == 0)
-                                                                                                          {
-                                                                                                            /****************************************************************/
-                                                                                                            /* Exit the Script With LastRC (Probably Conditional)           */
-                                                                                                            /****************************************************************/
-                                                                                                            fprintf(LogHndl, "BYE: Exiting with RC = %d\n", LastRC);
-
-                                                                                                            consPrefix("BYE: ", consBlu);
-                                                                                                            printf("Exiting with RC = %d\n", LastRC);
-
-                                                                                                            if (access(ForFile, 0) == 0)
-                                                                                                              unlink(ForFile);
-
-                                                                                                            if (access(ForDisk, 0) == 0)
-                                                                                                              unlink(ForDisk);
-
-                                                                                                            if (access(MCpFile, 0) == 0)
-                                                                                                              unlink(MCpFile);
-
-                                                                                                            //fclose(LogHndl);
-                                                                                                            cleanUp_Exit(LastRC);
-                                                                                                            exit(LastRC);
-                                                                                                          }
-                                                                                                          else
-                                                                                                            if (strnicmp(Inrec, "USR:", 4) == 0)
-                                                                                                            {
-                                                                                                              /****************************************************************/
-                                                                                                              /* Map to an External Drive & Set it to ACQ Directory           */
-                                                                                                              /****************************************************************/
-                                                                                                              if (Inrec[4] == '?')
-                                                                                                              {
-                                                                                                                consPrefix("[?] ", consYel);
-                                                                                                                consInput("Enter Share Mapping UserId> ", 1, 0);
-                                                                                                                memset(inUser, 0, 255);
-                                                                                                                strncpy(inUser, Conrec, 254);
-                                                                                                              }
-                                                                                                              else
-                                                                                                              {
-                                                                                                                strtok(Inrec, "\n");
-                                                                                                                strtok(Inrec, "\r");
-
-                                                                                                                memset(inUser, 0, 255);
-                                                                                                                strncpy(inUser, Inrec + 4, 254);
-                                                                                                              }
-                                                                                                            }
-                                                                                                            else
-                                                                                                              if (strnicmp(Inrec, "PWD:", 4) == 0)
-                                                                                                              {
-                                                                                                                /****************************************************************/
-                                                                                                                /* Map to an External Drive & Set it to ACQ Directory           */
-                                                                                                                /****************************************************************/
-                                                                                                                if (Inrec[4] == '?')
-                                                                                                                {
-                                                                                                                  consPrefix("[?] ", consYel);
-                                                                                                                  consInput("Share Mapping Password> ", 1, 1);
-                                                                                                                  memset(inPass, 0, 255);
-                                                                                                                  strncpy(inPass, Conrec, 254);
-                                                                                                                }
-                                                                                                                else
-                                                                                                                {
-                                                                                                                  strtok(Inrec, "\n");
-                                                                                                                  strtok(Inrec, "\r");
-
-                                                                                                                  memset(inPass, 0, 255);
-                                                                                                                  strncpy(inPass, Inrec + 4, 254);
-                                                                                                                }
-                                                                                                              }
-                                                                                                              else
-                                                                                                                if (strnicmp(Inrec, "MAX:", 4) == 0)
-                                                                                                                {
-                                                                                                                  /****************************************************************/
-                                                                                                                  /* Set Max File/Memory Size                                     */
-                                                                                                                  /****************************************************************/
-                                                                                                                  strtok(Inrec, "\n");
-                                                                                                                  strtok(Inrec, "\r");
-
-                                                                                                                  maxMemBytes = strtoul(Inrec + 4, &pointEnd, 10);
-
-                                                                                                                  fprintf(LogHndl, "[+] Max Memory/File Bytes Set: %lu\n", maxMemBytes);
-                                                                                                                  consPrefix("[+] ", consGre);
-                                                                                                                  printf("Max Memory/File Bytes Set: %lu\n", maxMemBytes);
-                                                                                                                }
-                                                                                                                else
-                                                                                                                  if (strnicmp(Inrec, "MAP:", 4) == 0)
-                                                                                                                  {
-                                                                                                                    /****************************************************************/
-                                                                                                                    /* Map to an External Drive & Set it to ACQ Directory           */
-                                                                                                                    /****************************************************************/
-                                                                                                                    strtok(Inrec, "\n");
-                                                                                                                    strtok(Inrec, "\r");
-
-                                                                                                                    mapsDrive(Inrec + 4, 1);
-                                                                                                                  }
-                                                                                                                  else
-                                                                                                                    if (strnicmp(Inrec, "SHR:", 4) == 0)
-                                                                                                                    {
-                                                                                                                      /****************************************************************/
-                                                                                                                      /* Create a Local Share SHR:<Path> <Shr Name>                   */
-                                                                                                                      /****************************************************************/
-                                                                                                                      strtok(Inrec, "\n");
-                                                                                                                      strtok(Inrec, "\r");
-
-                                                                                                                      memset(Shrrec, 0, 1024);
-                                                                                                                      strncpy(Shrrec, Inrec + 4, 1024);
-                                                                                                                      twoSplit(Shrrec);
-
-                                                                                                                      if (iPrm2 == 0)
-                                                                                                                        netLocalShare(cName, Inrec + 4, "Ach-Rmt", 1);
-                                                                                                                      else
-                                                                                                                        netLocalShare(cName, Shrrec + iPrm1, Shrrec + iPrm2, 1);
-                                                                                                                    }
-                                                                                                                    else
-                                                                                                                      if (strnicmp(Inrec, "SHD:", 4) == 0)
-                                                                                                                      {
-                                                                                                                        /****************************************************************/
-                                                                                                                        /* Delete a Local Share SHD:<Shr Name>                          */
-                                                                                                                        /****************************************************************/
-                                                                                                                        strtok(Inrec, "\n");
-                                                                                                                        strtok(Inrec, "\r");
-
-                                                                                                                        netShareDel(Inrec + 4, 1);
-                                                                                                                      }
-                                                                                                                      else
-                                                                                                                        if (strnicmp(Inrec, "SET:MAPERR=CONT", 15) == 0)
-                                                                                                                        {
-                                                                                                                          /****************************************************************/
-                                                                                                                          /* Mapping Error Response to Continue                           */
-                                                                                                                          /****************************************************************/
-                                                                                                                          setMapErr = 0;
-                                                                                                                        }
-                                                                                                                        else
-                                                                                                                          if (strnicmp(Inrec, "SET:MAPERR=QUER", 15) == 0)
-                                                                                                                          {
-                                                                                                                            /****************************************************************/
-                                                                                                                            /* Mapping Error Response to Continue                           */
-                                                                                                                            /****************************************************************/
-                                                                                                                            setMapErr = 1;
-                                                                                                                          }
-                                                                                                                          else
-                                                                                                                            if (strnicmp(Inrec, "SET:MAPERR=FAIL", 15) == 0)
-                                                                                                                            {
-                                                                                                                              /****************************************************************/
-                                                                                                                              /* Mapping Error Response to Continue                           */
-                                                                                                                              /****************************************************************/
-                                                                                                                              setMapErr = 2;
-                                                                                                                            }
-                                                                                                                            else
-                                                                                                                              if (strnicmp(Inrec, "SET:NCP=NODCMP", 14) == 0)
-                                                                                                                              {
-                                                                                                                                /****************************************************************/
-                                                                                                                                /* Set Raw NTFS Copy to RAW ONLY                                */
-                                                                                                                                /****************************************************************/
-                                                                                                                                setNCP = 0;
-                                                                                                                              }
-                                                                                                                              else
-                                                                                                                                if (strnicmp(Inrec, "SET:NCP=RAWONLY", 15) == 0)
-                                                                                                                                {
-                                                                                                                                  /****************************************************************/
-                                                                                                                                  /* Set Raw NTFS to LZNT1 Decompress (Legacy)                    */
-                                                                                                                                  /****************************************************************/
-                                                                                                                                  setNCP = 1;
-                                                                                                                                }
-                                                                                                                                else
-                                                                                                                                  if (strnicmp(Inrec, "SET:NCP=DECOMP", 14) == 0)
-                                                                                                                                  {
-                                                                                                                                    /****************************************************************/
-                                                                                                                                    /* Set Raw NTFS to LZNT1 Decompress                             */
-                                                                                                                                    /****************************************************************/
-                                                                                                                                    setNCP = 1;
-                                                                                                                                  }
-                                                                                                                                  else
-                                                                                                                                    if (strnicmp(Inrec, "SET:NCP=OSCOPY", 14) == 0)
-                                                                                                                                    {
-                                                                                                                                      /****************************************************************/
-                                                                                                                                      /* Set Raw NTFS Copy to RAW ONLY                                */
-                                                                                                                                      /****************************************************************/
-                                                                                                                                      setNCP = 2;
-                                                                                                                                    }
-                                                                                                                                    else
-                                                                                                                                      if (strnicmp(Inrec, "SET:TRIM=YES", 12) == 0)
-                                                                                                                                      {
-                                                                                                                                        /****************************************************************/
-                                                                                                                                        /* Trim Leading and Trailing Spaces                              */
-                                                                                                                                        /****************************************************************/
-                                                                                                                                        setTrim = 1;
-                                                                                                                                      }
-                                                                                                                                      else
-                                                                                                                                        if (strnicmp(Inrec, "SET:TRIM=NO", 11) == 0)
-                                                                                                                                        {
-                                                                                                                                          /****************************************************************/
-                                                                                                                                          /* DO NOT Trim Leading and Trailing Spaces                      */
-                                                                                                                                          /****************************************************************/
-                                                                                                                                          setTrim = 0;
-                                                                                                                                        }
-                                                                                                                                        else
-                                                                                                                                          if (strnicmp(Inrec, "SET:DELIMS=", 11) == 0)
-                                                                                                                                          {
-                                                                                                                                            /****************************************************************/
-                                                                                                                                            /* Set the Tokenizing Delimiters.  Allow up to 5                */
-                                                                                                                                            /****************************************************************/
-                                                                                                                                            memset(Delims, 0, 10);
-                                                                                                                                            strncpy(Delims, Inrec + 11, 5);
-
-                                                                                                                                          }
-                                                                                                                                          else
-                                                                                                                                            if (strnicmp(Inrec, "SET:CopyPath=None", 17) == 0)
-                                                                                                                                            {
-                                                                                                                                              /****************************************************************/
-                                                                                                                                              /* Set CPY: and NCP Paths to None (Flat Output Directory)       */
-                                                                                                                                              /****************************************************************/
-                                                                                                                                              setCPath = 0;
-                                                                                                                                            }
-                                                                                                                                            else
-                                                                                                                                              if (strnicmp(Inrec, "SET:CopyPath=Part", 17) == 0)
-                                                                                                                                              {
-                                                                                                                                                /****************************************************************/
-                                                                                                                                                /* Set CPY: and NCP Paths to Partial (Relative Output Directory)*/
-                                                                                                                                                /****************************************************************/
-                                                                                                                                                setCPath = 1;
-                                                                                                                                              }
-                                                                                                                                              else
-                                                                                                                                                if (strnicmp(Inrec, "SET:CopyPath=Full", 17) == 0)
-                                                                                                                                                {
-                                                                                                                                                  /****************************************************************/
-                                                                                                                                                  /* Set CPY: and NCP Paths to Full (Full Output Directory)       */
-                                                                                                                                                  /****************************************************************/
-                                                                                                                                                  setCPath = 2;
-                                                                                                                                                }
-                                                                                                                                                else
-                                                                                                                                                  if (strnicmp(Inrec, "SET:CopyDepth=", 14) == 0)
-                                                                                                                                                  {
-                                                                                                                                                    /****************************************************************/
-                                                                                                                                                    /* Set CPY: Max Directory Depth                                 */
-                                                                                                                                                    /****************************************************************/
-                                                                                                                                                    setCDepth = atoi(Inrec + 14);
-                                                                                                                                                  }
-                                                                                                                                                  else
-                                                                                                                                                    if (strnicmp(Inrec, "SET:SyslogS=", 12) == 0)
-                                                                                                                                                    {
-                                                                                                                                                      /****************************************************************/
-                                                                                                                                                      /* Set Syslog Server IP Address                                 */
-                                                                                                                                                      /****************************************************************/
-                                                                                                                                                      memset(Syslogd, 0, 255);
-                                                                                                                                                      strncpy(Syslogd, Inrec + 12, 250);
-
-                                                                                                                                                      //If  Logging Level was already set, Leave it. Otherwise Set to min
-                                                                                                                                                      if (iSyslogLvl < 1)
-                                                                                                                                                        iSyslogLvl = 1;
-
-                                                                                                                                                      memset(SyslogTMSG, 0, 2048);
-                                                                                                                                                      sprintf(SyslogTMSG, "INF: AChoir Version: %s Syslogging Started.  Level: %d  ACQ: %s", Version, iSyslogLvl, ACQName);
-                                                                                                                                                      AChSyslog(SyslogTMSG);
-
-                                                                                                                                                      memset(SyslogTMSG, 0, 2048);
-                                                                                                                                                      sprintf(SyslogTMSG, "INF: Windows Ver: %s Name: %s Memory: %lld  Avail Disk: %lld", descrWinVer, cName, TotalMem, AvailDisk);
-                                                                                                                                                      AChSyslog(SyslogTMSG);
-                                                                                                                                                    }
-                                                                                                                                                    else
-                                                                                                                                                      if (strnicmp(Inrec, "SET:SyslogP=", 12) == 0)
-                                                                                                                                                      {
-                                                                                                                                                        /****************************************************************/
-                                                                                                                                                        /* Set Syslog Server Port                                       */
-                                                                                                                                                        /****************************************************************/
-                                                                                                                                                        memset(Syslogp, 0, 10);
-                                                                                                                                                        strncpy(Syslogp, Inrec + 12, 5);
-                                                                                                                                                        iSyslogp = atoi(Syslogp);
-                                                                                                                                                      }
-                                                                                                                                                      else
-                                                                                                                                                        if (strnicmp(Inrec, "SET:SyslogL=none", 16) == 0)
-                                                                                                                                                        {
-                                                                                                                                                          /****************************************************************/
-                                                                                                                                                          /* Set Syslogging Level                                         */
-                                                                                                                                                          /****************************************************************/
-                                                                                                                                                          if (iSyslogLvl > 0)
-                                                                                                                                                          {
-                                                                                                                                                            memset(SyslogTMSG, 0, 2048);
-                                                                                                                                                            sprintf(SyslogTMSG, "INF: AChoir Version: %s Syslogging Stopped.  Old Level = %d", Version, iSyslogLvl);
-                                                                                                                                                            AChSyslog(SyslogTMSG);
-                                                                                                                                                          }
-
-                                                                                                                                                          iSyslogLvl = 0;
-                                                                                                                                                        }
-                                                                                                                                                        else
-                                                                                                                                                          if (strnicmp(Inrec, "SET:SyslogL=min", 15) == 0)
-                                                                                                                                                          {
-                                                                                                                                                            /****************************************************************/
-                                                                                                                                                            /* Set Syslogging Level                                         */
-                                                                                                                                                            /****************************************************************/
-                                                                                                                                                            iSyslogLvl = 1;
-
-                                                                                                                                                            memset(SyslogTMSG, 0, 2048);
-                                                                                                                                                            sprintf(SyslogTMSG, "SET: Syslog Level Set To min: 1");
-                                                                                                                                                            AChSyslog(SyslogTMSG);
-                                                                                                                                                          }
-                                                                                                                                                          else
-                                                                                                                                                            if (strnicmp(Inrec, "SET:SyslogL=max", 15) == 0)
-                                                                                                                                                            {
-                                                                                                                                                              /****************************************************************/
-                                                                                                                                                              /* Set Syslogging Level                                         */
-                                                                                                                                                              /****************************************************************/
-                                                                                                                                                              iSyslogLvl = 2;
-
-                                                                                                                                                              memset(SyslogTMSG, 0, 2048);
-                                                                                                                                                              sprintf(SyslogTMSG, "SET: Syslog Level Set To max: 2");
-                                                                                                                                                              AChSyslog(SyslogTMSG);
-                                                                                                                                                            }
-                                                                                                                                                            else
-                                                                                                                                                              if (strnicmp(Inrec, "XIT:", 4) == 0)
-                                                                                                                                                              {
-                                                                                                                                                                /****************************************************************/
-                                                                                                                                                                /* Setup A Command to Run on Exit.                              */
-                                                                                                                                                                /****************************************************************/
-                                                                                                                                                                strtok(Inrec, "\n");
-                                                                                                                                                                strtok(Inrec, "\r");
-                                                                                                                                                                iXitCmd = 1;
-
-                                                                                                                                                                // Are we requesting an explicit path?
-                                                                                                                                                                if (Inrec[4] == '\\')
-                                                                                                                                                                {
-                                                                                                                                                                  memset(XitCmd, 0, 4096);
-                                                                                                                                                                  sprintf(XitCmd, "%s%s\0", BaseDir, Inrec + 4);
-                                                                                                                                                                }
-                                                                                                                                                                else
-                                                                                                                                                                {
-                                                                                                                                                                  memset(XitCmd, 0, 4096);
-                                                                                                                                                                  sprintf(XitCmd, "%s\0", Inrec + 4);
-                                                                                                                                                                }
-
-                                                                                                                                                                fprintf(LogHndl, "\nXIT: Exit Program Set:\nXit: %s\n", XitCmd);
-
-                                                                                                                                                                consPrefix("\nXIT: ", consBlu);
-                                                                                                                                                                printf("Exit Program Set:\nXit: %s\n", XitCmd);
-                                                                                                                                                              }
-                                                                                                                                                              else
-                                                                                                                                                                if (strnicmp(Inrec, "SYS:", 4) == 0)
-                                                                                                                                                                {
-                                                                                                                                                                  /****************************************************************/
-                                                                                                                                                                  /* Run a system (Shell) command                                 */
-                                                                                                                                                                  /****************************************************************/
-                                                                                                                                                                  strtok(Inrec, "\n");
-                                                                                                                                                                  strtok(Inrec, "\r");
-
-                                                                                                                                                                  // Are we requesting an explicit path?
-                                                                                                                                                                  if (Inrec[4] == '\\')
-                                                                                                                                                                  {
-                                                                                                                                                                    memset(TempDir, 0, 1024);
-                                                                                                                                                                    sprintf(TempDir, "%s%s\0", BaseDir, Inrec + 4);
-                                                                                                                                                                  }
-                                                                                                                                                                  else
-                                                                                                                                                                  {
-                                                                                                                                                                    memset(TempDir, 0, 1024);
-                                                                                                                                                                    sprintf(TempDir, "%s\0", Inrec + 4);
-                                                                                                                                                                  }
-
-                                                                                                                                                                  fprintf(LogHndl, "\nSYS: %s\n", TempDir);
-                                                                                                                                                                  consPrefix("\nSYS: ", consBlu);
-                                                                                                                                                                  printf("%s\n", TempDir);
-
-                                                                                                                                                                  if (iSyslogLvl > 0)
-                                                                                                                                                                  {
-                                                                                                                                                                    memset(SyslogTMSG, 0, 2048);
-                                                                                                                                                                    sprintf(SyslogTMSG, "SYS: %s", TempDir);
-                                                                                                                                                                    AChSyslog(SyslogTMSG);
-                                                                                                                                                                  }
-
-                                                                                                                                                                  LastRC = system(TempDir);
-                                                                                                                                                                  fprintf(LogHndl, "Return Code: %d\n", LastRC);
-
-                                                                                                                                                                  if (iSyslogLvl > 1)
-                                                                                                                                                                  {
-                                                                                                                                                                    memset(SyslogTMSG, 0, 2048);
-                                                                                                                                                                    sprintf(SyslogTMSG, "SYS: Return Code: %d", LastRC);
-                                                                                                                                                                    AChSyslog(SyslogTMSG);
-                                                                                                                                                                  }
-
-                                                                                                                                                                }
-                                                                                                                                                                else
-                                                                                                                                                                  if ((strnicmp(Inrec, "EXE:", 4) == 0) || (strnicmp(Inrec, "EXA:", 4) == 0) || (strnicmp(Inrec, "EXB:", 4) == 0))
-                                                                                                                                                                  {
-                                                                                                                                                                    if (strnicmp(Inrec, "EXE:", 4) == 0)
-                                                                                                                                                                      iExec = 1;
-                                                                                                                                                                    else
-                                                                                                                                                                      if (strnicmp(Inrec, "EXA:", 4) == 0)
-                                                                                                                                                                        iExec = 2;
-                                                                                                                                                                      else
-                                                                                                                                                                        if (strnicmp(Inrec, "EXB:", 4) == 0)
-                                                                                                                                                                          iExec = 3;
-                                                                                                                                                                        else
-                                                                                                                                                                          iExec = 1;
-
-                                                                                                                                                                    /****************************************************************/
-                                                                                                                                                                    /* Spawn an Executable                                          */
-                                                                                                                                                                    /*  EXE - P_Wait    (Default is Blocked/Sequential)             */
-                                                                                                                                                                    /*  EXA - P_NOWAIT  (Asyncronous/Not Blocked)                   */
-                                                                                                                                                                    /*  EXB - P_DETACH  (Run as a Background Process)               */
-                                                                                                                                                                    /****************************************************************/
-                                                                                                                                                                    strtok(Inrec, "\n");
-                                                                                                                                                                    strtok(Inrec, "\r");
-
-                                                                                                                                                                    Squish(Inrec);
-
-                                                                                                                                                                    if (iSyslogLvl > 0)
-                                                                                                                                                                    {
-                                                                                                                                                                      memset(SyslogTMSG, 0, 2048);
-                                                                                                                                                                      sprintf(SyslogTMSG, "%.3s: %s", Inrec, Inrec + 4);
-                                                                                                                                                                      AChSyslog(SyslogTMSG);
-                                                                                                                                                                    }
-
-                                                                                                                                                                    memset(Exerec, 0, 4096);
-                                                                                                                                                                    strncpy(Exerec, Inrec + 4, 4092);
-                                                                                                                                                                    twoSplit(Exerec);
-
-                                                                                                                                                                    // Are we requesting an explicit path?
-                                                                                                                                                                    if (Exerec[0] == '\\')
-                                                                                                                                                                    {
-                                                                                                                                                                      memset(TempDir, 0, 1024);
-                                                                                                                                                                      sprintf(TempDir, "%s%s\0", BaseDir, Exerec + iPrm1);
-                                                                                                                                                                    }
-                                                                                                                                                                    else
-                                                                                                                                                                    {
-                                                                                                                                                                      memset(TempDir, 0, 1024);
-                                                                                                                                                                      sprintf(TempDir, "%s\0", Exerec + iPrm1);
-                                                                                                                                                                    }
-
-
-                                                                                                                                                                    /****************************************************************/
-                                                                                                                                                                    /* Are There Any Parms?                                         */
-                                                                                                                                                                    /****************************************************************/
-                                                                                                                                                                    if (access(TempDir, 0) != 0)
-                                                                                                                                                                    {
-                                                                                                                                                                      fprintf(LogHndl, "[!] Program Not Found\n");
-
-                                                                                                                                                                      consPrefix("[!] ", consRed);
-                                                                                                                                                                      printf("Program Not Found\n");
-                                                                                                                                                                    }
-                                                                                                                                                                    else
-                                                                                                                                                                    {
-                                                                                                                                                                      FileMD5(TempDir);
-
-                                                                                                                                                                      /****************************************************************/
-                                                                                                                                                                      /* EXA, EXB, or EXE                                             */
-                                                                                                                                                                      /****************************************************************/
-                                                                                                                                                                      if (iExec == 1)
-                                                                                                                                                                      {
-                                                                                                                                                                        fprintf(LogHndl, "\nEXE: %s\n", Exerec + iPrm1);
-                                                                                                                                                                        consPrefix("\nEXE: ", consBlu);
-                                                                                                                                                                      }
-                                                                                                                                                                      else
-                                                                                                                                                                        if (iExec == 2)
-                                                                                                                                                                        {
-                                                                                                                                                                          fprintf(LogHndl, "\nEXA: %s\n", Exerec + iPrm1);
-                                                                                                                                                                          consPrefix("\nEXA: ", consBlu);
-                                                                                                                                                                        }
-                                                                                                                                                                        else
-                                                                                                                                                                          if (iExec == 3)
-                                                                                                                                                                          {
-                                                                                                                                                                            fprintf(LogHndl, "\nEXB: %s\n", Exerec + iPrm1);
-                                                                                                                                                                            consPrefix("\nEXB: ", consBlu);
-                                                                                                                                                                          }
-                                                                                                                                                                      printf("%s\n", Exerec + iPrm1);
-
-
-                                                                                                                                                                      // Processing of 1, 2, or 3 sets of Command Line Parameters
-                                                                                                                                                                      if (iPrm3 > 0)
-                                                                                                                                                                      {
-                                                                                                                                                                        // 3 Command Line Parameters
-                                                                                                                                                                        // Redact iPrm2 if it has a Password
-                                                                                                                                                                        Redactor(Exerec + iPrm2, Redrec);
-                                                                                                                                                                        fprintf(LogHndl, "   : %s\n", Redrec);
-                                                                                                                                                                        printf("   : %s\n", Redrec);
-
-                                                                                                                                                                        // Redact iPrm3 if it has a Password
-                                                                                                                                                                        Redactor(Exerec + iPrm3, Redrec);
-                                                                                                                                                                        fprintf(LogHndl, "   : %s\n", Redrec);
-                                                                                                                                                                        printf("   : %s\n", Redrec);
-
-                                                                                                                                                                        fprintf(LogHndl, "MD5: %s\n", MD5Out);
-                                                                                                                                                                        consPrefix("MD5: ", consGre);
-                                                                                                                                                                        printf("%s\n", MD5Out);
-
-                                                                                                                                                                        if (iExec == 1)
-                                                                                                                                                                          LastRC = (int)spawnlp(P_WAIT, TempDir, TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
-                                                                                                                                                                        else
-                                                                                                                                                                          if (iExec == 2)
-                                                                                                                                                                            LastRC = (int)spawnlp(P_NOWAIT, TempDir, TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
-                                                                                                                                                                          else
-                                                                                                                                                                            if (iExec == 3)
-                                                                                                                                                                              LastRC = (int)spawnlp(P_DETACH, TempDir, TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
-                                                                                                                                                                      }
-                                                                                                                                                                      else
-                                                                                                                                                                        if (iPrm2 > 0)
-                                                                                                                                                                        {
-                                                                                                                                                                          // 2 Command Line Parameters
-                                                                                                                                                                          // Redact iPrm2 if it has a Password
-                                                                                                                                                                          Redactor(Exerec + iPrm2, Redrec);
-                                                                                                                                                                          fprintf(LogHndl, "   : %s\n", Redrec);
-                                                                                                                                                                          printf("   : %s\n", Redrec);
-
-                                                                                                                                                                          fprintf(LogHndl, "MD5: %s\n", MD5Out);
-                                                                                                                                                                          consPrefix("MD5: ", consGre);
-                                                                                                                                                                          printf("%s\n", MD5Out);
-
-                                                                                                                                                                          if (iExec == 1)
-                                                                                                                                                                            LastRC = (int)spawnlp(P_WAIT, TempDir, TempDir, Exerec + iPrm2, NULL);
-                                                                                                                                                                          else
-                                                                                                                                                                            if (iExec == 2)
-                                                                                                                                                                              LastRC = (int)spawnlp(P_NOWAIT, TempDir, TempDir, Exerec + iPrm2, NULL);
-                                                                                                                                                                            else
-                                                                                                                                                                              if (iExec == 3)
-                                                                                                                                                                                LastRC = (int)spawnlp(P_DETACH, TempDir, TempDir, Exerec + iPrm2, NULL);
-                                                                                                                                                                        }
-                                                                                                                                                                        else
-                                                                                                                                                                        {
-                                                                                                                                                                          // 1 Command Line Parameter
-                                                                                                                                                                          // No Redaction necessary
-                                                                                                                                                                          fprintf(LogHndl, "MD5: %s\n", MD5Out);
-                                                                                                                                                                          consPrefix("MD5: ", consGre);
-                                                                                                                                                                          printf("%s\n", MD5Out);
-
-                                                                                                                                                                          if (iExec == 1)
-                                                                                                                                                                            LastRC = (int)spawnlp(P_WAIT, TempDir, TempDir, NULL);
-                                                                                                                                                                          else
-                                                                                                                                                                            if (iExec == 2)
-                                                                                                                                                                              LastRC = (int)spawnlp(P_NOWAIT, TempDir, TempDir, NULL);
-                                                                                                                                                                            else
-                                                                                                                                                                              if (iExec == 3)
-                                                                                                                                                                                LastRC = (int)spawnlp(P_DETACH, TempDir, TempDir, NULL);
-                                                                                                                                                                        }
-
-
-                                                                                                                                                                      if (LastRC != 0)
-                                                                                                                                                                      {
-                                                                                                                                                                        fprintf(LogHndl, "[!] Spawn Error(%d): %s\n", errno, strerror(errno));
-                                                                                                                                                                        consPrefix("[!] ", consRed);
-                                                                                                                                                                        printf("Spawn Error(%d): %s\n", errno, strerror(errno));
-                                                                                                                                                                      }
-                                                                                                                                                                      fprintf(LogHndl, "Return Code: %d\n", LastRC);
-
-                                                                                                                                                                      if (iSyslogLvl > 1)
-                                                                                                                                                                      {
-                                                                                                                                                                        memset(SyslogTMSG, 0, 2048);
-                                                                                                                                                                        sprintf(SyslogTMSG, "%.3s: Return Code: %d", Inrec, LastRC);
-                                                                                                                                                                        AChSyslog(SyslogTMSG);
-                                                                                                                                                                      }
-
-                                                                                                                                                                    }
-                                                                                                                                                                  }
-                                                                                                                                                                  else
-                                                                                                                                                                    if (strnicmp(Inrec, "CMD:", 4) == 0)
-                                                                                                                                                                    {
-                                                                                                                                                                      /****************************************************************/
-                                                                                                                                                                      /* Spawn an Executable using the ReactOS/AChoir command Shell   */
-                                                                                                                                                                      /****************************************************************/
-                                                                                                                                                                      strtok(Inrec, "\n");
-                                                                                                                                                                      strtok(Inrec, "\r");
-
-
-                                                                                                                                                                      /****************************************************************/
-                                                                                                                                                                      /* First make sure we have the CMD.EXE and the Hash is Right    */
-                                                                                                                                                                      /****************************************************************/
-                                                                                                                                                                      memset(CmdExe, 0, 1024);
-                                                                                                                                                                      sprintf(CmdExe, "%s\\cmd.exe\0", BaseDir);
-
-                                                                                                                                                                      if (access(CmdExe, 0) != 0)
-                                                                                                                                                                      {
-                                                                                                                                                                        fprintf(LogHndl, "[!] AChoir Safe Command Shell Not Found!\n");
-                                                                                                                                                                        fprintf(LogHndl, "    Bypassing %s\n\n", Inrec);
-
-                                                                                                                                                                        consPrefix("[!] ", consRed);
-                                                                                                                                                                        printf("AChoir Safe Command Shell Not Found!\n");
-                                                                                                                                                                        printf("    Bypassing %s\n\n", Inrec);
-                                                                                                                                                                      }
-                                                                                                                                                                      else
-                                                                                                                                                                      {
-                                                                                                                                                                        FileMD5(CmdExe);
-                                                                                                                                                                        if (strnicmp(MD5Out, CmdHash, 32) != 0)
-                                                                                                                                                                        {
-                                                                                                                                                                          fprintf(LogHndl, "[!] Command Shell Not Approved for AChoir (Bad Hash)!\n");
-                                                                                                                                                                          fprintf(LogHndl, "    Bypassing %s\n\n", Inrec);
-
-                                                                                                                                                                          consPrefix("[!] ", consRed);
-                                                                                                                                                                          printf("Command Shell Not Approved for AChoir (Bad Hash)!\n");
-                                                                                                                                                                          printf("    Bypassing %s\n\n", Inrec);
-                                                                                                                                                                        }
-                                                                                                                                                                        else
-                                                                                                                                                                        {
-                                                                                                                                                                          Squish(Inrec);
-
-                                                                                                                                                                          if (iSyslogLvl > 0)
-                                                                                                                                                                          {
-                                                                                                                                                                            memset(SyslogTMSG, 0, 2048);
-                                                                                                                                                                            sprintf(SyslogTMSG, "%.3s: %s", Inrec, Inrec + 4);
-                                                                                                                                                                            AChSyslog(SyslogTMSG);
-                                                                                                                                                                          }
-
-                                                                                                                                                                          memset(Exerec, 0, 4096);
-                                                                                                                                                                          strncpy(Exerec, Inrec + 4, 4092);
-                                                                                                                                                                          twoSplit(Exerec);
-
-                                                                                                                                                                          // Are we requesting an explicit path?
-                                                                                                                                                                          if (Exerec[0] == '\\')
-                                                                                                                                                                          {
-                                                                                                                                                                            memset(TempDir, 0, 1024);
-                                                                                                                                                                            sprintf(TempDir, "%s%s\0", BaseDir, Exerec + iPrm1);
-                                                                                                                                                                          }
-                                                                                                                                                                          else
-                                                                                                                                                                          {
-                                                                                                                                                                            memset(TempDir, 0, 1024);
-                                                                                                                                                                            sprintf(TempDir, "%s\0", Exerec + iPrm1);
-                                                                                                                                                                          }
-
-
-                                                                                                                                                                          /****************************************************************/
-                                                                                                                                                                          /* Can we Hash the File, or is it an Internal Command?          */
-                                                                                                                                                                          /****************************************************************/
-                                                                                                                                                                          if (access(TempDir, 0) != 0)
-                                                                                                                                                                            strncpy(MD5Out, "(N/A)\0", 10);
-                                                                                                                                                                          else
-                                                                                                                                                                            FileMD5(TempDir);
-
-
-                                                                                                                                                                          if (iPrm3 > 0)
-                                                                                                                                                                          {
-                                                                                                                                                                            fprintf(LogHndl, "\nCMD: %s\n", Exerec + iPrm1);
-                                                                                                                                                                            consPrefix("\nCMD: ", consBlu);
-                                                                                                                                                                            printf("%s\n", Exerec + iPrm1);
-
-                                                                                                                                                                            // Redact iPrm2 if it has a Password
-                                                                                                                                                                            Redactor(Exerec + iPrm2, Redrec);
-                                                                                                                                                                            fprintf(LogHndl, "   : %s\n", Redrec);
-                                                                                                                                                                            printf("   : %s\n", Redrec);
-
-                                                                                                                                                                            // Redact iPrm3 if it has a Password
-                                                                                                                                                                            Redactor(Exerec + iPrm3, Redrec);
-                                                                                                                                                                            fprintf(LogHndl, "   : %s\n", Redrec);
-                                                                                                                                                                            printf("   : %s\n", Redrec);
-
-                                                                                                                                                                            fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
-                                                                                                                                                                            consPrefix("MD5: ", consGre);
-                                                                                                                                                                            printf("Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
-
-                                                                                                                                                                            LastRC = (int)spawnlp(P_WAIT, CmdExe, CmdExe, "/c", TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
-                                                                                                                                                                          }
-                                                                                                                                                                          else
-                                                                                                                                                                            if (iPrm2 > 0)
-                                                                                                                                                                            {
-                                                                                                                                                                              fprintf(LogHndl, "\nCMD: %s\n", Exerec + iPrm1);
-                                                                                                                                                                              consPrefix("\nCMD: ", consBlu);
-                                                                                                                                                                              printf("%s\n", Exerec + iPrm1);
-
-                                                                                                                                                                              // Redact iPrm2 if it has a Password
-                                                                                                                                                                              Redactor(Exerec + iPrm2, Redrec);
-                                                                                                                                                                              fprintf(LogHndl, "   : %s\n ", Redrec);
-                                                                                                                                                                              printf("   : %s\n", Redrec);
-
-                                                                                                                                                                              fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
-                                                                                                                                                                              consPrefix("MD5: ", consGre);
-                                                                                                                                                                              printf("Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
-
-                                                                                                                                                                              LastRC = (int)spawnlp(P_WAIT, CmdExe, CmdExe, "/c", TempDir, Exerec + iPrm2, NULL);
-                                                                                                                                                                            }
-                                                                                                                                                                            else
-                                                                                                                                                                            {
-                                                                                                                                                                              fprintf(LogHndl, "\nCMD: %s\n", Exerec + iPrm1);
-                                                                                                                                                                              consPrefix("\nCMD: ", consBlu);
-                                                                                                                                                                              printf("%s\n", Exerec + iPrm1);
-
-                                                                                                                                                                              fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
-                                                                                                                                                                              consPrefix("MD5: ", consGre);
-                                                                                                                                                                              printf("Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
-
-                                                                                                                                                                              LastRC = (int)spawnlp(P_WAIT, CmdExe, CmdExe, "/c", TempDir, NULL);
-                                                                                                                                                                            }
-
-
-                                                                                                                                                                          if (LastRC != 0)
-                                                                                                                                                                          {
-                                                                                                                                                                            fprintf(LogHndl, "[!] Spawn Error(%d): %s\n", errno, strerror(errno));
-                                                                                                                                                                            consPrefix("[!] ", consRed);
-                                                                                                                                                                            printf("Spawn Error(%d): %s\n", errno, strerror(errno));
-                                                                                                                                                                          }
-
-                                                                                                                                                                          fprintf(LogHndl, "Return Code: %d\n", LastRC);
-
-                                                                                                                                                                          if (iSyslogLvl > 1)
-                                                                                                                                                                          {
-                                                                                                                                                                            memset(SyslogTMSG, 0, 2048);
-                                                                                                                                                                            sprintf(SyslogTMSG, "CMD: Return Code: %d", LastRC);
-                                                                                                                                                                            AChSyslog(SyslogTMSG);
-                                                                                                                                                                          }
-
-                                                                                                                                                                        }
-                                                                                                                                                                      }
-                                                                                                                                                                    }
-                                                                                                                                                                    else
-                                                                                                                                                                      if (strnicmp(Inrec, "Get:", 4) == 0)
-                                                                                                                                                                      {
-                                                                                                                                                                        /****************************************************************/
-                                                                                                                                                                        /* Use HTTP to GET a file                                       */
-                                                                                                                                                                        /****************************************************************/
-                                                                                                                                                                        // Ensure we are not in Run Only Mode (Mode:1)
-                                                                                                                                                                        strtok(Inrec, "\n");
-                                                                                                                                                                        strtok(Inrec, "\r");
-
-                                                                                                                                                                        /****************************************************************/
-                                                                                                                                                                        /* This code changed to be JUST CurrFil to allow HTTP Get into  */
-                                                                                                                                                                        /* both the &Dir or &Acq (or anywhere else).  This is to allow  */
-                                                                                                                                                                        /* HTTP Get for both Building the Toolkit and Acquisition       */
-                                                                                                                                                                        /* That means that CurrFil MUST BE A FULL PATH TO THE NEW FILE  */
-                                                                                                                                                                        /****************************************************************/
-                                                                                                                                                                        HTTP_GetFile(Inrec + 4, CurrFil);
-                                                                                                                                                                      }
+                    RunMe++;
+                }
+              }
+              else
+              if (strnicmp(Inrec, "N<<:", 4) == 0)
+              {
+                if (longParm1 < longParm2)
+                {
+                  if (consOrFile == 1)
+                  {
+                    fprintf(LogHndl, "[*] %lld is Less than %lld\n", longParm1, longParm2);
+                    printf("%lld is Less than %lld\n", longParm1, longParm2);
+                  }
+                }
+                else
+                {
+                  if (consOrFile == 1)
+                  {
+                    fprintf(LogHndl, "[*] %lld is NOT Less than %lld\n", longParm1, longParm2);
+                    printf("%lld is NOT Less than %lld\n", longParm1, longParm2);
+                  }
+                  else
+                    RunMe++;
+                }
+              }
+              else
+              if (strnicmp(Inrec, "N==:", 4) == 0)
+              {
+                if (longParm1 == longParm2)
+                {
+                  if (consOrFile == 1)
+                  {
+                    fprintf(LogHndl, "[*] Numbers are Equal: %lld\n", longParm1);
+                    printf("Numbers are Equal: %lld\n", longParm1);
+                  }
+                }
+                else
+                {
+                  if (consOrFile == 1)
+                  {
+                    fprintf(LogHndl, "[*] %lld is NOT Equal to %lld\n", longParm1, longParm2);
+                    printf("%lld is NOT Equal to %lld\n", longParm1, longParm2);
+                  }
+                  else
+                    RunMe++;
+                }
+              }
+            }
+          }
+          else
+          if (strnicmp(Inrec, "NEQ:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Check Last Return Code = n                                   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            memset(Cmprec, 0, 4096);
+            strncpy(Cmprec, Inrec + 4, 4092);
+            twoSplit(Cmprec);
+
+            if (iPrm2 == 0)
+            {
+              fprintf(LogHndl, "[!] Comparing Requires TWO strings\n");
+
+              consPrefix("[!] ", consRed);
+              printf("Comparing Requires TWO Strings\n");
+            }
+            else
+            {
+              if(consOrFile == 1)
+              {
+                consPrefix("[*] ", consYel);
+                if(strnicmp(Cmprec + iPrm1, Cmprec + iPrm2, 255) == 0)
+                {
+                  fprintf(LogHndl, "[*] Strings are (not not) Equal: %s\n", Cmprec + iPrm1);
+                  printf("Strings are (not not) Equal: %s\n", Cmprec + iPrm1);
+                }
+                else
+                {
+                  fprintf(LogHndl, "[*] Strings are NOT Equal: %s != %s\n", Cmprec + iPrm1, Cmprec + iPrm2);
+                  printf("Strings are NOT Equal: %s != %s\n", Cmprec + iPrm1, Cmprec + iPrm2);
+                }
+              }         
+              else
+              if(strnicmp(Cmprec + iPrm1, Cmprec + iPrm2, 255) == 0)
+               RunMe++;
+            }
+          }
+          else
+          if (strnicmp(Inrec, "VER:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Check Running OS Version or Type (Server, Client)            */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            if(consOrFile == 1)
+            {
+              consPrefix("[*] ", consYel);
+
+              if (strnicmp(Inrec+4, "Server", 6) == 0)
+              {
+                if(iIsServer == 1)
+                {  
+                  fprintf(LogHndl, "[*] Windows OS Type is: Server\n");
+                  printf("Windows OS Type is: Server\n");
+                }
+                else
+                {
+                  fprintf(LogHndl, "[*] Windows OS Type is: Client - Not: Server\n");
+                  printf("Windows OS Type is: Client - Not: Server\n");
+                }
+              }
+              else
+              if (strnicmp(Inrec+4, "Client", 6) == 0)
+              {
+                if(iIsServer == 0)
+                {  
+                  fprintf(LogHndl, "[*] Windows OS Type is: Client\n");
+                  printf("Windows OS Type is: Client\n");
+                }
+                else
+                {
+                  fprintf(LogHndl, "[*] Windows OS Type is: Server - Not: Client\n");
+                  printf("Windows OS Type is: Server - Not: Client\n");
+                }
+              }
+              else
+              if (strnicmp(shortWinVer, Inrec+4, 10) != 0)
+              {
+                fprintf(LogHndl, "[*] Windows OS is: %s - Not: %s\n", shortWinVer, Inrec+4);
+                printf("Windows OS is: %s - Not: %s\n", shortWinVer, Inrec+4);
+              }
+              else
+              {
+                fprintf(LogHndl, "[*] Windows OS is: %s\n", shortWinVer);
+                printf("Windows OS is: %s\n", shortWinVer);
+              }
+            }         
+            else
+            {
+              if (strnicmp(Inrec+4, "Server", 6) == 0)
+              {
+                if(iIsServer != 1)
+                 RunMe++;
+              }
+              else
+              if (strnicmp(Inrec+4, "Client", 6) == 0)
+              {
+                if(iIsServer != 0)
+                 RunMe++;
+              }
+              else
+              if (strnicmp(shortWinVer, Inrec+4, 10) != 0)
+                RunMe++;
+            }
+          }
+          else
+          if (strnicmp(Inrec, "RC=:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Check Last Return Code = n                                   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            ChkRC = atoi(Inrec + 4);
+
+            if(consOrFile == 1)
+            {
+              consPrefix("[*] ", consYel);
+              if (LastRC != ChkRC)
+              {
+                fprintf(LogHndl, "[*] Last Return Code was not: %d - It was: %d\n", ChkRC, LastRC);
+                printf("Last Return Code was not: %d - It was: %d\n", ChkRC, LastRC);
+              }
+              else
+              {
+                fprintf(LogHndl, "[*] Last Return was: %d\n", LastRC);
+                printf("Last Return Code was: %d\n", LastRC);
+              }
+            }         
+            else
+            if (LastRC != ChkRC)
+              RunMe++;
+          }
+          else
+          if (strnicmp(Inrec, "RC!:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Check Last Return Code = n                                   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            ChkRC = atoi(Inrec + 4);
+
+            if(consOrFile == 1)
+            {
+              consPrefix("[*] ", consYel);
+              if (LastRC == ChkRC)
+              {
+                fprintf(LogHndl, "[*] Last Return was (not not): %d\n", LastRC);
+                printf("Last Return Code was (not not): %d\n", LastRC);
+              }
+              else
+              {
+                fprintf(LogHndl, "[*] Last Return Code was not: %d - It was: %d\n", ChkRC, LastRC);
+                printf("Last Return Code was not: %d - It was: %d\n", ChkRC, LastRC);
+              }
+            }         
+            else
+            if (LastRC == ChkRC)
+              RunMe++;
+          }
+          else
+          if (strnicmp(Inrec, "RC<:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Check Last Return Code < n                                   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+            
+            ChkRC = atoi(Inrec + 4);
+
+            if(consOrFile == 1)
+            {
+              consPrefix("[*] ", consYel);
+              if (LastRC >= ChkRC)
+              {
+                fprintf(LogHndl, "[*] Last Return Code was not Less Than: %d - It was: %d\n", ChkRC, LastRC);
+                printf("Last Return Code was not Less Than: %d - It was: %d\n", ChkRC, LastRC);
+              }
+              else
+              {
+                fprintf(LogHndl, "[*] Last Return was Less Than: %d - It was: %d\n", ChkRC, LastRC);
+                printf("Last Return Code was Less Than: %d - It was: %d\n", ChkRC, LastRC);
+              }
+            }         
+            else
+            if (LastRC >= ChkRC)
+              RunMe++;
+          }
+          else
+          if (strnicmp(Inrec, "RC>:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Check Last Return Code > n                                   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            ChkRC = atoi(Inrec + 4);
+
+            if(consOrFile == 1)
+            {
+              consPrefix("[*] ", consYel);
+              if (LastRC <= ChkRC)
+              {
+                fprintf(LogHndl, "[*] Last Return Code was not Greate Than: %d - It was: %d\n", ChkRC, LastRC);
+                printf("Last Return Code was not Greater Than: %d - It was: %d\n", ChkRC, LastRC);
+              }
+              else
+              {
+                fprintf(LogHndl, "[*] Last Return was Greater Than: %d - It was: %d\n", ChkRC, LastRC);
+                printf("Last Return Code was Greater Than: %d - It was: %d\n", ChkRC, LastRC);
+              }
+            }         
+            else
+            if (LastRC <= ChkRC)
+              RunMe++;
+          }
+          else
+          if (strnicmp(Inrec, "CKY:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Check for File - If not there, bump RunMe (Dont Run)         */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            memset(ChkFile, 0, 1024);
+            strncpy(ChkFile, Inrec + 4, 1000);
+
+            if(consOrFile == 1)
+            {
+              consPrefix("[*] ", consYel);
+              if (access(ChkFile, 0) != 0)
+              {
+                fprintf(LogHndl, "[*] File Does Not Exist: %s\n", ChkFile);
+                printf("File Does Not Exist: %s\n", ChkFile);
+              }
+              else
+              {
+                fprintf(LogHndl, "File Exists: %s\n", ChkFile);
+                printf("File Exists: %s\n", ChkFile);
+              }
+            }         
+            else
+            if (access(ChkFile, 0) != 0)
+              RunMe++;
+          }
+          else
+          if (strnicmp(Inrec, "64B:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Only Run if we are 64 bit Architecture                       */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            if(consOrFile == 1)
+            {
+              consPrefix("[*] ", consYel);
+              if (strnicmp(Procesr, "AMD64", 5) != 0)
+              {
+                fprintf(LogHndl, "[*] Not running in 64Bit. Processor: %s\n", Procesr);
+                printf("Not running in 64Bit. Processor: %s\n", Procesr);
+              }
+              else
+              {
+                fprintf(LogHndl, "Running in 64Bit. Processor: %s\n", Procesr);
+                printf("Running in 64Bit. Processor: %s\n", Procesr);
+              }
+            }         
+            else
+            if (strnicmp(Procesr, "AMD64", 5) != 0)
+              RunMe++;
+          }
+          else
+          if (strnicmp(Inrec, "32B:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Only Run if we are 32 bit Architecture                       */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+            
+            if(consOrFile == 1)
+            {
+              consPrefix("[*] ", consYel);
+              if (strnicmp(Procesr, "X86", 3) != 0)
+              {
+                fprintf(LogHndl, "[*] Not running in 32Bit. Processor: %s\n", Procesr);
+                printf("Not running in 32Bit. Processor: %s\n", Procesr);
+              }
+              else
+              {
+                fprintf(LogHndl, "Running in 32Bit. Processor: %s\n", Procesr);
+                printf("Running in 32Bit. Processor: %s\n", Procesr);
+              }
+            }         
+            else
+            if (strnicmp(Procesr, "X86", 3) != 0)
+              RunMe++;
+          }
+          else
+          if (strnicmp(Inrec, "CKN:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Check for File - If not there, bump RunMe (Dont Run)         */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            memset(ChkFile, 0, 1024);
+            strncpy(ChkFile, Inrec + 4, 1000);
+
+            if(consOrFile == 1)
+            {
+              consPrefix("[*] ", consYel);
+              if (access(ChkFile, 0) == 0)
+              {
+                fprintf(LogHndl, "[*] File Does (not not) Exist: %s\n", ChkFile);
+                printf("File Does (not not) Exist: %s\n", ChkFile);
+              }
+              else
+              {
+                fprintf(LogHndl, "File Does Not Exist: %s\n", ChkFile);
+                printf("File Does Not Exist: %s\n", ChkFile);
+              }
+            }         
+            else
+            if (access(ChkFile, 0) == 0)
+              RunMe++;
+          }
+          else
+          if (strnicmp(Inrec, "REQ:", 4) == 0)
+          {
+            /****************************************************************/
+            /* This File is REQUIRED (Or exit with an Error)                */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+            
+            if (access(Inrec + 4, 0) != 0)
+            {
+              fprintf(LogHndl, "[!] Required File Not Found: %s - Exiting!\n", Inrec + 4);
+              consPrefix("[!] ", consRed);
+              printf("Required File Not Found: %s - Exiting!\n", Inrec + 4);
+
+              if (iSyslogLvl > 1)
+              {
+                memset(SyslogTMSG, 0, 2048);
+                sprintf(SyslogTMSG, "REQ: Required File Not Found: %s - Exiting!", Inrec + 4);
+                AChSyslog(SyslogTMSG);
+              }
+
+              cleanUp_Exit(3);
+              exit (3);
+            }
+            else
+            {
+              fprintf(LogHndl, "[+] Required File Found: %s\n", Inrec + 4);
+              consPrefix("[+] ", consGre);
+              printf("Required File Found: %s\n", Inrec + 4);
+
+              if (iSyslogLvl > 1)
+              {
+                memset(SyslogTMSG, 0, 2048);
+                sprintf(SyslogTMSG, "REQ: Required File Found: %s", Inrec + 4);
+                AChSyslog(SyslogTMSG);
+              }
+            }
+          }
+          else
+          if (strnicmp(Inrec, "SAY:", 4) == 0)
+          {
+            // Echo To Screen and Log
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            fprintf(LogHndl, "%s\n", Inrec + 4);
+            printf("%s\n", Inrec + 4);
+
+            if ((iSyslogLvl > 0) && (strlen(Inrec) > 4))
+              AChSyslog(Inrec);
+          }
+          else
+          if (strnicmp(Inrec, "PZZ:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Echo and Pause                                               */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+            
+            fprintf(LogHndl, "%s\n", Inrec + 4);
+            printf("%s\n", Inrec + 4);
+            getKey = getchar();
+
+            if ((getKey == 81) || (getKey == 113))
+            {
+              fprintf(LogHndl, "\n[!] You have requested Achoir to Quit.\n");
+              consPrefix("\n[!] ", consRed);
+              printf("You have requested Achoir to Quit.\n");
+              cleanUp_Exit(0);
+              exit(0);
+            }
+          }
+          else
+          if (strnicmp(Inrec, "HSH:ACQ", 7) == 0)
+          {
+            /****************************************************************/
+            /* Hash The Acquisition Directory                               */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            fprintf(LogHndl, "[+] Now Hashing Acquisition Files\n");
+
+            consPrefix("[+] ", consGre);
+            printf("Now Hashing Acquisition Files\n");
+            sprintf(MD5File, "%s\\ACQHash.txt\0", BACQDir);
+            sprintf(TempDir, "%s\\*.*\0", BACQDir);
+
+            MD5Hndl = fopen(MD5File, "w");
+            if (MD5Hndl != NULL)
+            {
+              iMaxCnt = 0;
+              ListDir(TempDir, "MD5");
+              fclose(MD5Hndl);
+            }
+          }
+          else
+          if (strnicmp(Inrec, "HSH:Dir", 7) == 0)
+          {
+            /****************************************************************/
+            /* Hash The Acquisition Directory                               */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+            
+            fprintf(LogHndl, "[+] Now Hashing AChoir Files\n");
+            consPrefix("[+] ", consGre);
+            printf("Now Hashing AChoir Files\n");
+            sprintf(MD5File, "%s\\DirHash.txt\0", BaseDir);
+            sprintf(TempDir, "%s\\*.*\0", BaseDir);
+
+            MD5Hndl = fopen(MD5File, "w");
+            if (MD5Hndl != NULL)
+            {
+              iMaxCnt = 0;
+              ListDir(TempDir, "MD5");
+              fclose(MD5Hndl);
+            }
+          }
+          else
+          if (strnicmp(Inrec, "DSK:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Get the Attached Disk Drives for the &DSK variable (Loop)    */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            if(strnicmp(Inrec+4, "Remov", 5) == 0)
+             dskTyp = 2;
+            else
+            if(strnicmp(Inrec+4, "Fixed", 5) == 0)
+             dskTyp = 3;
+            else
+            if(strnicmp(Inrec+4, "Remot", 5) == 0)
+             dskTyp = 4;
+            else
+            if(strnicmp(Inrec+4, "Cdrom", 5) == 0)
+             dskTyp = 5;
+            else
+            if(strnicmp(Inrec+4, "Ramdi", 5) == 0)
+             dskTyp = 6;
+            else
+             dskTyp = 3;
+
+            //If Disk Type Matches, Write it Out
+            DskHndl = fopen(ForDisk, "w");
+            if(DskHndl != NULL)
+            {
+              iMaxCnt = 0;
+              for (dskNum = 0; dskNum < 26; dskNum++)
+              {
+                memset(dskNam, 0, 10);
+                sprintf(dskNam, "%c:\\", Alphabet[dskNum]);
+
+                if (GetDriveType(dskNam) == dskTyp)
+                {
+                  iMaxCnt++;
+                  fprintf(DskHndl, "%c\n", Alphabet[dskNum]);
+                }
+              }
+              fclose(DskHndl);
+            }
+          }
+          else
+          if (strnicmp(Inrec, "FOR:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Get the Directory Listing for the &For variable (Loop)       */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            //Make Cache Movable (Based on CachDir)
+            //sprintf(MD5File, "%s\\%s\\Cache\\ForFiles\0", BaseDir, ACQName);
+            sprintf(MD5File, "%s\\ForFiles\0", CachDir);
+
+            MD5Hndl = fopen(MD5File, "w");
+            if (MD5Hndl != NULL)
+            {
+              iMaxCnt = 0;
+              ListDir(Inrec + 4, "FOR");
+
+              if (iNative == 0)
+              {
+                if(strnicmp(Inrec+4+strlen(WinRoot), "\\System32\\", 10) == 0)
+                {
+                  memset(TempDir, 0, 1024);
+                  sprintf(TempDir, "%s\\Sysnative\\%s\0", WinRoot, Inrec+4+strlen(WinRoot)+10);
+
+                  if(iLogOpen == 1)
+                   fprintf(LogHndl, "[*] Non-Native Flag Has Been Detected - Adding Sysnative Redirection: \n %s\n", TempDir);
+
+                  consPrefix("[*] ", consYel);
+                  printf("Non-Native Flag Has Been Detected - Adding Sysnative Redirection: \n %s\n", TempDir);
+
+                  ListDir(TempDir, "FOR");
+                }
+              }
+
+              fclose(MD5Hndl);
+
+            }
+          }
+          else
+          if (strnicmp(Inrec, "LST:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Get the Object Listing for the &LST variable (Loop)          */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            sprintf(LstFile, "%s\\%s\0", BaseDir, Inrec+4);
+          }
+          else
+          if (strnicmp(Inrec, "END:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Decrement Conditional Pointer                                */
+            /****************************************************************/
+            if (RunMe > 0)
+              RunMe--;
+          }
+          else
+          if (strnicmp(Inrec, "BYE:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Exit the Script With LastRC (Probably Conditional)           */
+            /****************************************************************/
+            fprintf(LogHndl, "BYE: Exiting with RC = %d\n", LastRC);
+
+            consPrefix("BYE: ", consBlu);
+            printf("Exiting with RC = %d\n", LastRC);
+
+            if (access(ForFile, 0) == 0)
+              unlink(ForFile);
+
+            if (access(ForDisk, 0) == 0)
+              unlink(ForDisk);
+
+            if (access(MCpFile, 0) == 0)
+              unlink(MCpFile);
+
+            //fclose(LogHndl);
+            cleanUp_Exit(LastRC);
+            exit (LastRC);
+          }
+          else
+          if (strnicmp(Inrec, "USR:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Map to an External Drive & Set it to ACQ Directory           */
+            /****************************************************************/
+            if (Inrec[4] =='?')
+            {
+              consPrefix("[?] ", consYel);
+              consInput("Enter Share Mapping UserId> ", 1, 0);
+              memset(inUser, 0, 255);
+              strncpy(inUser, Conrec, 254);
+            }
+            else
+            {
+              strtok(Inrec, "\n");
+              strtok(Inrec, "\r");
+
+              memset(inUser, 0, 255);
+              strncpy(inUser, Inrec + 4, 254);
+            }
+          }
+          else
+          if (strnicmp(Inrec, "PWD:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Map to an External Drive & Set it to ACQ Directory           */
+            /****************************************************************/
+            if (Inrec[4] =='?')
+            {
+              consPrefix("[?] ", consYel);
+              consInput("Share Mapping Password> ", 1, 1);
+              memset(inPass, 0, 255);
+              strncpy(inPass, Conrec, 254);
+            }
+            else
+            {
+              strtok(Inrec, "\n");
+              strtok(Inrec, "\r");
+
+              memset(inPass, 0, 255);
+              strncpy(inPass, Inrec + 4, 254);
+            }
+          }
+          else
+          if (strnicmp(Inrec, "MAX:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Set Max File/Memory Size                                     */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            maxMemBytes = strtoul(Inrec+4, &pointEnd, 10);
+
+            fprintf(LogHndl, "[+] Max Memory/File Bytes Set: %lu\n", maxMemBytes);
+            consPrefix("[+] ", consGre);
+            printf("Max Memory/File Bytes Set: %lu\n", maxMemBytes);
+          }
+          else
+          if (strnicmp(Inrec, "MAP:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Map to an External Drive & Set it to ACQ Directory           */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            mapsDrive(Inrec + 4, 1);
+          }
+          else
+          if (strnicmp(Inrec, "SHR:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Create a Local Share SHR:<Path> <Shr Name>                   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            memset(Shrrec, 0, 1024);
+            strncpy(Shrrec, Inrec + 4, 1024);
+            twoSplit(Shrrec);
+
+            if (iPrm2 == 0)
+             netLocalShare(cName, Inrec + 4, "Ach-Rmt", 1);
+            else
+             netLocalShare(cName, Shrrec + iPrm1, Shrrec + iPrm2, 1);
+          }
+          else
+          if (strnicmp(Inrec, "SHD:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Delete a Local Share SHD:<Shr Name>                          */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            netShareDel(Inrec + 4, 1);
+          }
+          else
+          if (strnicmp(Inrec, "SET:CACHE=LOCAL", 13) == 0)
+          {
+            /****************************************************************/
+            /* Force the Cache to be on the Local Machine                   */
+            /****************************************************************/
+            iCacheType = 1;
+          }
+          else
+          if (strnicmp(Inrec, "SET:CACHE=MOVABLE", 13) == 0)
+          {
+            /****************************************************************/
+            /* Force the Cache to be on the Local Machine                   */
+            /****************************************************************/
+            iCacheType = 0;
+          }
+          else
+          if (strnicmp(Inrec, "SET:MAPERR=CONT", 15) == 0)
+          {
+            /****************************************************************/
+            /* Mapping Error Response to Continue                           */
+            /****************************************************************/
+            setMapErr = 0;
+          }
+          else
+          if (strnicmp(Inrec, "SET:MAPERR=QUER", 15) == 0)
+          {
+            /****************************************************************/
+            /* Mapping Error Response to Continue                           */
+            /****************************************************************/
+            setMapErr = 1;
+          }
+          else
+          if (strnicmp(Inrec, "SET:MAPERR=FAIL", 15) == 0)
+          {
+            /****************************************************************/
+            /* Mapping Error Response to Continue                           */
+            /****************************************************************/
+            setMapErr = 2;
+          }
+          else
+          if (strnicmp(Inrec, "SET:NCP=NODCMP", 14) == 0)
+          {
+            /****************************************************************/
+            /* Set Raw NTFS Copy to RAW ONLY                                */
+            /****************************************************************/
+            setNCP = 0;
+          }
+          else
+          if (strnicmp(Inrec, "SET:NCP=RAWONLY", 15) == 0)
+          {
+            /****************************************************************/
+            /* Set Raw NTFS to LZNT1 Decompress (Legacy)                    */
+            /****************************************************************/
+            setNCP = 1;
+          }
+          else
+          if (strnicmp(Inrec, "SET:NCP=DECOMP", 14) == 0)
+          {
+            /****************************************************************/
+            /* Set Raw NTFS to LZNT1 Decompress                             */
+            /****************************************************************/
+            setNCP = 1;
+          }
+          else
+          if (strnicmp(Inrec, "SET:NCP=OSCOPY", 14) == 0)
+          {
+            /****************************************************************/
+            /* Set Raw NTFS Copy to RAW ONLY                                */
+            /****************************************************************/
+            setNCP = 2;
+          }
+          else
+          if (strnicmp(Inrec, "SET:TRIM=YES", 12) == 0)
+          {
+            /****************************************************************/
+            /* Trim Leading and Trailing Spaces                              */
+            /****************************************************************/
+            setTrim = 1;
+          }
+          else
+          if (strnicmp(Inrec, "SET:TRIM=NO", 11) == 0)
+          {
+            /****************************************************************/
+            /* DO NOT Trim Leading and Trailing Spaces                      */
+            /****************************************************************/
+            setTrim = 0;
+          }
+          else
+          if (strnicmp(Inrec, "SET:DELIMS=", 11) == 0)
+          {
+            /****************************************************************/
+            /* Set the Tokenizing Delimiters.  Allow up to 5                */
+            /****************************************************************/
+            memset(Delims, 0, 10);
+            strncpy(Delims, Inrec + 11, 5);
+
+          }
+          else
+          if (strnicmp(Inrec, "SET:CopyPath=None", 17) == 0)
+          {
+            /****************************************************************/
+            /* Set CPY: and NCP Paths to None (Flat Output Directory)       */
+            /****************************************************************/
+            setCPath = 0;
+          }
+          else
+          if (strnicmp(Inrec, "SET:CopyPath=Part", 17) == 0)
+          {
+            /****************************************************************/
+            /* Set CPY: and NCP Paths to Partial (Relative Output Directory)*/
+            /****************************************************************/
+            setCPath = 1;
+          }
+          else
+          if (strnicmp(Inrec, "SET:CopyPath=Full", 17) == 0)
+          {
+            /****************************************************************/
+            /* Set CPY: and NCP Paths to Full (Full Output Directory)       */
+            /****************************************************************/
+            setCPath = 2;
+          }
+          else
+          if (strnicmp(Inrec, "SET:CopyDepth=", 14) == 0)
+          {
+            /****************************************************************/
+            /* Set CPY: Max Directory Depth                                 */
+            /****************************************************************/
+            setCDepth = atoi(Inrec + 14);
+          }
+          else
+          if (strnicmp(Inrec, "SET:SyslogS=", 12) == 0)
+          {
+            /****************************************************************/
+            /* Set Syslog Server IP Address                                 */
+            /****************************************************************/
+            memset(Syslogd, 0, 255);
+            strncpy(Syslogd, Inrec + 12, 250);
+
+            //If  Logging Level was already set, Leave it. Otherwise Set to min
+            if(iSyslogLvl < 1)
+             iSyslogLvl = 1;
+
+            memset(SyslogTMSG, 0, 2048);
+            sprintf(SyslogTMSG, "INF: AChoir Version: %s Syslogging Started.  Level: %d  ACQ: %s", Version, iSyslogLvl, ACQName);
+            AChSyslog(SyslogTMSG);
+
+            memset(SyslogTMSG, 0, 2048);
+            sprintf(SyslogTMSG, "INF: Windows Ver: %s Name: %s Memory: %lld  Avail Disk: %lld", descrWinVer, cName, TotalMem, AvailDisk);
+            AChSyslog(SyslogTMSG);
+          }
+          else
+          if (strnicmp(Inrec, "SET:SyslogP=", 12) == 0)
+          {
+            /****************************************************************/
+            /* Set Syslog Server Port                                       */
+            /****************************************************************/
+            memset(Syslogp, 0, 10);
+            strncpy(Syslogp, Inrec + 12, 5);
+            iSyslogp = atoi(Syslogp);
+          }
+          else
+          if (strnicmp(Inrec, "SET:SyslogL=none", 16) == 0)
+          {
+            /****************************************************************/
+            /* Set Syslogging Level                                         */
+            /****************************************************************/
+            if (iSyslogLvl > 0)
+            {
+              memset(SyslogTMSG, 0, 2048);
+              sprintf(SyslogTMSG, "INF: AChoir Version: %s Syslogging Stopped.  Old Level = %d", Version, iSyslogLvl);
+              AChSyslog(SyslogTMSG);
+            }
+
+            iSyslogLvl = 0; 
+          }
+          else
+          if (strnicmp(Inrec, "SET:SyslogL=min", 15) == 0)
+          {
+            /****************************************************************/
+            /* Set Syslogging Level                                         */
+            /****************************************************************/
+            iSyslogLvl = 1;
+
+            memset(SyslogTMSG, 0, 2048);
+            sprintf(SyslogTMSG, "SET: Syslog Level Set To min: 1");
+            AChSyslog(SyslogTMSG);
+          }
+          else
+          if (strnicmp(Inrec, "SET:SyslogL=max", 15) == 0)
+          {
+            /****************************************************************/
+            /* Set Syslogging Level                                         */
+            /****************************************************************/
+            iSyslogLvl = 2;
+
+            memset(SyslogTMSG, 0, 2048);
+            sprintf(SyslogTMSG, "SET: Syslog Level Set To max: 2");
+            AChSyslog(SyslogTMSG);
+          }
+          else
+          if (strnicmp(Inrec, "XIT:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Setup A Command to Run on Exit.                              */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+            iXitCmd = 1;
+
+            // Are we requesting an explicit path?
+            if (Inrec[4] == '\\')
+            {
+              memset(XitCmd, 0, 4096);
+              sprintf(XitCmd, "%s%s\0", BaseDir, Inrec + 4);
+            }
+            else
+            {
+              memset(XitCmd, 0, 4096);
+              sprintf(XitCmd, "%s\0", Inrec + 4);
+            }
+
+            fprintf(LogHndl, "\nXIT: Exit Program Set:\nXit: %s\n", XitCmd);
+
+            consPrefix("\nXIT: ", consBlu);
+            printf("Exit Program Set:\nXit: %s\n", XitCmd);
+          }
+          else
+          if (strnicmp(Inrec, "SYS:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Run a system (Shell) command                                 */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            // Are we requesting an explicit path?
+            if (Inrec[4] == '\\')
+            {
+              memset(TempDir, 0, 1024);
+              sprintf(TempDir, "%s%s\0", BaseDir, Inrec + 4);
+            }
+            else
+            {
+              memset(TempDir, 0, 1024);
+              sprintf(TempDir, "%s\0", Inrec + 4);
+            }
+
+            fprintf(LogHndl, "\nSYS: %s\n", TempDir);
+            consPrefix("\nSYS: ", consBlu);
+            printf("%s\n", TempDir);
+            
+            if (iSyslogLvl > 0)
+            {
+              memset(SyslogTMSG, 0, 2048);
+              sprintf(SyslogTMSG, "SYS: %s", TempDir);
+              AChSyslog(SyslogTMSG);
+            }
+            
+            LastRC = system(TempDir);
+            fprintf(LogHndl, "Return Code: %d\n", LastRC);
+
+            if (iSyslogLvl > 1)
+            {
+              memset(SyslogTMSG, 0, 2048);
+              sprintf(SyslogTMSG, "SYS: Return Code: %d", LastRC);
+              AChSyslog(SyslogTMSG);
+            }
+
+          }
+          else
+          if ((strnicmp(Inrec, "EXE:", 4) == 0) || (strnicmp(Inrec, "EXA:", 4) == 0) || (strnicmp(Inrec, "EXB:", 4) == 0))
+          {
+            if(strnicmp(Inrec, "EXE:", 4) == 0)
+             iExec = 1 ;
+            else            
+            if(strnicmp(Inrec, "EXA:", 4) == 0)
+             iExec = 2 ;
+            else            
+            if(strnicmp(Inrec, "EXB:", 4) == 0)
+             iExec = 3 ;
+            else
+             iExec = 1 ;
+
+            /****************************************************************/
+            /* Spawn an Executable                                          */
+            /*  EXE - P_Wait    (Default is Blocked/Sequential)             */
+            /*  EXA - P_NOWAIT  (Asyncronous/Not Blocked)                   */
+            /*  EXB - P_DETACH  (Run as a Background Process)               */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            Squish(Inrec);
+            
+            if (iSyslogLvl > 0)
+            {
+              memset(SyslogTMSG, 0, 2048);
+              sprintf(SyslogTMSG, "%.3s: %s", Inrec, Inrec + 4);
+              AChSyslog(SyslogTMSG);
+            }
+            
+            memset(Exerec, 0, 4096);
+            strncpy(Exerec, Inrec + 4, 4092);
+            twoSplit(Exerec);
+            
+            // Are we requesting an explicit path?
+            if (Exerec[0] == '\\')
+            {
+              memset(TempDir, 0, 1024);
+              sprintf(TempDir, "%s%s\0", BaseDir, Exerec + iPrm1);
+            }
+            else
+            {
+              memset(TempDir, 0, 1024);
+              sprintf(TempDir, "%s\0", Exerec + iPrm1);
+            }
+
+
+            /****************************************************************/
+            /* Are There Any Parms?                                         */
+            /****************************************************************/
+            if (access(TempDir, 0) != 0)
+            {
+              fprintf(LogHndl, "[!] Program Not Found\n");
+
+              consPrefix("[!] ", consRed);
+              printf("Program Not Found\n");
+            }
+            else
+            {
+              FileMD5(TempDir);
+
+              /****************************************************************/
+              /* EXA, EXB, or EXE                                             */
+              /****************************************************************/
+              if(iExec == 1)
+              {
+                fprintf(LogHndl, "\nEXE: %s\n", Exerec + iPrm1);
+                consPrefix("\nEXE: ", consBlu);
+              }
+              else
+              if(iExec == 2)
+              {
+                fprintf(LogHndl, "\nEXA: %s\n", Exerec + iPrm1);
+                consPrefix("\nEXA: ", consBlu);
+              }
+              else
+              if(iExec == 3)
+              {
+                fprintf(LogHndl, "\nEXB: %s\n", Exerec + iPrm1);
+                consPrefix("\nEXB: ", consBlu);
+              }
+              printf("%s\n", Exerec + iPrm1);
+
+
+              // Processing of 1, 2, or 3 sets of Command Line Parameters
+              if (iPrm3 > 0)
+              {
+                // 3 Command Line Parameters
+                // Redact iPrm2 if it has a Password
+                Redactor(Exerec+iPrm2, Redrec);
+                fprintf(LogHndl, "   : %s\n", Redrec);
+                printf("   : %s\n", Redrec);
+
+                // Redact iPrm3 if it has a Password
+                Redactor(Exerec+iPrm3, Redrec);
+                fprintf(LogHndl, "   : %s\n", Redrec);
+                printf("   : %s\n", Redrec);
+
+                fprintf(LogHndl, "MD5: %s\n", MD5Out);
+                consPrefix("MD5: ", consGre);
+                printf("%s\n", MD5Out);
+
+                if(iExec == 1)
+                 LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
+                else
+                if(iExec == 2)
+                 LastRC = (int) spawnlp(P_NOWAIT, TempDir, TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
+                else
+                if(iExec == 3)
+                 LastRC = (int) spawnlp(P_DETACH, TempDir, TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
+              }
+              else
+              if (iPrm2 > 0)
+              {
+                // 2 Command Line Parameters
+                // Redact iPrm2 if it has a Password
+                Redactor(Exerec+iPrm2, Redrec);
+                fprintf(LogHndl, "   : %s\n", Redrec);
+                printf("   : %s\n", Redrec);
+
+                fprintf(LogHndl, "MD5: %s\n", MD5Out);
+                consPrefix("MD5: ", consGre);
+                printf("%s\n", MD5Out);
+
+                if(iExec == 1)
+                 LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, Exerec + iPrm2, NULL);
+                else
+                if(iExec == 2)
+                 LastRC = (int) spawnlp(P_NOWAIT, TempDir, TempDir, Exerec + iPrm2, NULL);
+                else
+                if(iExec == 3)
+                 LastRC = (int) spawnlp(P_DETACH, TempDir, TempDir, Exerec + iPrm2, NULL);
+              }
+              else
+              {
+                // 1 Command Line Parameter
+                // No Redaction necessary
+                fprintf(LogHndl, "MD5: %s\n", MD5Out);
+                consPrefix("MD5: ", consGre);
+                printf("%s\n", MD5Out);
+
+                if(iExec == 1)
+                 LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, NULL);
+                else
+                if(iExec == 2)
+                 LastRC = (int) spawnlp(P_NOWAIT, TempDir, TempDir, NULL);
+                else
+                if(iExec == 3)
+                 LastRC = (int) spawnlp(P_DETACH, TempDir, TempDir, NULL);
+              }
+
+
+              if (LastRC != 0)
+              {
+                fprintf(LogHndl, "[!] Spawn Error(%d): %s\n", errno, strerror(errno));
+                consPrefix("[!] ", consRed);
+                printf("Spawn Error(%d): %s\n", errno, strerror(errno));
+              }
+              fprintf(LogHndl, "Return Code: %d\n", LastRC);
+
+              if (iSyslogLvl > 1)
+              {
+                memset(SyslogTMSG, 0, 2048);
+                sprintf(SyslogTMSG, "%.3s: Return Code: %d", Inrec, LastRC);
+                AChSyslog(SyslogTMSG);
+              }
+
+            }
+          }
+          else
+          if (strnicmp(Inrec, "CMD:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Spawn an Executable using the ReactOS/AChoir command Shell   */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+
+            /****************************************************************/
+            /* First make sure we have the CMD.EXE and the Hash is Right    */
+            /****************************************************************/
+            memset(CmdExe, 0, 1024);
+            sprintf(CmdExe, "%s\\cmd.exe\0", BaseDir);
+
+            if (access(CmdExe, 0) != 0)
+            {
+              fprintf(LogHndl, "[!] AChoir Safe Command Shell Not Found!\n");
+              fprintf(LogHndl, "    Bypassing %s\n\n", Inrec);
+
+              consPrefix("[!] ", consRed);
+              printf("AChoir Safe Command Shell Not Found!\n");
+              printf("    Bypassing %s\n\n", Inrec);
+            }
+            else
+            {
+              FileMD5(CmdExe);
+              if (strnicmp(MD5Out, CmdHash, 32) != 0)
+              {
+                fprintf(LogHndl, "[!] Command Shell Not Approved for AChoir (Bad Hash)!\n");
+                fprintf(LogHndl, "    Bypassing %s\n\n", Inrec);
+
+                consPrefix("[!] ", consRed);
+                printf("Command Shell Not Approved for AChoir (Bad Hash)!\n");
+                printf("    Bypassing %s\n\n", Inrec);
+              }
+              else
+              {
+                Squish(Inrec);
+
+                if (iSyslogLvl > 0)
+                {
+                  memset(SyslogTMSG, 0, 2048);
+                  sprintf(SyslogTMSG, "%.3s: %s", Inrec, Inrec + 4);
+                  AChSyslog(SyslogTMSG);
+                }
+
+                memset(Exerec, 0, 4096);
+                strncpy(Exerec, Inrec + 4, 4092);
+                twoSplit(Exerec);
+
+                // Are we requesting an explicit path?
+                if (Exerec[0] == '\\')
+                {
+                  memset(TempDir, 0, 1024);
+                  sprintf(TempDir, "%s%s\0", BaseDir, Exerec + iPrm1);
+                }
+                else
+                {
+                  memset(TempDir, 0, 1024);
+                  sprintf(TempDir, "%s\0", Exerec + iPrm1);
+                }
+                
+
+                /****************************************************************/
+                /* Can we Hash the File, or is it an Internal Command?          */
+                /****************************************************************/
+                if (access(TempDir, 0) != 0)
+                 strncpy(MD5Out, "(N/A)\0", 10);
+                else
+                 FileMD5(TempDir);
+
+
+                if (iPrm3 > 0)
+                {
+                  fprintf(LogHndl, "\nCMD: %s\n", Exerec + iPrm1);
+                  consPrefix("\nCMD: ", consBlu);
+                  printf("%s\n", Exerec + iPrm1);
+
+                  // Redact iPrm2 if it has a Password
+                  Redactor(Exerec+iPrm2, Redrec);
+                  fprintf(LogHndl, "   : %s\n", Redrec);
+                  printf("   : %s\n", Redrec);
+
+                  // Redact iPrm3 if it has a Password
+                  Redactor(Exerec+iPrm3, Redrec);
+                  fprintf(LogHndl, "   : %s\n", Redrec);
+                  printf("   : %s\n", Redrec);
+
+                  fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+                  consPrefix("MD5: ", consGre);
+                  printf("Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+
+                  LastRC = (int)spawnlp(P_WAIT, CmdExe, CmdExe, "/c", TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
+                }
+                else
+                if (iPrm2 > 0)
+                {
+                  fprintf(LogHndl, "\nCMD: %s\n", Exerec + iPrm1);
+                  consPrefix("\nCMD: ", consBlu);
+                  printf("%s\n", Exerec + iPrm1);
+
+                  // Redact iPrm2 if it has a Password
+                  Redactor(Exerec+iPrm2, Redrec);
+                  fprintf(LogHndl, "   : %s\n ", Redrec);
+                  printf("   : %s\n", Redrec);
+
+                  fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+                  consPrefix("MD5: ", consGre);
+                  printf("Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+
+                  LastRC = (int)spawnlp(P_WAIT, CmdExe, CmdExe, "/c", TempDir, Exerec + iPrm2, NULL);
+                }
+                else
+                {
+                  fprintf(LogHndl, "\nCMD: %s\n", Exerec + iPrm1);
+                  consPrefix("\nCMD: ", consBlu);
+                  printf("%s\n", Exerec + iPrm1);
+
+                  fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+                  consPrefix("MD5: ", consGre);
+                  printf("Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+
+                  LastRC = (int)spawnlp(P_WAIT, CmdExe, CmdExe, "/c", TempDir, NULL);
+                }
+
+
+                if (LastRC != 0)
+                {
+                  fprintf(LogHndl, "[!] Spawn Error(%d): %s\n", errno, strerror(errno));
+                  consPrefix("[!] ", consRed);
+                  printf("Spawn Error(%d): %s\n", errno, strerror(errno));
+                }
+
+                fprintf(LogHndl, "Return Code: %d\n", LastRC);
+
+                if (iSyslogLvl > 1)
+                {
+                  memset(SyslogTMSG, 0, 2048);
+                  sprintf(SyslogTMSG, "CMD: Return Code: %d", LastRC);
+                  AChSyslog(SyslogTMSG);
+                }
+
+              }
+            }
+          }
+          else
+          if (strnicmp(Inrec, "Get:", 4) == 0)
+          {
+            /****************************************************************/
+            /* Use HTTP to GET a file                                       */
+            /****************************************************************/
+            // Ensure we are not in Run Only Mode (Mode:1)
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            /****************************************************************/
+            /* This code changed to be JUST CurrFil to allow HTTP Get into  */ 
+            /* both the &Dir or &Acq (or anywhere else).  This is to allow  */
+            /* HTTP Get for both Building the Toolkit and Acquisition       */
+            /* That means that CurrFil MUST BE A FULL PATH TO THE NEW FILE  */
+            /****************************************************************/
+            HTTP_GetFile(Inrec+4 , CurrFil);
+          }
 
           fflush(stdout); //More PSExec Friendly
-
+          
         }
-
+               
         if ((ForMe == 1) && (ForHndl != NULL))
         {
           consPrefix("\n[+] ", consGre);
@@ -5111,8 +5138,8 @@ int main(int argc, char *argv[])
 
       }
 
-      if (consOrFile == 1)
-        consPrefix(">>> ", consGre);
+      if(consOrFile == 1)
+       consPrefix(">>> ", consGre);
 
       fflush(stdout); //More PSExec Friendly
 
@@ -5121,8 +5148,8 @@ int main(int argc, char *argv[])
     /****************************************************************/
     /* End Of Script Processing Code                                */
     /****************************************************************/
-    if (consOrFile == 0)
-      fclose(IniHndl);
+    if(consOrFile == 0)
+     fclose(IniHndl);
 
     fflush(stdout); //More PSExec Friendly
 
@@ -5134,15 +5161,15 @@ int main(int argc, char *argv[])
     consPrefix("\n[!] ", consRed);
     printf("Input Script Not Found:\n     %s\n\n", IniFile);
     cleanUp_Exit(1);
-    exit(1);
+    exit (1);
   }
 
   fflush(stdout); //More PSExec Friendly
 
 
-                  /****************************************************************/
-                  /* Cleanup                                                      */
-                  /****************************************************************/
+  /****************************************************************/
+  /* Cleanup                                                      */
+  /****************************************************************/
   if (RunMe > 0)
   {
     fprintf(LogHndl, "[!] You have and extra END: Hanging! Check your Logic.\n");
@@ -5488,7 +5515,7 @@ int FileMD5(char *MD5FileName)
   if (MD5Hndl == NULL)
     return 0;
 
-  cbRead = (int)fread(buffer, 1, sizeof(buffer), MD5Hndl);
+  cbRead = (int) fread(buffer, 1, sizeof(buffer), MD5Hndl);
 
   md5_init(&state);
 
@@ -5496,7 +5523,7 @@ int FileMD5(char *MD5FileName)
   {
     md5_append(&state, (const md5_byte_t *)buffer, cbRead);
 
-    cbRead = (int)fread(buffer, 1, sizeof(buffer), MD5Hndl);
+    cbRead = (int) fread(buffer, 1, sizeof(buffer), MD5Hndl);
   }
 
   md5_finish(&state, digest);
@@ -5534,15 +5561,15 @@ int DirAllocErr(char *DirToCreat)
 {
   // If its not there, Create it
   if (access(DirToCreat, 0) != 0)
-   mkdir(DirToCreat);
+    mkdir(DirToCreat);
 
   // If its still not there, Permissions are prolly wrong
   if (access(DirToCreat, 0) != 0)
   {
-    fprintf(LogHndl, "[!] Error Allocating Directory: %s\n\n", DirToCreat);
+    fprintf(LogHndl, "[!] Error Creating Directory: %s\n\n", DirToCreat);
 
     consPrefix("[!] ", consRed);
-    printf("Error Allocating Enough Memory For: %s\n\n", DirToCreat);
+    printf("Error Creating Directory: %s\n\n", DirToCreat);
 
     fflush(stdout); //More PSExec Friendly
 
@@ -5585,45 +5612,45 @@ size_t Redactor(char *inRedact, char *outRedact)
 
   RdiFlag = outRdi = 0;
   RdLen = strlen(inRedact);
-  memset(outRedact, 0, 1024);
+  memset (outRedact, 0, 1024);
 
   //Redacted String... Max Size = 1000
-  if (RdLen > 1000)
-    RdLen = 1000;
+  if(RdLen > 1000)
+   RdLen = 1000;
 
   for (inRdi = 0; inRdi < RdLen; inRdi++)
   {
     if (RdiFlag == 1)
     {
       //Strings delimied by space or dbl-quote
-      if (inRedact[inRdi] == ' ')
+      if(inRedact[inRdi] == ' ')
       {
-        RdiFlag = 0;
-        outRedact[outRdi] = inRedact[inRdi];
-        outRdi++;
+       RdiFlag = 0;
+       outRedact[outRdi] = inRedact[inRdi];
+       outRdi++;
       }
-
-      if (inRedact[inRdi] == '"')
+      
+      if(inRedact[inRdi] == '"')
       {
-        RdiFlag = 0;
-        outRedact[outRdi] = inRedact[inRdi];
-        outRdi++;
+       RdiFlag = 0;
+       outRedact[outRdi] = inRedact[inRdi];
+       outRdi++;
       }
     }
     else
-      if (strnicmp(inRedact + inRdi, "pwd:", 4) == 0)
-      {
-        // Redact out passwords - we dont want passwords in log files
-        strncpy(outRedact + outRdi, "PWD:*Redacted*\0", 15);
-        outRdi += 14;
-        RdiFlag = 1;
-      }
-      else
-        if (RdiFlag == 0)
-        {
-          outRedact[outRdi] = inRedact[inRdi];
-          outRdi++;
-        }
+    if (strnicmp(inRedact+inRdi, "pwd:", 4) == 0)
+    {
+      // Redact out passwords - we dont want passwords in log files
+      strncpy(outRedact+outRdi, "PWD:*Redacted*\0", 15);
+      outRdi+=14;
+      RdiFlag = 1;
+    }
+    else
+    if (RdiFlag == 0)
+    {
+      outRedact[outRdi] = inRedact[inRdi];
+      outRdi++;
+    }
   }
 
   RdLen = strlen(outRedact);
@@ -5648,11 +5675,11 @@ size_t unIndent(char *SqString)
 
   if (Sqi > 0)
   {
-    for (Sqx = 0; Sqx < strlen(SqString) + Sqi; Sqx++)
-      SqString[Sqx] = SqString[Sqx + Sqi];
+    for (Sqx = 0; Sqx < strlen(SqString)+Sqi; Sqx++)
+     SqString[Sqx] = SqString[Sqx+Sqi];
 
     // Null Terminate the string
-    SqString[Sqx + 1] = '\0';
+    SqString[Sqx+1] = '\0';
   }
 
   SqLen = strlen(SqString);
@@ -5741,66 +5768,66 @@ long varConvert(char *inVarRec)
         inProgress = 1;
     }
     else
-      if ((inVarRec[Vari] == '%') && (inProgress == 1))
+    if ((inVarRec[Vari] == '%') && (inProgress == 1))
+    {
+      inProgress = 0;
+      convVar = getenv(envVarName);
+
+
+      /****************************************************************/
+      /* Check for 32bit and 64bit differences                        */
+      /****************************************************************/
+      if (convVar == NULL);
+      else
+      if (strnicmp(convVar, "C:\\Program Files", 16) == 0)
       {
-        inProgress = 0;
-        convVar = getenv(envVarName);
-
-
-        /****************************************************************/
-        /* Check for 32bit and 64bit differences                        */
-        /****************************************************************/
-        if (convVar == NULL);
-        else
-          if (strnicmp(convVar, "C:\\Program Files", 16) == 0)
-          {
-            i64x32 = 1;
-            strcat(o32VarRec, "C:\\Program Files\0");
-            strcat(o64VarRec, "C:\\Program Files (x86)\0");
-          }
-          else
-          {
-            strcat(o32VarRec, convVar);
-            strcat(o64VarRec, convVar);
-          }
-
-        Var32o = strlen(o32VarRec);
-        Var64o = strlen(o64VarRec);
-
-        GVNi = 0;
-        memset(envVarName, 0, 255);
+        i64x32 = 1;
+        strcat(o32VarRec, "C:\\Program Files\0");
+        strcat(o64VarRec, "C:\\Program Files (x86)\0");
       }
       else
-        if (inProgress == 1)
-        {
-          envVarName[GVNi] = inVarRec[Vari];
-          GVNi++;
+      {
+        strcat(o32VarRec, convVar);
+        strcat(o64VarRec, convVar);
+      }
 
-          if (GVNi > 254)
-            return 1;
-        }
-        else
-          if (strnicmp(inVarRec + Vari, "System32", 8) == 0)
-          {
-            /****************************************************************/
-            /* Check for System32 - (Do Checks for sysnative)               */
-            /****************************************************************/
-            i64x32 = 1;
-            Vari += 7;
+      Var32o = strlen(o32VarRec);
+      Var64o = strlen(o64VarRec);
 
-            strcat(o32VarRec, "System32\0");
-            strcat(o64VarRec, "sysnative\0");
+      GVNi = 0;
+      memset(envVarName, 0, 255);
+    }
+    else
+    if (inProgress == 1)
+    {
+      envVarName[GVNi] = inVarRec[Vari];
+      GVNi++;
 
-            Var32o = strlen(o32VarRec);
-            Var64o = strlen(o64VarRec);
-          }
-          else
-          {
-            o32VarRec[Var32o] = inVarRec[Vari];
-            o64VarRec[Var64o] = inVarRec[Vari];
-            Var32o++;
-            Var64o++;
-          }
+      if (GVNi > 254)
+        return 1;
+    }
+    else
+    if (strnicmp(inVarRec + Vari, "System32", 8) == 0)
+    {
+      /****************************************************************/
+      /* Check for System32 - (Do Checks for sysnative)               */
+      /****************************************************************/
+      i64x32 = 1;
+      Vari += 7;
+
+      strcat(o32VarRec, "System32\0");
+      strcat(o64VarRec, "sysnative\0");
+
+      Var32o = strlen(o32VarRec);
+      Var64o = strlen(o64VarRec);
+    }
+    else
+    {
+      o32VarRec[Var32o] = inVarRec[Vari];
+      o64VarRec[Var64o] = inVarRec[Vari];
+      Var32o++;
+      Var64o++;
+    }
   }
 
   return 0;
@@ -5838,48 +5865,48 @@ long twoSplit(char *SpString)
 
       if ((SpString[Spi + 1] == ' ') && (iParm == 0));
       else
-        if ((SpString[Spi + 1] == ' ') && (iParm == 1));
-        else
-        {
-          //Set to Parameter 1, 2, 3, etc...
-          iParm++;
+      if ((SpString[Spi + 1] == ' ') && (iParm == 1));
+      else
+      {
+        //Set to Parameter 1, 2, 3, etc...
+        iParm++;
 
-          //For Parms greater than 1 - Ignore Split.
-          if (iParm == 1)
-          {
-            SpString[Spi] = '\0';
-            iPrm2 = Spi + 1;
-          }
-          else
-            if (iParm == 2)
-            {
-              SpString[Spi] = '\0';
-              iPrm3 = Spi + 1;
-            }
+        //For Parms greater than 1 - Ignore Split.
+        if (iParm == 1)
+        {
+          SpString[Spi] = '\0';
+          iPrm2 = Spi + 1;
         }
+        else
+        if (iParm == 2)
+        {
+          SpString[Spi] = '\0';
+          iPrm3 = Spi + 1;
+        }
+      }
     }
     else
-      if ((SpString[Spi] == '"') && (iSplt == 0))
-      {
-        iSplt = 1;
+    if ((SpString[Spi] == '"') && (iSplt == 0))
+    {
+      iSplt = 1;
 
-        if (iParm == 0)
-          iPrm1 = Spi + 1;
-        else
-          if (iParm == 1)
-            iPrm2 = Spi + 1;
-          else
-            if (iParm == 2)
-              iPrm3 = Spi;
-      }
+      if (iParm == 0)
+        iPrm1 = Spi + 1;
       else
-        if ((SpString[Spi] == '"') && (iSplt == 1))
-        {
-          iSplt = 0;
+      if (iParm == 1)
+        iPrm2 = Spi + 1;
+      else
+      if (iParm == 2)
+        iPrm3 = Spi;
+    }
+    else
+    if ((SpString[Spi] == '"') && (iSplt == 1))
+    {
+      iSplt = 0;
 
-          if (iParm < 2)
-            SpString[Spi] = '\0';
-        }
+      if (iParm < 2)
+        SpString[Spi] = '\0';
+    }
   }
   return iParm;
 }
@@ -5945,13 +5972,13 @@ int ListDir(char *DirName, char *LisType)
   if (strnicmp(LisType, "MD5", 3) == 0)
     iLisType = 1;
   else
-    if (strnicmp(LisType, "FOR", 3) == 0)
-      iLisType = 2;
-    else
-      if (strnicmp(LisType, "ROS", 3) == 0)
-        iLisType = 3;
-      else
-        iLisType = 2;
+  if (strnicmp(LisType, "FOR", 3) == 0)
+    iLisType = 2;
+  else
+  if (strnicmp(LisType, "ROS", 3) == 0)
+    iLisType = 3;
+  else
+    iLisType = 2;
 
 
   /****************************************************************/
@@ -5992,8 +6019,8 @@ int ListDir(char *DirName, char *LisType)
   /*  First Search ALL to parse the directories                   */
   /*  Second Search for just File Names                           */
   /****************************************************************/
-  if (strlen(RootDir) > 0)
-    sprintf(SrchDName, "%s*.*\0", RootDir);
+  if(strlen(RootDir) > 0)
+   sprintf(SrchDName, "%s*.*\0", RootDir);
 
 
   /****************************************************************/
@@ -6022,7 +6049,7 @@ int ListDir(char *DirName, char *LisType)
       if (iMaxSize >= FILENAME_MAX)
       {
         fprintf(LogHndl, "[!] Max Path Exceeded: %s%s\n", RootDir, inName);
-
+ 
         consPrefix("[!] ", consRed);
         printf("Max Path Exceeded: %s%s\n", RootDir, inName);
 
@@ -6069,7 +6096,7 @@ int ListDir(char *DirName, char *LisType)
         fflush(stdout); //More PSExec Friendly
         return 0;
       }
-
+      
 
       /****************************************************************/
       /* SubDirectory Search                                          */
@@ -6130,14 +6157,14 @@ int ListDir(char *DirName, char *LisType)
           iMaxCnt++;
         }
         else
-          if (iLisType == 2)
-          {
-            fprintf(MD5Hndl, "%s\n", FullFName);
-            iMaxCnt++;
-          }
-          else
-            if (iLisType == 3)
-              SetFileAttributes(FullFName, 0x1);
+        if (iLisType == 2)
+        {
+          fprintf(MD5Hndl, "%s\n", FullFName);
+          iMaxCnt++;
+        }
+        else
+        if (iLisType == 3)
+          SetFileAttributes(FullFName, 0x1);
       }
 
     } while (_findnext(DirDone, &ffblk) == 0);
@@ -6227,7 +6254,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   int iPartIn, iPartOut;
   char *ForSlash;
 
-
+  
   /****************************************************************/
   /* BinCopy supports FullPath, but does not support PartPath yet */
   /****************************************************************/
@@ -6260,11 +6287,11 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
     }
 
     // Go Create all the Sub Directories
-    strncpy(tmpTooDir, tmpTooFile, 4000);
+    strncpy(tmpTooDir, tmpTooFile,4000);
     if ((ForSlash = strrchr(tmpTooDir, '\\')) != NULL)
-      strncpy(ForSlash, "\0\0\0\0\0", 5);
+     strncpy(ForSlash, "\0\0\0\0\0", 5);
     else
-      strncpy(tmpTooDir, "\0\0\0\0\0", 5);
+     strncpy(tmpTooDir, "\0\0\0\0\0", 5);
 
     ExpandDirs(tmpTooDir);
 
@@ -6283,9 +6310,9 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
 
   printf("     %s\n", tmpTooFile);
 
-  if (binLog == 1)
-    fprintf(LogHndl, "     %s\n", tmpTooFile);
-
+  if(binLog == 1)
+   fprintf(LogHndl, "     %s\n", tmpTooFile);
+  
   memset(tmpFrmFile, 0, 4096);
   snprintf(tmpFrmFile, 4090, "%s", FrmFile);
 
@@ -6324,7 +6351,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   {
     iFileFound = 0; // Not Found
 
-    if (binLog == 1)
+    if(binLog == 1)
       fprintf(LogHndl, "[!] Source Copy File Not Found: \n %s\n", tmpFrmFile);
 
     consPrefix("[!] ", consRed);
@@ -6337,12 +6364,12 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
     {
       iFileFound = 1; //Wait... Maybe it's a file Redirect
 
-      if (strnicmp(FrmFile + strlen(WinRoot), "\\System32\\", 10) == 0)
+      if(strnicmp(FrmFile+strlen(WinRoot), "\\System32\\", 10) == 0)
       {
         memset(tmpFrmFile, 0, 4096);
-        sprintf(tmpFrmFile, "%s\\Sysnative\\%s\0", WinRoot, FrmFile + strlen(WinRoot) + 10);
+        sprintf(tmpFrmFile, "%s\\Sysnative\\%s\0", WinRoot, FrmFile+strlen(WinRoot)+10);
 
-        if (binLog == 1)
+        if(binLog == 1)
           fprintf(LogHndl, "[*] Non-Native Flag Has Been Detected - Trying Sysnative Redirection: \n %s\n", tmpFrmFile);
 
         consPrefix("[*] ", consYel);
@@ -6352,7 +6379,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         {
           iFileFound = 0; //No... Sorry... Not Sysnative
 
-          if (binLog == 1)
+          if(binLog == 1)
             fprintf(LogHndl, "[*] Sysnative Source Copy Also File Not Found: \n %s\n", tmpFrmFile);
 
           consPrefix("[*] ", consYel);
@@ -6364,7 +6391,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         {
           iFileFound = 1; // Yes... Substitution Successful
 
-          if (binLog == 1)
+          if(binLog == 1)
             fprintf(LogHndl, "[*] Sysnative Source Copy File Found, Now Substituting.\n");
 
           consPrefix("[*] ", consYel);
@@ -6383,14 +6410,14 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   }
 
 
-  if (iFileFound == 1)
+  if(iFileFound == 1)
   {
     /****************************************************************/
     /* Get the original TimeStamps                                  */
     /****************************************************************/
     _stat(tmpFrmFile, &Frmstat);
 
-
+    
     //See if we have adequate disk space!
     AvailDisk = CheckDiskSpace(tmpTooFile);
     if (AvailDisk < Frmstat.st_size)
@@ -6413,7 +6440,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
       fflush(stdout); //More PSExec Friendly
       return 1;
     }
-
+    
 
     /****************************************************************/
     /* Get the SID (File Owner) of the file - Security Descripter   */
@@ -6457,78 +6484,78 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
     /****************************************************************/
     iCPSFound = 0;                  // Default to NOT Found
 
-                                    // For CPY: it's ALWAYS found, for CPS: do the compare
-    if (iCPS == 0)
-      iCPSFound = 1;
+    // For CPY: it's ALWAYS found, for CPS: do the compare
+    if(iCPS == 0)
+     iCPSFound = 1;
     else
-      if (iCPS == 1)
+    if(iCPS == 1)
+    {
+      /****************************************************************/
+      /* If we are doing an CPS - Read the first 32 Bytes and compare */
+      /*  to the Signature Table entries                              */
+      /****************************************************************/
+      // Start with a clean slate
+      memset(Cpybuf, 0, iSigSize);
+      memset(tmpSig, 0, iSigSize);
+
+      // Read in signature bytes
+      inSize = fread(Cpybuf, 1, iSigSize, FrmHndl);
+
+      // Convert n Bytes into n*2 Hex Chars
+      for (i=0; i < (iSigSize-1)/2; i++)
       {
-        /****************************************************************/
-        /* If we are doing an CPS - Read the first 32 Bytes and compare */
-        /*  to the Signature Table entries                              */
-        /****************************************************************/
-        // Start with a clean slate
-        memset(Cpybuf, 0, iSigSize);
-        memset(tmpSig, 0, iSigSize);
+        sprintf(tmpSig+(i*2), "%02x", Cpybuf[i]);
+      }
 
-        // Read in signature bytes
-        inSize = fread(Cpybuf, 1, iSigSize, FrmHndl);
+      // Parse Out the FileType for Signature Checking
+      memset(filetype, 0, 11);
+      dotPos = strrchr(tmpFrmFile, '.') ;
 
-        // Convert n Bytes into n*2 Hex Chars
-        for (i = 0; i < (iSigSize - 1) / 2; i++)
+      if(dotPos !=NULL)
+       strncpy(filetype, dotPos + 1, 10);
+
+
+      // Compare with the Signature and FileType Tables
+      for (i=0; i < iSigCount; i++)
+      {
+        if((strnicmp(tmpSig, SigTabl+(i*iSigSize), SizTabl[i]) == 0) && (strlen(SigTabl+(i*iSigSize)) > 0))
         {
-          sprintf(tmpSig + (i * 2), "%02x", Cpybuf[i]);
+          iCPSFound = 1;
+
+          consPrefix("     (Sig) ", consGre);
+          printf("Header Signature Match Found in File (%s)\n", tmpSig);
+          fprintf(LogHndl, "     (Sig)Header Signature Match Found in File (%s)\n", tmpSig);
+          break;
         }
 
-        // Parse Out the FileType for Signature Checking
-        memset(filetype, 0, 11);
-        dotPos = strrchr(tmpFrmFile, '.');
-
-        if (dotPos != NULL)
-          strncpy(filetype, dotPos + 1, 10);
-
-
-        // Compare with the Signature and FileType Tables
-        for (i = 0; i < iSigCount; i++)
+        if((strnicmp(filetype, TypTabl+(i*iTypSize), iTypSize) == 0) && (strlen(filetype) > 0))
         {
-          if ((strnicmp(tmpSig, SigTabl + (i*iSigSize), SizTabl[i]) == 0) && (strlen(SigTabl + (i*iSigSize)) > 0))
-          {
-            iCPSFound = 1;
-
-            consPrefix("     (Sig) ", consGre);
-            printf("Header Signature Match Found in File (%s)\n", tmpSig);
-            fprintf(LogHndl, "     (Sig)Header Signature Match Found in File (%s)\n", tmpSig);
-            break;
-          }
-
-          if ((strnicmp(filetype, TypTabl + (i*iTypSize), iTypSize) == 0) && (strlen(filetype) > 0))
-          {
-            iCPSFound = 1;
-            consPrefix("     (Sig) ", consGre);
-            printf("File Extention Match Found (%s)\n", filetype);
-            fprintf(LogHndl, "     (Sig)File Extention Match Found (%s)\n", filetype);
-            break;
-          }
-        }
-
-        if (iCPSFound == 0)
-        {
-          consPrefix("     (Sig) ", consRed);
-          printf("No Signature Match in File - File Copy Bypassed.\n");
-          fprintf(LogHndl, "     (Sig)No Signature Match in File - File copy Bypassed.\n");
-
-          fclose(FrmHndl);
-          fflush(stdout); //More PSExec Friendly
-          return 1;
+          iCPSFound = 1;
+          consPrefix("     (Sig) ", consGre);
+          printf("File Extention Match Found (%s)\n", filetype);
+          fprintf(LogHndl, "     (Sig)File Extention Match Found (%s)\n", filetype);
+          break;
         }
       }
+
+      if(iCPSFound == 0)
+      {
+        consPrefix("     (Sig) ", consRed);
+        printf("No Signature Match in File - File Copy Bypassed.\n");
+        fprintf(LogHndl, "     (Sig)No Signature Match in File - File copy Bypassed.\n");
+
+        fclose(FrmHndl);
+        fflush(stdout); //More PSExec Friendly
+        return 1;
+      }
+    }
 
     // Complete the copy if we are doing an NCP: - or if the NCS: Signature was found
     if (iCPSFound == 1)
     {
       rewind(FrmHndl); // Make sure we start at the top
 
-                       //FrmHndl = fopen(tmpFrmFile, "rb");
+      //FrmHndl = fopen(tmpFrmFile, "rb");
       TooHndl = fopen(tmpTooFile, "wb");
 
       if ((FrmHndl != NULL) && (TooHndl != NULL))
@@ -6583,7 +6610,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
 
         SetFileTime(HndlToo, &ToCTime, &ToATime, &ToMTime);
         CloseHandle(HndlToo);
-
+      
 
         /****************************************************************/
         /* Check to see if Windows converted it correctly               */
@@ -6599,11 +6626,11 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
           Time_tToFileTime(Frmstat.st_ctime + 3600, 3);
         }
         else
-          if (Frmstat.st_ctime == (Toostat.st_ctime - 3600))
-          {
-            TimeNotGood = 1;
-            Time_tToFileTime(Frmstat.st_ctime - 3600, 3);
-          }
+        if (Frmstat.st_ctime == (Toostat.st_ctime - 3600))
+        {
+          TimeNotGood = 1;
+          Time_tToFileTime(Frmstat.st_ctime - 3600, 3);
+        }
 
         // Check Modify Time for wierd TZ Anomoly
         if (Frmstat.st_mtime == (Toostat.st_mtime + 3600))
@@ -6612,11 +6639,11 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
           Time_tToFileTime(Frmstat.st_mtime + 3600, 2);
         }
         else
-          if (Frmstat.st_mtime == (Toostat.st_mtime - 3600))
-          {
-            TimeNotGood = 1;
-            Time_tToFileTime(Frmstat.st_mtime - 3600, 2);
-          }
+        if (Frmstat.st_mtime == (Toostat.st_mtime - 3600))
+        {
+          TimeNotGood = 1;
+          Time_tToFileTime(Frmstat.st_mtime - 3600, 2);
+        }
 
         // Check Access Time for wierd TZ Anomoly
         if (Frmstat.st_atime == (Toostat.st_atime + 3600))
@@ -6625,11 +6652,11 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
           Time_tToFileTime(Frmstat.st_atime + 3600, 1);
         }
         else
-          if (Frmstat.st_atime == (Toostat.st_atime - 3600))
-          {
-            TimeNotGood = 1;
-            Time_tToFileTime(Frmstat.st_atime - 3600, 1);
-          }
+        if (Frmstat.st_atime == (Toostat.st_atime - 3600))
+        {
+          TimeNotGood = 1;
+          Time_tToFileTime(Frmstat.st_atime - 3600, 1);
+        }
 
         if (TimeNotGood == 1)
         {
@@ -6645,7 +6672,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
           SetFileTime(HndlToo, &ToCTime, &ToATime, &ToMTime);
           CloseHandle(HndlToo);
         }
-
+      
 
         /****************************************************************/
         /* Set the SID (Owner) of the new file same as the old file     */
@@ -6653,21 +6680,21 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         if (gotOwner == 1)
         {
           setOwner = SetFileSecurity(tmpTooFile, OWNER_SECURITY_INFORMATION, SecDesc);
-
+                
           if (setOwner)
           {
             consPrefix("[+] ", consGre);
             printf("File Owner Set (%s)\n", SidString);
 
             if (binLog == 1)
-              fprintf(LogHndl, "[+] File Owner Set (%s)\n", SidString);
+             fprintf(LogHndl, "[+] File Owner Set (%s)\n", SidString);
           }
           else
           {
             consPrefix("[*] ", consYel);
             printf("Can NOT Set Target File Owner(%s)\n", SidString);
             if (binLog == 1)
-              fprintf(LogHndl, "[*] Can NOT Set Target File Owner (%s)\n", SidString);
+             fprintf(LogHndl, "[*] Can NOT Set Target File Owner (%s)\n", SidString);
           }
         }
         else
@@ -6686,7 +6713,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         memset(MD5Tmp, 0, 255);
         FileMD5(tmpFrmFile);
         strncpy(MD5Tmp, MD5Out, 255);
-
+      
         if (binLog == 1)
         {
           fprintf(LogHndl, "[+] Source File MD5.....: %s\n", MD5Out);
@@ -6716,7 +6743,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
           consPrefix("[!] ", consRed);
           printf("MD5 MisMatch!\n");
           if (binLog == 1)
-            fprintf(LogHndl, "[!] MD5 MisMatch!\n");
+           fprintf(LogHndl, "[!] MD5 MisMatch!\n");
         }
 
         if (Frmstat.st_size != Toostat.st_size)
@@ -6724,7 +6751,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
           consPrefix("[!] ", consRed);
           printf("Size Mismatch!\n");
           if (binLog == 1)
-            fprintf(LogHndl, "[!] Size MisMatch!\n");
+           fprintf(LogHndl, "[!] Size MisMatch!\n");
         }
 
         if (Frmstat.st_ctime != Toostat.st_ctime)
@@ -6796,17 +6823,17 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
 {
   WORD chunk_hdr_test;
   NTSTATUS lastStatus;
-  int deCompRC = 0;
+  int deCompRC = 0; 
 
   ULONG n;
-  size_t inSize;
-  PUCHAR InLzbuf;  //Input LZNT1 Encoded
-  PUCHAR UnLzbuf;  //Output Decompresseed (UnLz) Data
-  PUCHAR Wrkzbuf;  //Working Space  
-  ULONG  writLen;  //How many bytes were written to the file
-  ULONG  bytsLft;  //How many bytes are left in the File
+  size_t inSize ;
+  PUCHAR InLzbuf ;  //Input LZNT1 Encoded
+  PUCHAR UnLzbuf ;  //Output Decompresseed (UnLz) Data
+  PUCHAR Wrkzbuf ;  //Working Space  
+  ULONG  writLen ;  //How many bytes were written to the file
+  ULONG  bytsLft ;  //How many bytes are left in the File
 
-  int iLZNTSz = 65536;
+  int iLZNTSz = 65536 ;
   int NBlox = 0;
 
   char tmpFrmFile[4096];
@@ -6823,7 +6850,7 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
   DWORD SecLen, LenSec;
   PSID pSidOwner = NULL;
   BOOL pFlag = FALSE;
-
+  
   // Signature Checking Variables
   CHAR filetype[11] = "\0";
 
@@ -6831,23 +6858,23 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
   /****************************************************************/
   /* Determine Chunk Size based on Cluster Size                   */
   /****************************************************************/
-  if (bootb.SectorsPerCluster > 7)
-    iLZNTSz = 0x10000;  //4K Cluster (512 * 8) / 0x10000 Chunk 
-  else
-    if (bootb.SectorsPerCluster > 3)
-      iLZNTSz = 0x8000; //2K Cluster (512 * 4) / 0x8000 Chunk
-    else
-      if (bootb.SectorsPerCluster > 1)
-        iLZNTSz = 0x4000;  //1K Cluster (512 * 2) / 0x4000 Chunk
-      else
-        if (bootb.SectorsPerCluster == 1)
-          iLZNTSz = 0x2000;  //512Byte Cluster / 0x2000 Chunk
+  if(bootb.SectorsPerCluster > 7 )
+   iLZNTSz = 0x10000 ;  //4K Cluster (512 * 8) / 0x10000 Chunk 
+  else   
+  if(bootb.SectorsPerCluster > 3)
+   iLZNTSz = 0x8000 ; //2K Cluster (512 * 4) / 0x8000 Chunk
+  else   
+  if(bootb.SectorsPerCluster > 1)
+   iLZNTSz = 0x4000 ;  //1K Cluster (512 * 2) / 0x4000 Chunk
+  else   
+  if(bootb.SectorsPerCluster == 1)
+   iLZNTSz = 0x2000 ;  //512Byte Cluster / 0x2000 Chunk
 
 
 
-                             /****************************************************************/
-                             /* Make Sure the File is Not There - Don't Overwrite!           */
-                             /****************************************************************/
+  /****************************************************************/
+  /* Make Sure the File is Not There - Don't Overwrite!           */
+  /****************************************************************/
   deCompRC = 0; //Assume All is well
 
   memset(tmpTooFile, 0, 4096);
@@ -6901,10 +6928,10 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
     {
       iFileFound = 1; //Wait... Maybe it's a file Redirect
 
-      if (strnicmp(FrmFile + strlen(WinRoot), "\\System32\\", 10) == 0)
+      if(strnicmp(FrmFile+strlen(WinRoot), "\\System32\\", 10) == 0)
       {
         memset(tmpFrmFile, 0, 4096);
-        sprintf(tmpFrmFile, "%s\\Sysnative\\%s\0", WinRoot, FrmFile + strlen(WinRoot) + 10);
+        sprintf(tmpFrmFile, "%s\\Sysnative\\%s\0", WinRoot, FrmFile+strlen(WinRoot)+10);
 
         fprintf(LogHndl, "[*] Non-Native Flag Has Been Detected - Trying Sysnative Redirection: \n %s\n", tmpFrmFile);
         consPrefix("[*] ", consYel);
@@ -6919,7 +6946,7 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
           printf("Sysnative Source Compressed File Also Not Found: \n %s\n", tmpFrmFile);
           fflush(stdout); //More PSExec Friendly
 
-          deCompRC = 1;
+          deCompRC =  1;
           return 1;
         }
         else
@@ -6935,7 +6962,7 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       else
       {
         fflush(stdout); //More PSExec Friendly
-        deCompRC = 1;
+        deCompRC =  1;
         return 1;
       }
 
@@ -6944,13 +6971,13 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
   }
 
 
-  if (iFileFound == 1)
+  if(iFileFound == 1)
   {
     /****************************************************************/
     /* Get the original TimeStamps                                  */
     /****************************************************************/
     _stat(tmpFrmFile, &Frmstat);
-
+    
 
     //See if we have adequate disk space!
     AvailDisk = CheckDiskSpace(tmpTooFile);
@@ -7034,9 +7061,9 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
     tot_byt_src = tot_byt_dst = 0;
     bytsLft = TooSize;
 
-    InLzbuf = (UCHAR *)malloc(iLZNTSz);
-    UnLzbuf = (UCHAR *)malloc(iLZNTSz);
-    Wrkzbuf = (UCHAR *)malloc(0x1000);
+    InLzbuf  = (UCHAR *) malloc(iLZNTSz);
+    UnLzbuf  = (UCHAR *) malloc(iLZNTSz);
+    Wrkzbuf  = (UCHAR *) malloc(0x1000);
 
     //Start with Clean Memory
     memset(InLzbuf, 0, iLZNTSz);
@@ -7071,7 +7098,7 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
 
       //Make sure we have a chunk Header 
       chunk_hdr_test = *(WORD *)(InLzbuf);
-      if (!chunk_hdr_test)
+      if (!chunk_hdr_test) 
       {
         //Bad Chunk Header - Zero Out the Chunk (This is the Observed Windows Behavior)
         //May not always be bad, sometimes source data is all zeroes, usually at the end of the file //YK
@@ -7084,14 +7111,14 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
 
         //Sometimes we decompress more bytes than the FileSize.  So defer to Filesize!
         if (bytsLft < writLen)
-          writLen = bytsLft;
+         writLen = bytsLft;
 
         memset(UnLzbuf, 0, iLZNTSz);
         WriteFile(HndlToo, UnLzbuf, writLen, &n, 0);
 
-        tot_byt_src += inSize;
-        tot_byt_dst += writLen;
-        bytsLft = TooSize - tot_byt_dst;
+        tot_byt_src += inSize ;
+        tot_byt_dst += writLen ;
+        bytsLft = TooSize-tot_byt_dst;
 
         //Start Next Round with Clean Memory
         memset(InLzbuf, 0, iLZNTSz);
@@ -7106,13 +7133,13 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
         {
           //Sometimes we decompress more bytes than the FileSize.  So defer to Filesize!
           if (bytsLft < writLen)
-            writLen = bytsLft;
+           writLen = bytsLft;
 
           WriteFile(HndlToo, UnLzbuf, writLen, &n, 0);
 
-          tot_byt_src += inSize;
-          tot_byt_dst += writLen;
-          bytsLft = TooSize - tot_byt_dst;
+          tot_byt_src += inSize ;
+          tot_byt_dst += writLen ;
+          bytsLft = TooSize-tot_byt_dst;
 
           //Start Next Round with Clean Memory
           memset(InLzbuf, 0, iLZNTSz);
@@ -7131,14 +7158,14 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
 
           //Sometimes we decompress more bytes than the FileSize.  So defer to Filesize!
           if (bytsLft < writLen)
-            writLen = bytsLft;
+           writLen = bytsLft;
 
           memset(UnLzbuf, 0, iLZNTSz);
           WriteFile(HndlToo, UnLzbuf, writLen, &n, 0);
 
-          tot_byt_src += inSize;
-          tot_byt_dst += writLen;
-          bytsLft = TooSize - tot_byt_dst;
+          tot_byt_src += inSize ;
+          tot_byt_dst += writLen ;
+          bytsLft = TooSize-tot_byt_dst;
 
           //Start Next Round with Clean Memory
           memset(InLzbuf, 0, iLZNTSz);
@@ -7175,7 +7202,7 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       //fprintf(LogHndl, "[!] Padding out Sparse File: %lu Bytes.\n", bytsLft);
       //End Debug Information
 
-      Wrkzbuf = (UCHAR *)malloc(bytsLft);
+      Wrkzbuf  = (UCHAR *) malloc(bytsLft);
       memset(Wrkzbuf, 0, bytsLft);
       WriteFile(HndlToo, Wrkzbuf, bytsLft, &n, 0);
       free(Wrkzbuf);
@@ -7185,7 +7212,7 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
     fflush(stdout); //More PSExec Friendly
     fclose(FrmHndl);
     CloseHandle(HndlToo);
-
+  
 
     /****************************************************************/
     /* Re-Set the original TimeStamps on copied file                */
@@ -7196,11 +7223,11 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
 
 
     HndlToo = CreateFile(tmpTooFile, FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-      OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+              OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
     SetFileTime(HndlToo, &ToCTime, &ToATime, &ToMTime);
     CloseHandle(HndlToo);
-
+      
 
     /****************************************************************/
     /* Check to see if Windows converted it correctly               */
@@ -7216,11 +7243,11 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       Time_tToFileTime(Frmstat.st_ctime + 3600, 3);
     }
     else
-      if (Frmstat.st_ctime == (Toostat.st_ctime - 3600))
-      {
-        TimeNotGood = 1;
-        Time_tToFileTime(Frmstat.st_ctime - 3600, 3);
-      }
+    if (Frmstat.st_ctime == (Toostat.st_ctime - 3600))
+    {
+      TimeNotGood = 1;
+      Time_tToFileTime(Frmstat.st_ctime - 3600, 3);
+    }
 
     // Check Modify Time for wierd TZ Anomoly
     if (Frmstat.st_mtime == (Toostat.st_mtime + 3600))
@@ -7229,11 +7256,11 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       Time_tToFileTime(Frmstat.st_mtime + 3600, 2);
     }
     else
-      if (Frmstat.st_mtime == (Toostat.st_mtime - 3600))
-      {
-        TimeNotGood = 1;
-        Time_tToFileTime(Frmstat.st_mtime - 3600, 2);
-      }
+    if (Frmstat.st_mtime == (Toostat.st_mtime - 3600))
+    {
+      TimeNotGood = 1;
+      Time_tToFileTime(Frmstat.st_mtime - 3600, 2);
+    }
 
     // Check Access Time for wierd TZ Anomoly
     if (Frmstat.st_atime == (Toostat.st_atime + 3600))
@@ -7242,11 +7269,11 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       Time_tToFileTime(Frmstat.st_atime + 3600, 1);
     }
     else
-      if (Frmstat.st_atime == (Toostat.st_atime - 3600))
-      {
-        TimeNotGood = 1;
-        Time_tToFileTime(Frmstat.st_atime - 3600, 1);
-      }
+    if (Frmstat.st_atime == (Toostat.st_atime - 3600))
+    {
+      TimeNotGood = 1;
+      Time_tToFileTime(Frmstat.st_atime - 3600, 1);
+    }
 
     if (TimeNotGood == 1)
     {
@@ -7256,12 +7283,12 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       fprintf(LogHndl, "[+] Converging Mismatched TimeStamp(s)\n");
 
       HndlToo = CreateFile(tmpTooFile, FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+                OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
       SetFileTime(HndlToo, &ToCTime, &ToATime, &ToMTime);
       CloseHandle(HndlToo);
     }
-
+      
 
     /****************************************************************/
     /* Set the SID (Owner) of the new file same as the old file     */
@@ -7269,7 +7296,7 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
     if (gotOwner == 1)
     {
       setOwner = SetFileSecurity(TooFile, OWNER_SECURITY_INFORMATION, SecDesc);
-
+                
       if (setOwner)
       {
         consPrefix("[+] ", consGre);
@@ -7298,7 +7325,7 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
     memset(MD5Tmp, 0, 255);
     FileMD5(tmpFrmFile);
     strncpy(MD5Tmp, MD5Out, 255);
-
+      
     fprintf(LogHndl, "[+] Source File MD5.....: %s\n", MD5Out);
     fprintf(LogHndl, "[+] Source MetaData.....: %ld-%lld-%lld-%lld\n", Frmstat.st_size, Frmstat.st_ctime, Frmstat.st_atime, Frmstat.st_mtime);
     consPrefix("[+] ", consGre);
@@ -7356,13 +7383,13 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
     fflush(stdout); //More PSExec Friendly
 
 
-                    // Only return egregious error codes (will cause an OS/API Copy to also happen)
-                    // Otherwise, it's likely to be OK - For our first implementation - Lets error on 6 and 7 to be safe
-                    //  Note: 6 appears to be OK (and possibly 7 too) - but err on the side of caution.
-    if (deCompRC > 5)
-      return deCompRC;
-    else
-      return 0;
+    // Only return egregious error codes (will cause an OS/API Copy to also happen)
+    // Otherwise, it's likely to be OK - For our first implementation - Lets error on 6 and 7 to be safe
+    //  Note: 6 appears to be OK (and possibly 7 too) - but err on the side of caution.
+    if(deCompRC > 5)
+     return deCompRC;
+   else
+    return 0;
 
   }
   else
@@ -7426,7 +7453,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   sprintf(MFTDBFile, "%s\\%s-MFT.db\0", CachDir, driveLetter);
 
   //Check that we have a valid From format (x:\) - We need the Root Volume for this to work.
-  if (strnicmp(FrmFile + 1, ":\\\0", 2) != 0)
+  if (strnicmp(FrmFile+1, ":\\\0", 2) != 0)
   {
     fprintf(LogHndl, "[+] Invalid From File Format: %s\n", FrmFile);
 
@@ -7448,7 +7475,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
     return 1;
   }
 
-
+  
   // Reads data from the specified input/output (I/O) device - volume / physical disk
   if (ReadFile(hVolume, &bootb, sizeof bootb, &n, 0) == 0)
   {
@@ -7464,7 +7491,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   LoadMFT();
   fflush(stdout); //More PSExec Friendly
 
-                  //Super Wierd Edge Case where the Drive is Encrypted with TrueCrypt and Mounted
+  //Super Wierd Edge Case where the Drive is Encrypted with TrueCrypt and Mounted
   if (readRetcd == 0)
     return 1;
 
@@ -7508,23 +7535,23 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
       if (dbMrc == SQLITE_BUSY)
         Sleep(100); // In windows.h
       else
-        if (dbMrc == SQLITE_LOCKED)
-          Sleep(100); // In windows.h
-        else
-          if (dbMrc == SQLITE_ERROR)
-          {
-            consPrefix("[!] ", consRed);
-            printf("Error Creating FileNames Table\n%s\n", errmsg);
-            fprintf(LogHndl, "[!] Error Creating FileNames Table\n%s\n", errmsg);
-
-            break;
-          }
-          else
-            Sleep(100); // In windows.h
-
-                        /*****************************************************************/
-                        /* Check if we are stuck in a loop.                              */
-                        /*****************************************************************/
+      if (dbMrc == SQLITE_LOCKED)
+        Sleep(100); // In windows.h
+      else
+      if (dbMrc == SQLITE_ERROR)
+      {
+        consPrefix("[!] ", consRed);
+        printf("Error Creating FileNames Table\n%s\n", errmsg);
+        fprintf(LogHndl, "[!] Error Creating FileNames Table\n%s\n", errmsg);
+        
+        break;
+      }
+      else
+        Sleep(100); // In windows.h
+      
+      /*****************************************************************/
+      /* Check if we are stuck in a loop.                              */
+      /*****************************************************************/
       SpinLock++;
 
       if (SpinLock > 25)
@@ -7537,23 +7564,23 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
       if (dbMrc == SQLITE_BUSY)
         Sleep(100); // In windows.h
       else
-        if (dbMrc == SQLITE_LOCKED)
-          Sleep(100); // In windows.h
-        else
-          if (dbMrc == SQLITE_ERROR)
-          {
-            consPrefix("[!] ", consRed);
-            printf("Error Creating MFTFiles Table\n%s\n", errmsg);
-            fprintf(LogHndl, "[!] Error Creating MFTFiles Table\n%s\n", errmsg);
+      if (dbMrc == SQLITE_LOCKED)
+        Sleep(100); // In windows.h
+      else
+      if (dbMrc == SQLITE_ERROR)
+      {
+        consPrefix("[!] ", consRed);
+        printf("Error Creating MFTFiles Table\n%s\n", errmsg);
+        fprintf(LogHndl, "[!] Error Creating MFTFiles Table\n%s\n", errmsg);
 
-            break;
-          }
-          else
-            Sleep(100); // In windows.h
+        break;
+      }
+      else
+        Sleep(100); // In windows.h
 
-                        /*****************************************************************/
-                        /* Check if we are stuck in a loop.                              */
-                        /*****************************************************************/
+      /*****************************************************************/
+      /* Check if we are stuck in a loop.                              */
+      /*****************************************************************/
       SpinLock++;
 
       if (SpinLock > 25)
@@ -7566,23 +7593,23 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
       if (dbMrc == SQLITE_BUSY)
         Sleep(100); // In windows.h
       else
-        if (dbMrc == SQLITE_LOCKED)
-          Sleep(100); // In windows.h
-        else
-          if (dbMrc == SQLITE_ERROR)
-          {
-            consPrefix("[!] ", consRed);
-            printf("Error Creating MFTDirs Table\n%s\n", errmsg);
-            fprintf(LogHndl, "[!] Error Creating MFTDirs Table\n%s\n", errmsg);
+      if (dbMrc == SQLITE_LOCKED)
+        Sleep(100); // In windows.h
+      else
+      if (dbMrc == SQLITE_ERROR)
+      {
+        consPrefix("[!] ", consRed);
+        printf("Error Creating MFTDirs Table\n%s\n", errmsg);
+        fprintf(LogHndl, "[!] Error Creating MFTDirs Table\n%s\n", errmsg);
 
-            break;
-          }
-          else
-            Sleep(100); // In windows.h
+        break;
+      }
+      else
+        Sleep(100); // In windows.h
 
-                        /*****************************************************************/
-                        /* Check if we are stuck in a loop.                              */
-                        /*****************************************************************/
+      /*****************************************************************/
+      /* Check if we are stuck in a loop.                              */
+      /*****************************************************************/
       SpinLock++;
 
       if (SpinLock > 25)
@@ -7617,384 +7644,384 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
       if (dbMrc == SQLITE_BUSY)
         Sleep(100);
       else
-        if (dbMrc == SQLITE_LOCKED)
-          Sleep(100);
-        else
-          if (dbMrc == SQLITE_ERROR)
-            Sleep(100);
+      if (dbMrc == SQLITE_LOCKED)
+        Sleep(100);
+      else
+      if (dbMrc == SQLITE_ERROR)
+        Sleep(100);
+      else
+      if (dbMrc == SQLITE_ROW)
+      {
+        SpinLock = 0;
+        dbMaxCol = sqlite3_column_count(dbMFTStmt);
+        
+        memset(Full_Fname, 0, 2048);
+        iIsCompressed = 0 ;
+        for (dbi = 0; dbi < dbMaxCol; dbi++)
+        {
+          if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FullFileName", 12) == 0)
+          {
+            TotFilesFound++;
+            if (sqlite3_column_text(dbMFTStmt, dbi) != NULL)
+              strncpy(Full_Fname, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 2000);
+          }
           else
-            if (dbMrc == SQLITE_ROW)
+          if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileDateTyp", 11) == 0)
+          {
+            memset(Text_FileTyp, 0, 5);
+            strncpy(Text_FileTyp, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 2);
+          }
+          else
+          if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "MFTRecID", 8) == 0)
+          {
+            Full_MFTID = sqlite3_column_int(dbMFTStmt, dbi);
+          }
+          else
+          if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FNCreDate", 9) == 0)
+          {
+             memset(Text_FNCreDate, 0, 30);
+             strncpy(Text_FNCreDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
+          }
+          else
+          if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FNAccDate", 9) == 0)
+          {
+            memset(Text_FNAccDate, 0, 30);
+            strncpy(Text_FNAccDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
+          }
+          else
+          if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FNModDate", 9) == 0)
+          {
+            memset(Text_FNModDate, 0, 30);
+            strncpy(Text_FNModDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
+          }
+          else
+          if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "SICreDate", 9) == 0)
+          {
+            memset(Text_SICreDate, 0, 30);
+            strncpy(Text_SICreDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
+          }
+          else
+          if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "SIAccDate", 9) == 0)
+          {
+            memset(Text_SIAccDate, 0, 30);
+            strncpy(Text_SIAccDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
+          }
+          else
+          if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "SIModDate", 9) == 0)
+          {
+            memset(Text_SIModDate, 0, 30);
+            strncpy(Text_SIModDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
+          }
+          else
+          if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "Compress", 8) == 0)
+          {
+            iIsCompressed = sqlite3_column_int(dbMFTStmt, dbi);
+          }
+        }
+
+
+        for (i = (int) strlen(Full_Fname); i > 0; i--)
+        {
+          if (Full_Fname[i] == '\\')
+            break;
+        }
+
+        //Prefer SI - Only use FN if we have to
+        if (strnicmp(Text_FileTyp, "FN", 2) == 0)
+        {
+          File_CreDate = strtoull(Text_FNCreDate, &pointEnd, 10);
+          File_AccDate = strtoull(Text_FNAccDate, &pointEnd, 10);
+          File_ModDate = strtoull(Text_FNModDate, &pointEnd, 10);
+        }
+        else
+        {
+          File_CreDate = strtoull(Text_SICreDate, &pointEnd, 10);
+          File_AccDate = strtoull(Text_SIAccDate, &pointEnd, 10);
+          File_ModDate = strtoull(Text_SIModDate, &pointEnd, 10);
+        }
+
+
+        // Copy the Creation Date into a FILETIME structure.
+        File_Create.dwLowDateTime = (DWORD)(File_CreDate & 0xFFFFFFFF);
+        File_Create.dwHighDateTime = (DWORD)(File_CreDate >> 32);
+
+        // Copy the Modified Date into a FILETIME structure.
+        File_Modify.dwLowDateTime = (DWORD)(File_ModDate & 0xFFFFFFFF);
+        File_Modify.dwHighDateTime = (DWORD)(File_ModDate >> 32);
+
+        // Copy the Accessed Date into a FILETIME structure.
+        File_Access.dwLowDateTime = (DWORD)(File_AccDate & 0xFFFFFFFF);
+        File_Access.dwHighDateTime = (DWORD)(File_AccDate >> 32);
+
+
+        /****************************************************************/
+        /* Get the SID (File Owner) of the file - Security Descripter   */
+        /****************************************************************/
+        gotOwner = 0;
+
+        /****************************************************************/
+        /* NOTE: Use a Static Security Descriptor Buffer.  Its Safer    */
+        /****************************************************************/
+        SecLen = 200;
+
+        // Populate the Security Description Structure
+        if (GetFileSecurity(Full_Fname, OWNER_SECURITY_INFORMATION, SecDesc, SecLen, &LenSec))
+        {
+          if (GetSecurityDescriptorOwner(SecDesc, &pSidOwner, &pFlag))
+          {
+            gotOwner = 1;
+            convert_sid_to_string_sid(pSidOwner, SidString);
+          }
+        }
+
+
+        /****************************************************************/
+        /* Figure out the partial path:                                 */
+        /*  The original Path Minus the Expanded File Path              */
+        /* Stop as soon as any Wilcards are encountered                 */
+        /****************************************************************/
+        if (setCPath != 0)
+        {
+          memset(TempPath, 0, 2048);
+          memset(FullPath, 0, 2048);
+          memset(PartPath, 0, 2048);
+
+          iPartOut = 0;
+          for (iPartIn = 0; iPartIn < strlen(FrmFile); iPartIn++)
+          {
+            if (FrmFile[iPartIn] == '%')
+              break;
+            if (FrmFile[iPartIn] == '_')
+              break;
+            else
             {
-              SpinLock = 0;
-              dbMaxCol = sqlite3_column_count(dbMFTStmt);
-
-              memset(Full_Fname, 0, 2048);
-              iIsCompressed = 0;
-              for (dbi = 0; dbi < dbMaxCol; dbi++)
-              {
-                if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FullFileName", 12) == 0)
-                {
-                  TotFilesFound++;
-                  if (sqlite3_column_text(dbMFTStmt, dbi) != NULL)
-                    strncpy(Full_Fname, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 2000);
-                }
-                else
-                  if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileDateTyp", 11) == 0)
-                  {
-                    memset(Text_FileTyp, 0, 5);
-                    strncpy(Text_FileTyp, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 2);
-                  }
-                  else
-                    if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "MFTRecID", 8) == 0)
-                    {
-                      Full_MFTID = sqlite3_column_int(dbMFTStmt, dbi);
-                    }
-                    else
-                      if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FNCreDate", 9) == 0)
-                      {
-                        memset(Text_FNCreDate, 0, 30);
-                        strncpy(Text_FNCreDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
-                      }
-                      else
-                        if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FNAccDate", 9) == 0)
-                        {
-                          memset(Text_FNAccDate, 0, 30);
-                          strncpy(Text_FNAccDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
-                        }
-                        else
-                          if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FNModDate", 9) == 0)
-                          {
-                            memset(Text_FNModDate, 0, 30);
-                            strncpy(Text_FNModDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
-                          }
-                          else
-                            if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "SICreDate", 9) == 0)
-                            {
-                              memset(Text_SICreDate, 0, 30);
-                              strncpy(Text_SICreDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
-                            }
-                            else
-                              if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "SIAccDate", 9) == 0)
-                              {
-                                memset(Text_SIAccDate, 0, 30);
-                                strncpy(Text_SIAccDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
-                              }
-                              else
-                                if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "SIModDate", 9) == 0)
-                                {
-                                  memset(Text_SIModDate, 0, 30);
-                                  strncpy(Text_SIModDate, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 25);
-                                }
-                                else
-                                  if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "Compress", 8) == 0)
-                                  {
-                                    iIsCompressed = sqlite3_column_int(dbMFTStmt, dbi);
-                                  }
-              }
-
-
-              for (i = (int)strlen(Full_Fname); i > 0; i--)
-              {
-                if (Full_Fname[i] == '\\')
-                  break;
-              }
-
-              //Prefer SI - Only use FN if we have to
-              if (strnicmp(Text_FileTyp, "FN", 2) == 0)
-              {
-                File_CreDate = strtoull(Text_FNCreDate, &pointEnd, 10);
-                File_AccDate = strtoull(Text_FNAccDate, &pointEnd, 10);
-                File_ModDate = strtoull(Text_FNModDate, &pointEnd, 10);
-              }
-              else
-              {
-                File_CreDate = strtoull(Text_SICreDate, &pointEnd, 10);
-                File_AccDate = strtoull(Text_SIAccDate, &pointEnd, 10);
-                File_ModDate = strtoull(Text_SIModDate, &pointEnd, 10);
-              }
-
-
-              // Copy the Creation Date into a FILETIME structure.
-              File_Create.dwLowDateTime = (DWORD)(File_CreDate & 0xFFFFFFFF);
-              File_Create.dwHighDateTime = (DWORD)(File_CreDate >> 32);
-
-              // Copy the Modified Date into a FILETIME structure.
-              File_Modify.dwLowDateTime = (DWORD)(File_ModDate & 0xFFFFFFFF);
-              File_Modify.dwHighDateTime = (DWORD)(File_ModDate >> 32);
-
-              // Copy the Accessed Date into a FILETIME structure.
-              File_Access.dwLowDateTime = (DWORD)(File_AccDate & 0xFFFFFFFF);
-              File_Access.dwHighDateTime = (DWORD)(File_AccDate >> 32);
-
-
-              /****************************************************************/
-              /* Get the SID (File Owner) of the file - Security Descripter   */
-              /****************************************************************/
-              gotOwner = 0;
-
-              /****************************************************************/
-              /* NOTE: Use a Static Security Descriptor Buffer.  Its Safer    */
-              /****************************************************************/
-              SecLen = 200;
-
-              // Populate the Security Description Structure
-              if (GetFileSecurity(Full_Fname, OWNER_SECURITY_INFORMATION, SecDesc, SecLen, &LenSec))
-              {
-                if (GetSecurityDescriptorOwner(SecDesc, &pSidOwner, &pFlag))
-                {
-                  gotOwner = 1;
-                  convert_sid_to_string_sid(pSidOwner, SidString);
-                }
-              }
-
-
-              /****************************************************************/
-              /* Figure out the partial path:                                 */
-              /*  The original Path Minus the Expanded File Path              */
-              /* Stop as soon as any Wilcards are encountered                 */
-              /****************************************************************/
-              if (setCPath != 0)
-              {
-                memset(TempPath, 0, 2048);
-                memset(FullPath, 0, 2048);
-                memset(PartPath, 0, 2048);
-
-                iPartOut = 0;
-                for (iPartIn = 0; iPartIn < strlen(FrmFile); iPartIn++)
-                {
-                  if (FrmFile[iPartIn] == '%')
-                    break;
-                  if (FrmFile[iPartIn] == '_')
-                    break;
-                  else
-                  {
-                    TempPath[iPartOut] = FrmFile[iPartIn];
-                    iPartOut++;
-                    TempPath[iPartOut] = '\0';
-                  }
-                }
-
-                // Now go back to the last backslash
-                if ((ForSlash = strrchr(TempPath, '\\')) != NULL)
-                  strncpy(ForSlash, "\0\0\0\0\0", 5);
-                else
-                  strncpy(TempPath, "\0\0\0\0\0", 5);
-
-                if (setCPath == 1)
-                {
-                  // Parse out Just the Partial Path
-                  iPartLen = strlen(TempPath);
-                  strncpy(PartPath, Full_Fname + iPartLen, 2000);
-
-                  if ((ForSlash = strrchr(PartPath, '\\')) != NULL)
-                    strncpy(ForSlash, "\0\0\0\0\0", 5);
-                  else
-                    strncpy(PartPath, "\0\0\0\0\0", 5);
-
-                  // Go Create all the Sub Directories
-                  memset(TempPath, 0, 2048);
-                  snprintf(TempPath, 2000, "%s%s", TooFile, PartPath);
-                  ExpandDirs(TempPath);
-
-                  // printf("Part Path: *%s*\n", PartPath);
-                  // printf("Too File: *%s*\n", TempPath);
-                }
-                else
-                  if (setCPath == 2)
-                  {
-                    // Parse out the Full Path
-                    strncpy(FullPath, Full_Fname, 2000);
-
-                    // Now go back to the last backslash
-                    if ((ForSlash = strrchr(FullPath, '\\')) != NULL)
-                      strncpy(ForSlash, "\0\0\0\0\0", 5);
-                    else
-                      strncpy(FullPath, "\0\0\0\0\0", 5);
-
-                    // Get Rid of he Colon if we have one
-                    if ((strlen(FullPath) > 1) && (FullPath[1] == ':'))
-                    {
-                      for (iPartIn = 1; iPartIn < strlen(FullPath); iPartIn++)
-                        FullPath[iPartIn] = FullPath[iPartIn + 1];
-                    }
-
-                    // Go Create all the Sub Directories
-                    memset(TempPath, 0, 2048);
-                    snprintf(TempPath, 2000, "%s\\%s", TooFile, FullPath);
-                    ExpandDirs(TempPath);
-
-                    //printf("Full Path: *%s*\n", FullPath);
-                    //printf("Too File: *%s*\n", TempPath);
-                  }
-
-              }
-
-
-              consPrefix("\n[+] ", consGre);
-              printf("Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
-              printf("    %s\n", Full_Fname);
-
-              fprintf(LogHndl, "\n[+] Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
-              fprintf(LogHndl, "    %s\n", Full_Fname);
-
-              if (iSyslogLvl > 1)
-              {
-                memset(SyslogTMSG, 0, 2048);
-                sprintf(SyslogTMSG, "NCP: Raw Copying MFT File: %s  MFTRecord: %d", Full_Fname, Full_MFTID);
-                AChSyslog(SyslogTMSG);
-              }
-
-
-              // Set initial Variables - Maximum File Size, Btyes Left and Recursion Depth
-              maxFileSize = leftFileSize = iDepth = 0;
-
-              // Return 0 if the File Copy Worked - 1 if it didnt
-              if (setCPath == 0)
-                DDRetcd = DumpDataII(Full_MFTID, Full_Fname + i + 1, TooFile, File_Create, File_Modify, File_Access, 1, 0);
-              else
-                DDRetcd = DumpDataII(Full_MFTID, Full_Fname + i + 1, TempPath, File_Create, File_Modify, File_Access, 1, 0);
-
-              iDepth--;    //We Returned 
-
-              if (DDRetcd == 0)
-              {
-                // If we got SI and FN, Check for possible TimeStomping
-                printf("     Time Type: %s", Text_FileTyp);
-                fprintf(LogHndl, "     Time Type: %s", Text_FileTyp);
-
-                if (strnicmp(Text_FileTyp, "SI", 2) == 0)
-                {
-                  if (strnicmp(Text_FNCreDate, Text_SICreDate, 25) != 0 ||
-                    strnicmp(Text_FNAccDate, Text_SIAccDate, 25) != 0 ||
-                    strnicmp(Text_FNAccDate, Text_SIAccDate, 25) != 0)
-                  {
-                    consPrefix("     Status: ", consRed);
-                    printf("FN/SI Not Matched\n");
-                    fprintf(LogHndl, "     Status: FN/SI Not Matched\n");
-                  }
-                  else
-                  {
-                    consPrefix("     Status: ", consGre);
-                    printf("FN/SI Matched\n");
-                    fprintf(LogHndl, "     Status: FN/SI Matched\n");
-                  }
-                }
-                else
-                {
-                  consPrefix("     Status: ", consYel);
-                  printf("FN Only\n");
-                  fprintf(LogHndl, "     Status: FN Only\n");
-                }
-
-              }
-              else
-                if (DDRetcd == 2)
-                  DDRetcd = 0; //Yeah - It's kludgy, but RC=2 is just a way to exit out - Reset it to be a 0 (Everything is OK)
-                else
-                {
-                  // We had an Error Copying Raw
-                  consPrefix("\n[!] ", consRed);
-                  printf("Error Encountered Copying the file.  Internal Return Code: %d\n", DDRetcd);
-                  fprintf(LogHndl, "Error Encountered Copying the file.  Internal Return Code: %d\n", DDRetcd);
-                }
-
-
-              /****************************************************************/
-              /* Tell us if the File is Compressed.  It's nice to know        */
-              /****************************************************************/
-              if (iIsCompressed == 1)
-              {
-                fprintf(LogHndl, "[*] Raw Copied File Was Detected as COMPRESSED\n");
-                consPrefix("[*] ", consYel);
-                printf("Raw Copied File Was Detected as  COMPRESSED!\n");
-              }
-
-
-              /****************************************************************/
-              /* Check if we should DeCompressthe file (SetNCP > 0)           */
-              /*  NODCMP(0) = Don't Decompress                                */
-              /*  DECOMP(1) = LZNT1 Decompress                                */
-              /*  RAWONLY(1) = LZNT1 Decompress                               */
-              /*  OSCOPY(1) = On LZNT1 Decompress Error - Do an API/OS Copy   */
-              /****************************************************************/
-              if ((iIsCompressed == 1) && (setNCP > 0))
-              {
-                /*******************************************************************/
-                /* Add (LZ) to From_Fname - And Rename it                          */
-                /*******************************************************************/
-                memset(From_Fname, 0, 2048);
-                memset(Tooo_Fname, 0, 2048);
-                strncpy(From_Fname, last_Fname, 2000);
-                strncpy(Tooo_Fname, last_Fname, 2000);
-                strcat(From_Fname, "(LZ)");
-
-                fprintf(LogHndl, "[*] LZNT1 Rename:\n     From: %s\n     To: %s\n", Tooo_Fname, From_Fname);
-                consPrefix("[*] ", consYel);
-                printf("LZNT1 Rename:\n     From: %s\n     To: %s\n", Tooo_Fname, From_Fname);
-
-                rename(Tooo_Fname, From_Fname);
-
-
-                /*******************************************************************/
-                /* Now Decompress into Original Name                               */
-                /*******************************************************************/
-                fprintf(LogHndl, "[*] LZNT1 Decompress:\n     In: %s\n     Out: %s\n", From_Fname, Tooo_Fname);
-                consPrefix("[*] ", consYel);
-                printf("LZNT1 Decompress:\n     In: %s\n     Out: %s\n", From_Fname, Tooo_Fname);
-
-                lzRetcd = lznCopy(From_Fname, Tooo_Fname, maxDataSize /*last_rawdLen*/); //YK
-
-
-                                                                                         /****************************************************************/
-                                                                                         /* Error Encountered Decompressing - Should we try an OCSOPY?   */
-                                                                                         /****************************************************************/
-                if ((setNCP == 2) && (lzRetcd != 0 || DDRetcd != 0))
-                {
-                  fprintf(LogHndl, "[*] LZNT1 Decompress Encountered Errors, Trying Standard OS Copy to create Decompressed version.\n");
-                  consPrefix("[*] ", consYel);
-                  printf("LZNT1 Decompress Encountered Errors, Trying Standard OS Copy to create Decompressed version.\n");
-
-
-                  /*******************************************************************/
-                  /* Add (LX) to From_Fname - And Rename it (eXreacted)              */
-                  /*******************************************************************/
-                  memset(From_Fname, 0, 2048);
-                  strncpy(From_Fname, last_Fname, 2000);
-                  strcat(From_Fname, "(LX)");
-
-                  fprintf(LogHndl, "[*] LZNT1 Rename:\n     From: %s\n     To: %s\n", Tooo_Fname, From_Fname);
-                  consPrefix("[*] ", consYel);
-                  printf("LZNT1 Rename:\n     From: %s\n     To: %s\n", Tooo_Fname, From_Fname);
-
-                  rename(Tooo_Fname, From_Fname);
-
-
-                  /*******************************************************************/
-                  /* Identify the Filename from the Full_Fname and create Tooo_Fname */
-                  /*******************************************************************/
-                  memset(Tooo_Fname, 0, 2048);
-                  if (setCPath == 0)
-                    strncpy(Tooo_Fname, TooFile, 2000);
-                  else
-                    strncpy(Tooo_Fname, TempPath, 2000);
-
-                  if ((Slash = strrchr(Full_Fname, '\\')) != NULL)
-                  {
-                    if (strlen(Slash) > 2)
-                      strcat(Tooo_Fname, Slash);
-                    else
-                      strcat(Tooo_Fname, "NewFile\0");
-                  }
-                  else
-                    strcat(Tooo_Fname, "NewFile\0");
-
-                  binCopy(Full_Fname, Tooo_Fname, binLog);
-
-                }
-
-              }
-
+              TempPath[iPartOut] = FrmFile[iPartIn];
+              iPartOut++;
+              TempPath[iPartOut] = '\0';
             }
+          }
+
+          // Now go back to the last backslash
+          if ((ForSlash = strrchr(TempPath, '\\')) != NULL)
+            strncpy(ForSlash, "\0\0\0\0\0", 5);
+          else
+            strncpy(TempPath, "\0\0\0\0\0", 5);
+
+          if (setCPath == 1)
+          {
+            // Parse out Just the Partial Path
+            iPartLen = strlen(TempPath);
+            strncpy(PartPath, Full_Fname + iPartLen, 2000);
+
+            if ((ForSlash = strrchr(PartPath, '\\')) != NULL)
+              strncpy(ForSlash, "\0\0\0\0\0", 5);
+            else
+              strncpy(PartPath, "\0\0\0\0\0", 5);
+
+            // Go Create all the Sub Directories
+            memset(TempPath, 0, 2048);
+            snprintf(TempPath, 2000, "%s%s", TooFile, PartPath);
+            ExpandDirs(TempPath);
+
+            // printf("Part Path: *%s*\n", PartPath);
+            // printf("Too File: *%s*\n", TempPath);
+          }
+          else
+          if (setCPath == 2)
+          {
+            // Parse out the Full Path
+            strncpy(FullPath, Full_Fname, 2000);
+
+            // Now go back to the last backslash
+            if ((ForSlash = strrchr(FullPath, '\\')) != NULL)
+              strncpy(ForSlash, "\0\0\0\0\0", 5);
+            else
+              strncpy(FullPath, "\0\0\0\0\0", 5);
+
+            // Get Rid of he Colon if we have one
+            if ((strlen(FullPath) > 1) && (FullPath[1] == ':'))
+            {
+              for (iPartIn = 1; iPartIn < strlen(FullPath); iPartIn++)
+                FullPath[iPartIn] = FullPath[iPartIn + 1];
+            }
+
+            // Go Create all the Sub Directories
+            memset(TempPath, 0, 2048);
+            snprintf(TempPath, 2000, "%s\\%s", TooFile, FullPath);
+            ExpandDirs(TempPath);
+
+            //printf("Full Path: *%s*\n", FullPath);
+            //printf("Too File: *%s*\n", TempPath);
+          }
+          
+        }
+
+
+        consPrefix("\n[+] ", consGre);
+        printf("Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
+        printf("    %s\n", Full_Fname);
+
+        fprintf(LogHndl, "\n[+] Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
+        fprintf(LogHndl, "    %s\n", Full_Fname);
+
+        if (iSyslogLvl > 1)
+        {
+          memset(SyslogTMSG, 0, 2048);
+          sprintf(SyslogTMSG, "NCP: Raw Copying MFT File: %s  MFTRecord: %d", Full_Fname, Full_MFTID);
+          AChSyslog(SyslogTMSG);
+        }
+
+
+        // Set initial Variables - Maximum File Size, Btyes Left and Recursion Depth
+        maxFileSize = leftFileSize = iDepth = 0 ;
+
+        // Return 0 if the File Copy Worked - 1 if it didnt
+        if (setCPath == 0)
+          DDRetcd = DumpDataII(Full_MFTID, Full_Fname + i + 1, TooFile, File_Create, File_Modify, File_Access, 1, 0);
+        else 
+          DDRetcd = DumpDataII(Full_MFTID, Full_Fname + i + 1, TempPath, File_Create, File_Modify, File_Access, 1, 0);
+        
+        iDepth--;    //We Returned 
+        
+        if (DDRetcd == 0)
+		    {
+		      // If we got SI and FN, Check for possible TimeStomping
+		      printf("     Time Type: %s", Text_FileTyp);
+		      fprintf(LogHndl, "     Time Type: %s", Text_FileTyp);
+
+          if (strnicmp(Text_FileTyp, "SI", 2) == 0)
+          {
+		        if (strnicmp(Text_FNCreDate, Text_SICreDate, 25) != 0 ||
+				    strnicmp(Text_FNAccDate, Text_SIAccDate, 25) != 0 ||
+				    strnicmp(Text_FNAccDate, Text_SIAccDate, 25) != 0)
+			      {
+              consPrefix("     Status: ", consRed);
+			        printf("FN/SI Not Matched\n");
+			        fprintf(LogHndl, "     Status: FN/SI Not Matched\n");
+			      }
+            else
+			      {
+              consPrefix("     Status: ", consGre);
+			        printf("FN/SI Matched\n");
+			        fprintf(LogHndl, "     Status: FN/SI Matched\n");
+			      }
+		      }
+		      else
+		      {
+            consPrefix("     Status: ", consYel);
+			      printf("FN Only\n");
+			      fprintf(LogHndl, "     Status: FN Only\n");
+		      }
+
+        }
+        else
+        if (DDRetcd == 2)
+         DDRetcd = 0; //Yeah - It's kludgy, but RC=2 is just a way to exit out - Reset it to be a 0 (Everything is OK)
+        else
+        {
+		      // We had an Error Copying Raw
+          consPrefix("\n[!] ", consRed);
+		      printf("Error Encountered Copying the file.  Internal Return Code: %d\n", DDRetcd);
+		      fprintf(LogHndl, "Error Encountered Copying the file.  Internal Return Code: %d\n", DDRetcd);
+        }
+
+
+        /****************************************************************/
+        /* Tell us if the File is Compressed.  It's nice to know        */
+        /****************************************************************/
+        if(iIsCompressed == 1)
+        {
+          fprintf(LogHndl, "[*] Raw Copied File Was Detected as COMPRESSED\n");
+          consPrefix("[*] ", consYel);
+          printf("Raw Copied File Was Detected as  COMPRESSED!\n");
+       }
+
+
+        /****************************************************************/
+        /* Check if we should DeCompressthe file (SetNCP > 0)           */
+        /*  NODCMP(0) = Don't Decompress                                */
+        /*  DECOMP(1) = LZNT1 Decompress                                */
+        /*  RAWONLY(1) = LZNT1 Decompress                               */
+        /*  OSCOPY(1) = On LZNT1 Decompress Error - Do an API/OS Copy   */
+        /****************************************************************/
+        if((iIsCompressed == 1) && (setNCP > 0))
+        {
+          /*******************************************************************/
+          /* Add (LZ) to From_Fname - And Rename it                          */
+          /*******************************************************************/
+          memset(From_Fname, 0, 2048) ;
+          memset(Tooo_Fname, 0, 2048) ;
+          strncpy(From_Fname, last_Fname, 2000) ;
+          strncpy(Tooo_Fname, last_Fname, 2000) ;
+          strcat(From_Fname, "(LZ)") ;
+
+          fprintf(LogHndl, "[*] LZNT1 Rename:\n     From: %s\n     To: %s\n", Tooo_Fname, From_Fname);
+          consPrefix("[*] ", consYel);
+          printf("LZNT1 Rename:\n     From: %s\n     To: %s\n", Tooo_Fname, From_Fname);
+
+          rename(Tooo_Fname, From_Fname);
+
+
+          /*******************************************************************/
+          /* Now Decompress into Original Name                               */
+          /*******************************************************************/
+          fprintf(LogHndl, "[*] LZNT1 Decompress:\n     In: %s\n     Out: %s\n", From_Fname, Tooo_Fname);
+          consPrefix("[*] ", consYel);
+          printf("LZNT1 Decompress:\n     In: %s\n     Out: %s\n", From_Fname, Tooo_Fname);
+
+          lzRetcd = lznCopy(From_Fname, Tooo_Fname, maxDataSize /*last_rawdLen*/); //YK
+
+
+          /****************************************************************/
+          /* Error Encountered Decompressing - Should we try an OCSOPY?   */
+          /****************************************************************/
+          if((setNCP == 2) && (lzRetcd !=0 || DDRetcd != 0))
+          {
+            fprintf(LogHndl, "[*] LZNT1 Decompress Encountered Errors, Trying Standard OS Copy to create Decompressed version.\n");
+            consPrefix("[*] ", consYel);
+            printf("LZNT1 Decompress Encountered Errors, Trying Standard OS Copy to create Decompressed version.\n");
+
+
+            /*******************************************************************/
+            /* Add (LX) to From_Fname - And Rename it (eXreacted)              */
+            /*******************************************************************/
+            memset(From_Fname, 0, 2048) ;
+            strncpy(From_Fname, last_Fname, 2000) ;
+            strcat(From_Fname, "(LX)") ;
+
+            fprintf(LogHndl, "[*] LZNT1 Rename:\n     From: %s\n     To: %s\n", Tooo_Fname, From_Fname);
+            consPrefix("[*] ", consYel);
+            printf("LZNT1 Rename:\n     From: %s\n     To: %s\n", Tooo_Fname, From_Fname);
+
+            rename(Tooo_Fname, From_Fname);
+
+
+            /*******************************************************************/
+            /* Identify the Filename from the Full_Fname and create Tooo_Fname */
+            /*******************************************************************/
+            memset(Tooo_Fname, 0, 2048) ;
+            if(setCPath == 0)
+             strncpy(Tooo_Fname, TooFile, 2000) ;
+            else
+             strncpy(Tooo_Fname, TempPath, 2000);
+
+            if ((Slash = strrchr(Full_Fname, '\\')) != NULL)
+            {
+              if (strlen(Slash) > 2)
+               strcat(Tooo_Fname, Slash);
+              else
+               strcat(Tooo_Fname, "NewFile\0");
+            }
+            else
+             strcat(Tooo_Fname, "NewFile\0");
+
+            binCopy(Full_Fname, Tooo_Fname, binLog);
+
+          }
+
+        }
+
+      }
 
       /*****************************************************************/
       /* Check if we are stuck in a loop.                              */
@@ -8026,9 +8053,9 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   //UnloadMFT();
 
   if (TotFilesFound == 0)
-    consPrefix("\n[!] ", consRed);
+   consPrefix("\n[!] ", consRed);
   else
-    consPrefix("\n[+] ", consGre);
+   consPrefix("\n[+] ", consGre);
 
   fprintf(LogHndl, "\n[+] Total Files Found: %d\n", TotFilesFound);
   printf("Total Files Found: %d\n", TotFilesFound);
@@ -8107,13 +8134,13 @@ void Time_tToFileTime(time_t InTimeT, int whichTime)
   if (whichTime == 1)
     SystemTimeToFileTime(&convstm, &ToATime);
   else
-    if (whichTime == 2)
-      SystemTimeToFileTime(&convstm, &ToMTime);
-    else
-      if (whichTime == 3)
-        SystemTimeToFileTime(&convstm, &ToCTime);
-      else
-        SystemTimeToFileTime(&convstm, &TmpTime);
+  if (whichTime == 2)
+    SystemTimeToFileTime(&convstm, &ToMTime);
+  else
+  if (whichTime == 3)
+    SystemTimeToFileTime(&convstm, &ToCTime);
+  else
+    SystemTimeToFileTime(&convstm, &TmpTime);
 }
 
 
@@ -8123,7 +8150,7 @@ void Time_tToFileTime(time_t InTimeT, int whichTime)
 /****************************************************************/
 long consInput(char *consString, int conLog, int conHide)
 {
-  if (conLog == 1)
+  if(conLog == 1)
     fprintf(LogHndl, "INP: [%s] ", consString);
 
   consPrefix("INP: ", consBlu);
@@ -8136,8 +8163,8 @@ long consInput(char *consString, int conLog, int conHide)
   strtok(Conrec, "\r");
 
   //strtok doesnt work on a blank string - So Add this little gem
-  if ((Conrec[0] == CrLf[0]) || (Conrec[0] == CrLf[1]))
-    Conrec[0] = CrLf[2];
+  if((Conrec[0] == CrLf[0]) || (Conrec[0] == CrLf[1]))
+   Conrec[0] = CrLf[2];
 
 
   /****************************************************************/
@@ -8145,7 +8172,7 @@ long consInput(char *consString, int conLog, int conHide)
   /****************************************************************/
   if (strlen(Conrec) > 249)
   {
-    if (conLog == 1)
+    if(conLog == 1)
       fprintf(LogHndl, "[!] Input Truncated!\n");
 
     consPrefix("[!] ", consRed);
@@ -8154,12 +8181,12 @@ long consInput(char *consString, int conLog, int conHide)
     while ((getKey = getchar()) != '\n' && getKey != EOF);
   }
 
-  if (conLog == 1)
+  if(conLog == 1)
   {
-    if (conHide == 1)
-      fprintf(LogHndl, "*Redacted*\n");
+    if(conHide == 1)
+     fprintf(LogHndl, "*Redacted*\n");
     else
-      fprintf(LogHndl, "%s\n", Conrec);
+     fprintf(LogHndl, "%s\n", Conrec);
   }
 
   fflush(stdout); //More PSExec Friendly
@@ -8180,14 +8207,14 @@ long mapsDrive(char *mapString, int mapLog)
     consInput("Map: Server\\Share> ", mapLog, 0);
   }
   else
-   strncpy(Conrec, mapString, 254);
+    strncpy(Conrec, mapString, 254);
 
 
   iGoodMap = 0;
   while (iGoodMap == 0)
   {
-    if (mapLog == 1)
-     fprintf(LogHndl, "MAP: %s\n", Conrec);
+    if(mapLog == 1)
+      fprintf(LogHndl, "MAP: %s\n", Conrec);
 
     consPrefix("MAP: ", consBlu);
     printf("%s\n", Conrec);
@@ -8204,7 +8231,7 @@ long mapsDrive(char *mapString, int mapLog)
       printf("Error Mapping Resource: %s\n\n", Conrec);
 
       if (mapLog == 1)
-       fprintf(LogHndl, "[!] Error Mapping Resource: %s\n\n", Conrec);
+        fprintf(LogHndl, "[!] Error Mapping Resource: %s\n\n", Conrec);
 
 
       /****************************************************************/
@@ -8217,12 +8244,12 @@ long mapsDrive(char *mapString, int mapLog)
         return(1);
       }
       else
-        if (setMapErr == 2)
-        {
-          // Exit with RC=1
-          cleanUp_Exit(1);
-          exit(1);
-        }
+      if (setMapErr == 2)
+      {
+        // Exit with RC=1
+        cleanUp_Exit(1);
+        exit(1);
+      }
 
       /****************************************************************/
       /* Fell Through, so setMapErr must be 1 - Query                 */
@@ -8239,7 +8266,7 @@ long mapsDrive(char *mapString, int mapLog)
       {
         consPrefix("[!] ", consRed);
         printf("Program Exit Requested.\n");
-
+ 
         if (mapLog == 1)
         {
           fprintf(LogHndl, "[!] Program Exit Requested.\n");
@@ -8247,25 +8274,25 @@ long mapsDrive(char *mapString, int mapLog)
         }
 
         fflush(stdout); //More PSExec Friendly
-        exit(1);
+        exit (1);
       }
       else
-        if (strnicmp(Conrec, "cont", 4) == 0)
+      if (strnicmp(Conrec, "cont", 4) == 0)
+      {
+        consPrefix("[!] ", consRed);
+        printf("Continuing without Mapped Drive.\n");
+
+        if (mapLog == 1)
         {
-          consPrefix("[!] ", consRed);
-          printf("Continuing without Mapped Drive.\n");
-
-          if (mapLog == 1)
-          {
-            fprintf(LogHndl, "[!] Continuing without Mapped Drive..\n");
-            LastRC = 1;
-            return(1);
-          }
-
-          fflush(stdout); //More PSExec Friendly
+          fprintf(LogHndl, "[!] Continuing without Mapped Drive..\n");
           LastRC = 1;
           return(1);
         }
+
+        fflush(stdout); //More PSExec Friendly
+        LastRC = 1;
+        return(1);
+      }
     }
     else
     {
@@ -8282,31 +8309,28 @@ long mapsDrive(char *mapString, int mapLog)
         sprintf(SyslogTMSG, "MAP: Successfully Mapped %s to drive %s", Conrec, szConnection);
         AChSyslog(SyslogTMSG);
       }
-
+      
       strncpy(MapDrive, szConnection, 3);
 
       sprintf(WGetFile, "%s\\AChoir.Dat\0", szConnection);
       sprintf(LstFile, "%s\\LstFiles\0", szConnection);
 
       sprintf(BACQDir, "%s\\%s\0", szConnection, ACQName);
-      sprintf(CachDir, "%s\\%s\\Cache\0", szConnection, ACQName);
 
-      sprintf(ForFile, "%s\\ForFiles\0", CachDir);
-      sprintf(MCpFile, "%s\\MCpFiles\0", CachDir);
-      sprintf(ForDisk, "%s\\ForDisks\0", CachDir);
-
-      if (access(BACQDir, 0) != 0)
+      // Only Move TheCache Dir if iCacheType==0 (Default)
+      if (iCacheType == 0)
       {
-        // Set iRunMode=1 to be sure we post-process the Acquired Artifacts
-        // (In case we had not set it originally due to remote BACQDIR)
-        iRunMode = 1;
+        sprintf(CachDir, "%s\\%s\\Cache\0", szConnection, ACQName);
 
-        //mkdir(BACQDir);
-        //mkdir(CachDir);
-        DirAllocErr(BACQDir);
-        DirAllocErr(CachDir);
-        PreIndex();
+        sprintf(ForFile, "%s\\ForFiles\0", CachDir);
+        sprintf(MCpFile, "%s\\MCpFiles\0", CachDir);
+        sprintf(ForDisk, "%s\\ForDisks\0", CachDir);
       }
+
+      ExpandDirs(BACQDir);
+      ExpandDirs(CachDir);
+      PreIndex();
+      
 
       fflush(stdout); //More PSExec Friendly
 
@@ -8326,9 +8350,9 @@ long mapsDrive(char *mapString, int mapLog)
 /****************************************************************/
 long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int shrLog)
 {
-  char xnetSharePath[255];
-  char xnetShareName[255];
-  char xnetSharePass[255];
+  char xnetSharePath[255] ;
+  char xnetShareName[255] ;
+  char xnetSharePass[255] ;
 
   wchar_t w_netSharePath[520];
   wchar_t w_netShareName[520];
@@ -8341,15 +8365,15 @@ long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int 
   LPWSTR lpWnetServer = w_netServer;
 
   int  pwdCtr = 0;
-
+  
 
   //Generate a Random Password - Just to make sure 
   memset(xnetSharePass, 0, 20);
   srand((unsigned)time(NULL));
 
-  for (pwdCtr = 0; pwdCtr < 14; pwdCtr++)
-    xnetSharePass[pwdCtr] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"[rand() % 62];
-
+  for(pwdCtr = 0; pwdCtr < 14; pwdCtr++)
+   xnetSharePass[pwdCtr] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"[rand() % 62];
+ 
   //Shhhh...  Don't tell anyone the Share Password.
   //printf("Password: %s\n", xnetSharePass);
 
@@ -8379,7 +8403,7 @@ long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int 
   iGoodShr = 0;
   while (iGoodShr == 0)
   {
-    if (shrLog == 1)
+    if(shrLog == 1)
       fprintf(LogHndl, "SHR: %s -> %s\n", xnetSharePath, xnetShareName);
 
     consPrefix("SHR: ", consBlu);
@@ -8393,20 +8417,20 @@ long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int 
     netShr.shi2_netname = lpWnetShareName;
     netShr.shi2_type = STYPE_DISKTREE; // disk drive
     netShr.shi2_remark = L"Local Share Created By AChoir for Remote Acquisition";
-    netShr.shi2_permissions = ACCESS_ALL;
+    netShr.shi2_permissions = ACCESS_ALL;  
     netShr.shi2_max_uses = 4;
     netShr.shi2_current_uses = 0;
     netShr.shi2_path = lpWnetSharePath;
     //netShr.shi2_passwd = NULL;
     netShr.shi2_passwd = lpWnetSharePass;
-
+ 
     // Call the NetShareAdd() function, specifying level 2. 
-    netShrRC = NetShareAdd(NULL, 2, (LPBYTE)&netShr, &netShrErr);
+    netShrRC = NetShareAdd(NULL, 2, (LPBYTE) &netShr, &netShrErr);
 
     if (netShrRC != 0)
     {
       consPrefix("[!] ", consRed);
-      printf("Error Creating Local Share on %s: %s -> %s\n", netServer, xnetSharePath, xnetShareName);
+      printf("Error Creating Local Share on %s: %s -> %s\n", netServer,xnetSharePath, xnetShareName);
       consPrefix("[!] ", consRed);
       printf("Error: %u\tParmErr=%u\n\n", netShrRC, netShrErr);
 
@@ -8429,7 +8453,7 @@ long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int 
       {
         consPrefix("[!] ", consRed);
         printf("Program Exit Requested.\n");
-
+ 
         if (shrLog == 1)
         {
           fprintf(LogHndl, "[!] Program Exit Requested.\n");
@@ -8437,7 +8461,7 @@ long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int 
         }
 
         fflush(stdout); //More PSExec Friendly
-        exit(1);
+        exit (1);
 
       }
     }
@@ -8491,7 +8515,7 @@ long netShareDel(char *netShareName, int shrLog)
     printf("Error (%d) Deleting Local Share: %s\n", netShrRC, netShareName);
 
     if (shrLog == 1)
-      fprintf(LogHndl, "Error (%d) Deleting Local Shares: %s\n", netShrRC, netShareName);
+     fprintf(LogHndl, "Error (%d) Deleting Local Shares: %s\n", netShrRC, netShareName);
   }
   else
   {
@@ -8581,7 +8605,7 @@ void showTime(char *showText)
       showlocal->tm_hour, showlocal->tm_min, showlocal->tm_sec);
 
     // Only Log if we have opened the Log File.
-    if (iLogOpen == 1)
+    if(iLogOpen == 1)
       fprintf(LogHndl, "[+] %s: %02d/%02d/%04d - %02d:%02d:%02d\n", showText,
         showlocal->tm_mon + 1, showlocal->tm_mday, (showlocal->tm_year + 1900),
         showlocal->tm_hour, showlocal->tm_min, showlocal->tm_sec);
@@ -8604,8 +8628,8 @@ void USB_Protect(DWORD USBOnOff)
   int getLoop, gotSet;
 
   gotSet = 0;
-  OpenK = RegCreateKeyEx(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\StorageDevicePolicies",
-    NULL, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &phkResult, NULL);
+  OpenK = RegCreateKeyEx(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\StorageDevicePolicies", 
+          NULL, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &phkResult, NULL);
   if (OpenK == ERROR_SUCCESS)
   {
     ReadK = RegQueryValueEx(phkResult, "WriteProtect", NULL, &dwUSB, (LPBYTE)&numUSB, &cbUSB);
@@ -8625,18 +8649,18 @@ void USB_Protect(DWORD USBOnOff)
       }
     }
     else
-      if (ReadK == ERROR_FILE_NOT_FOUND)
-      {
-        fprintf(LogHndl, "[*] USB WriteProtect Key Is Empty (Off)\n");
-        consPrefix("[*] ", consYel);
-        printf("USB WriteProtect Key Is Empty (Off)\n");
-      }
-      else
-      {
-        fprintf(LogHndl, "[!] Error Reading USB Write Protect Key!\n");
-        consPrefix("[!] ", consRed);
-        printf("Error Reading USB Write Protect Key!\n");
-      }
+    if (ReadK == ERROR_FILE_NOT_FOUND)
+    {
+      fprintf(LogHndl,"[*] USB WriteProtect Key Is Empty (Off)\n");
+      consPrefix("[*] ", consYel);
+      printf("USB WriteProtect Key Is Empty (Off)\n");
+    }
+    else
+    {
+      fprintf(LogHndl, "[!] Error Reading USB Write Protect Key!\n");
+      consPrefix("[!] ", consRed);
+      printf("Error Reading USB Write Protect Key!\n");
+    }
 
     // No Need to Set it if already set 
     if (numUSB == USBOnOff)
@@ -8665,7 +8689,7 @@ void USB_Protect(DWORD USBOnOff)
         fprintf(LogHndl, "[+] USB WriteProtect Key Set Succesfully\n");
         consPrefix("[+] ", consGre);
         printf("USB WriteProtect Key Set Succesfully\n");
-
+        
         if (USBOnOff == 1)
         {
           fprintf(LogHndl, "\n[+] Important Note: ONLY NEW ATTACHED DRIVES WILL BE WRITE PROTECTED.\n");
@@ -8681,33 +8705,33 @@ void USB_Protect(DWORD USBOnOff)
       }
     }
   }
-  else
-    if (OpenK == ERROR_FILE_NOT_FOUND)
-    {
-      fprintf(LogHndl, "[!] Could Not Open/Create USB WriteProtect Key\n");
-      consPrefix("[!] ", consRed);
-      printf("Could Not Open/Create USB WriteProtect Key\n");
-    }
-    else
-      if (OpenK == ERROR_ACCESS_DENIED)
-      {
-        fprintf(LogHndl, "[!] USB WriteProtect Key Access Denied\n");
-        consPrefix("[!] ", consRed);
-        printf("USB WriteProtect Key Access Denied\n");
+  else 
+  if (OpenK == ERROR_FILE_NOT_FOUND)
+  {
+    fprintf(LogHndl, "[!] Could Not Open/Create USB WriteProtect Key\n");
+    consPrefix("[!] ", consRed);
+    printf("Could Not Open/Create USB WriteProtect Key\n");
+  }
+  else 
+  if (OpenK == ERROR_ACCESS_DENIED)
+  {
+    fprintf(LogHndl, "[!] USB WriteProtect Key Access Denied\n");
+    consPrefix("[!] ", consRed);
+    printf("USB WriteProtect Key Access Denied\n");
 
-        if (iIsAdmin == 0)
-        {
-          fprintf(LogHndl, "[!] USB WriteProtect Key Requires ADMIN Priveleges\n");
-          consPrefix("[!] ", consRed);
-          printf("USB WriteProtect Key Requires ADMIN Priveleges\n");
-        }
-      }
-      else
-      {
-        fprintf(LogHndl, "[!] USB WriteProtect Key Registry Error: %d\n", OpenK);
-        consPrefix("[!] ", consRed);
-        printf("USB WriteProtect Key Registry Error: %d\n", OpenK);
-      }
+    if (iIsAdmin == 0)
+    {
+      fprintf(LogHndl, "[!] USB WriteProtect Key Requires ADMIN Priveleges\n");
+      consPrefix("[!] ", consRed);
+      printf("USB WriteProtect Key Requires ADMIN Priveleges\n");
+    }
+  }
+  else
+  {
+    fprintf(LogHndl, "[!] USB WriteProtect Key Registry Error: %d\n", OpenK);
+    consPrefix("[!] ", consRed);
+    printf("USB WriteProtect Key Registry Error: %d\n", OpenK);
+  }
 
 
   if (gotSet == 0)
@@ -8735,7 +8759,7 @@ void USB_Protect(DWORD USBOnOff)
 
         fflush(stdout); //More PSExec Friendly
         cleanUp_Exit(0);
-        exit(0);
+        exit(0) ;
       }
 
       fflush(stdout); //More PSExec Friendly
@@ -8758,10 +8782,10 @@ void cleanUp_Exit(int exitRC)
   /* Cleanup                                                      */
   /****************************************************************/
   if (access(ForFile, 0) == 0)
-    unlink(ForFile);
+   unlink(ForFile);
 
   if (access(ForDisk, 0) == 0)
-    unlink(ForDisk);
+   unlink(ForDisk);
 
   if (access(MCpFile, 0) == 0)
     unlink(MCpFile);
@@ -8877,7 +8901,7 @@ void cleanUp_Exit(int exitRC)
   }
 
   fflush(stdout); //More PSExec Friendly
-                  //exit(exitRC) ;
+  //exit(exitRC) ;
 }
 
 
@@ -8890,7 +8914,7 @@ BOOL SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, BOOL bEnablePrivilege)
   LUID luid;
 
   if (!LookupPrivilegeValue(NULL, lpszPrivilege, &luid))
-    return FALSE;
+   return FALSE;
 
   ToknPriv.PrivilegeCount = 1;
   ToknPriv.Privileges[0].Luid = luid;
@@ -8901,10 +8925,10 @@ BOOL SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, BOOL bEnablePrivilege)
 
   // Enable the privilege or disable all privileges.
   if (!AdjustTokenPrivileges(hToken, FALSE, &ToknPriv, sizeof(TOKEN_PRIVILEGES), (PTOKEN_PRIVILEGES)NULL, (PDWORD)NULL))
-    return FALSE;
+   return FALSE;
 
   if (GetLastError() == ERROR_NOT_ALL_ASSIGNED)
-    return FALSE;
+   return FALSE;
 
   return TRUE;
 }
@@ -8922,10 +8946,10 @@ char * convert_sid_to_string_sid(const PSID psid, char *sid_str)
     return NULL;
 
   strcpy(sid_str, "S-1-");
-
+  
   sprintf(tSid, "%u", GetSidIdentifierAuthority(psid)->Value[5]);
   strcat(sid_str, tSid);
-
+  
   for (iSid = 0; iSid < *GetSidSubAuthorityCount(psid); ++iSid)
   {
     sprintf(tSid, "-%lu", *GetSidSubAuthority(psid, iSid));
@@ -8977,8 +9001,8 @@ BOOL FindRun(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, PULONGLONG lcn, PULONGL
   ULONGLONG base = attr->LowVcn;
 
   // Check for a Compressions size - Good Clue this file is compressed
-  if (attr->CompressionUnit == 4)
-    iIsCompressed = 1;
+  if(attr->CompressionUnit == 4)
+   iIsCompressed = 1;
 
 
   if (vcn < attr->LowVcn || vcn > attr->HighVcn)
@@ -9097,16 +9121,18 @@ VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
   ULARGE_INTEGER offset;
   OVERLAPPED overlap = { 0 };
   ULONG n, cCount;
-  int iShowSector;
+  int iShowSector ;
 
   FILE* SectHndl;
   char SectFile[1024] = "C:\\AChoir\\Cache\\Sectors.tmp\0";
 
-  sprintf(SectFile, "%s\\Sectors.tmp\0", CachDir, ACQName);
+  //Note: Cache is Movable based on iCacheType & CacheDir
+  //sprintf(SectFile, "%s\\%s\\Cache\\Sectors.tmp\0", BaseDir, ACQName);
+  sprintf(SectFile, "%s\\Sectors.tmp\0", CachDir);
 
   // If useDiskOrMem == 1 (<2) It is the first cluster run (new Temp File)
   //  if it is > 1 then Append the cluster run.
-  if (useDiskOrMem < 2)
+  if(useDiskOrMem < 2)
     SectHndl = fopen(SectFile, "wb");
   else
     SectHndl = fopen(SectFile, "ab");
@@ -9115,7 +9141,7 @@ VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
   if (SectHndl != NULL)
   {
     iShowSector = 0;
-    for (cCount = 0; cCount < count; cCount++)
+    for(cCount = 0; cCount < count; cCount++)
     {
       offset.QuadPart = (sector + cCount) * bootb.BytesPerSector;
       overlap.Offset = offset.LowPart;
@@ -9135,11 +9161,11 @@ VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
       fwrite(buffer, 1, n, SectHndl);
 
       iShowSector++;
-      if (iShowSector > 5000)
+      if(iShowSector > 5000)
       {
         iShowSector = 0;
         consPrefix("[+] ", consGre);
-        printf("Cluster Run: %d - Sector: %llu\r", useDiskOrMem, sector + cCount);
+        printf("Cluster Run: %d - Sector: %llu\r", useDiskOrMem, sector+cCount);
       }
     }
 
@@ -9149,7 +9175,7 @@ VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
   else
   {
     consPrefix("[!] ", consRed);
-    printf("Error Creating Sector Cache File!\n");
+    printf("Error Creating Sector Cache File: %s\n", SectFile);
   }
 
   fflush(stdout); //More PSExec Friendly
@@ -9159,10 +9185,10 @@ VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
 
 VOID ReadLCN(ULONGLONG lcn, ULONG count, PVOID buffer)
 {
-  if (useDiskOrMem == 0)
-    ReadSectorToMem(lcn * bootb.SectorsPerCluster, count * bootb.SectorsPerCluster, buffer);
+  if(useDiskOrMem == 0)
+   ReadSectorToMem(lcn * bootb.SectorsPerCluster, count * bootb.SectorsPerCluster, buffer);
   else
-    ReadSectorToDisk(lcn * bootb.SectorsPerCluster, count * bootb.SectorsPerCluster, buffer);
+   ReadSectorToDisk(lcn * bootb.SectorsPerCluster, count * bootb.SectorsPerCluster, buffer);
 }
 
 
@@ -9181,12 +9207,12 @@ VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG cou
     n = readcount * bootb.BytesPerSector * bootb.SectorsPerCluster;
 
     if (lcn == 0)
-      memset(bytes, 0, n);
+     memset(bytes, 0, n);
     else
     {
-      if (useDiskOrMem == 0)
+      if(useDiskOrMem == 0)
         ReadLCN(lcn, readcount, bytes);
-      else
+      else 
         ReadLCN(lcn, readcount, buffer);
     }
 
@@ -9198,11 +9224,11 @@ VOID ReadExternalAttribute(PNONRESIDENT_ATTRIBUTE attr, ULONGLONG vcn, ULONG cou
   }
 
   // Determine the Total Bytes Read
-  if (LCNType == 1)
+  if(LCNType == 1)
   {
     // Truncate the Memory Slack in the Cluster
-    if (totdata > leftDataSize)
-      totdata = leftDataSize;
+    if(totdata > leftDataSize)
+     totdata = leftDataSize;
 
     leftFileSize -= totbytes;
     leftDataSize -= totdata;
@@ -9313,10 +9339,10 @@ VOID ReadFileRecord(ULONG index, PFILE_RECORD_HEADER file)
   clusters = bootb.ClustersPerFileRecord;
   if (clusters > 0x80)
     clusters = 1;
-
-  p = (UCHAR *)malloc(bootb.BytesPerSector * bootb.SectorsPerCluster * clusters);
-  if (p == NULL)
-    MemAllocErr("MFT Record Buffer");
+  
+  p = (UCHAR *) malloc(bootb.BytesPerSector * bootb.SectorsPerCluster * clusters)  ;
+  if(p == NULL) 
+   MemAllocErr("MFT Record Buffer") ;
 
   vcn = ULONGLONG(index) * BytesPerFileRecord / bootb.BytesPerSector / bootb.SectorsPerCluster;
 
@@ -9351,11 +9377,11 @@ VOID LoadMFT()
     consPrefix("[!] ", consRed);
     printf("Cannot Access NTFS Volume...  Bypassing...\n");
     fprintf(LogHndl, "[!] Cannot Access NTFS Volume...  Bypassing...\n");
-
-    fflush(stdout); //More PSExec Friendly
-    return; // Don't do anything else - We cant Acccess this Volume!
+    
+   fflush(stdout); //More PSExec Friendly
+   return; // Don't do anything else - We cant Acccess this Volume!
   }
-
+  
   if (MFT->Ntfs.Type != 'ELIF')
   {
     consPrefix("[!] ", consRed);
@@ -9366,7 +9392,7 @@ VOID LoadMFT()
     fflush(stdout); //More PSExec Friendly
     return;
   }
-
+  
   FixupUpdateSequenceArray(MFT);
 
   fflush(stdout); //More PSExec Friendly
@@ -9418,8 +9444,8 @@ int FindActive()
   char Str_Numbers[40] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\0\0\0";
 
   // Did we allocate bitmap OK?
-  if (bitmap == NULL)
-    MemAllocErr("Cluster Search Buffer");
+  if(bitmap == NULL) 
+   MemAllocErr("Cluster Search Buffer") ;
 
   LCNType = 0; // Read Attribute Not File
   useDiskOrMem = maxMemExceed = 0; //Default to Memory
@@ -9452,21 +9478,21 @@ int FindActive()
     if (!bitset(bitmap, i))
       continue;
 
-    LCNType = 0;
+    LCNType = 0 ;
     ReadFileRecord(i, file);
 
     if (file->Ntfs.Type == 'ELIF' && (file->Flags == 1 || file->Flags == 3))
     {
       // See How Many Links we have - Make sure we have at least two (Short & Long FN)
       iLinkCount = file->LinkCount;
-      if (iLinkCount < 1)
-        iLinkCount = 1;
+      if(iLinkCount < 1)
+       iLinkCount = 1 ;
 
       // Bump Through Attributes and Add them to the SQLite Table
       //  Note: Save the Short Name & Length in case it is the only one
       iGotOne = Short_Len = 0;
       memset(Str_Short, 0, 256);
-      for (iLink = 0; iLink <= iLinkCount; iLink++)
+      for(iLink=0; iLink <= iLinkCount; iLink++)
       {
         // Get 0x30 (FN) Attribute
         attr = FindAttributeX(file, AttributeFileName, 0, iLink);
@@ -9479,9 +9505,9 @@ int FindActive()
 
         // Check to see if Compress Bit is on if the FileAttributes Field.
         if (name->FileAttributes & (1 << ULONG(11)))
-          iIsCompressed = 1;
+         iIsCompressed = 1;
         else
-          iIsCompressed = 0;
+         iIsCompressed = 0;
 
         // Type 0=POSIX, Type 1=Long FN, Type 2=Short FN (Ignore type 2)
         if (name->NameType == 2)
@@ -9498,12 +9524,12 @@ int FindActive()
         Str_Len = int(name->NameLength);
         wcstombs(Str_Temp, name->Name, Str_Len);
         Str_Temp[Str_Len] = '\0'; // Null Terminate the String... Sigh...
+      
 
-
-                                  // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
+        // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
         attr3 = FindAttributeX(file, AttributeStandardInformation, 0, 0);
         if (attr3 != 0)
-          name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
+         name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
 
 
         if (file->Flags == 1)
@@ -9511,12 +9537,12 @@ int FindActive()
           // Active File Entry 
           iGotOne = 1;
           Max_Files++;
-          // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
-          attr3 = FindAttributeX(file, AttributeStandardInformation, 0, 0);
-          if (attr3 != 0)
-          {
-            name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
-          }
+        // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
+        attr3 = FindAttributeX(file, AttributeStandardInformation, 0, 0);
+        if (attr3 != 0)
+        {
+          name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
+        }
 
           if (attr3 == 0)
             dbMQuery = sqlite3_mprintf("INSERT INTO MFTFiles (MFTRecID, MFTPrvID, FileName, FileDateTyp, FNCreDate, FNAccDate, FNModDate, SICreDate, SIAccDate, SIModDate, Compress) VALUES ('%ld', '%ld', '%q', 'FN', '%llu', '%llu', '%llu', '0', '0', '0', '%ld')\0",
@@ -9544,22 +9570,22 @@ int FindActive()
           if (dbMrc == SQLITE_BUSY)
             Sleep(100); // In windows.h
           else
-            if (dbMrc == SQLITE_LOCKED)
-              Sleep(100); // In windows.h
-            else
-              if (dbMrc == SQLITE_ERROR)
-              {
-                consPrefix("[!] ", consRed);
-                printf("MFTError: Error Adding Entry to MFT SQLite Table\n%s\n", errmsg);
-                MFT_Status = 2;
-                break;
-              }
-              else
-                Sleep(100); // In windows.h
+          if (dbMrc == SQLITE_LOCKED)
+            Sleep(100); // In windows.h
+          else
+          if (dbMrc == SQLITE_ERROR)
+          {
+            consPrefix("[!] ", consRed);
+            printf("MFTError: Error Adding Entry to MFT SQLite Table\n%s\n", errmsg);
+            MFT_Status = 2;
+            break;
+          }
+          else
+            Sleep(100); // In windows.h
 
-                            /*****************************************************************/
-                            /* Check if we are stuck in a loop.                              */
-                            /*****************************************************************/
+         /*****************************************************************/
+         /* Check if we are stuck in a loop.                              */
+         /*****************************************************************/
           SpinLock++;
 
           if (SpinLock > 25)
@@ -9586,7 +9612,7 @@ int FindActive()
           // Lets Grab The SI Attribute for SI File Dates (Cre/Acc/Mod)
           attr3 = FindAttributeX(file, AttributeStandardInformation, 0, 0);
           if (attr3 != 0)
-            name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
+           name3 = PSTANDARD_INFORMATION(Padd(attr3, PRESIDENT_ATTRIBUTE(attr3)->ValueOffset));
 
 
           if (file->Flags == 1)
@@ -9621,22 +9647,22 @@ int FindActive()
             if (dbMrc == SQLITE_BUSY)
               Sleep(100); // In windows.h
             else
-              if (dbMrc == SQLITE_LOCKED)
-                Sleep(100); // In windows.h
-              else
-                if (dbMrc == SQLITE_ERROR)
-                {
-                  consPrefix("[!] ", consRed);
-                  printf("MFTError: Error Adding Entry to MFT SQLite Table\n%s\n", errmsg);
-                  MFT_Status = 2;
-                  break;
-                }
-                else
-                  Sleep(100); // In windows.h
+            if (dbMrc == SQLITE_LOCKED)
+              Sleep(100); // In windows.h
+            else
+            if (dbMrc == SQLITE_ERROR)
+            {
+              consPrefix("[!] ", consRed);
+              printf("MFTError: Error Adding Entry to MFT SQLite Table\n%s\n", errmsg);
+              MFT_Status = 2;
+              break;
+            }
+            else
+              Sleep(100); // In windows.h
 
-                              /*****************************************************************/
-                              /* Check if we are stuck in a loop.                              */
-                              /*****************************************************************/
+           /*****************************************************************/
+           /* Check if we are stuck in a loop.                              */
+           /*****************************************************************/
             SpinLock++;
 
             if (SpinLock > 25)
@@ -9688,183 +9714,183 @@ int FindActive()
     if (dbrc == SQLITE_BUSY)
       Sleep(100);
     else
-      if (dbrc == SQLITE_LOCKED)
-        Sleep(100);
-      else
-        if (dbrc == SQLITE_ERROR)
+    if (dbrc == SQLITE_LOCKED)
+      Sleep(100);
+    else
+    if (dbrc == SQLITE_ERROR)
+    {
+      consPrefix("[!] ", consRed);
+      printf("MFTErr: MFT Database Error: %s\n", sqlite3_errmsg(dbMFTHndl));
+      MFT_Status = 2;
+      fflush(stdout); //More PSExec Friendly
+      return 2;
+    }
+    else
+    if (dbrc == SQLITE_ROW)
+    {
+      SpinLock = 0;
+
+      memset(Ftmp_Fname, 0, 2048);
+      memset(Full_Fname, 0, 2048);
+      dbMaxCol = sqlite3_column_count(dbMFTStmt);
+
+      for (dbi = 0; dbi < dbMaxCol; dbi++)
+      {
+        if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileName", 8) == 0)
         {
-          consPrefix("[!] ", consRed);
-          printf("MFTErr: MFT Database Error: %s\n", sqlite3_errmsg(dbMFTHndl));
-          MFT_Status = 2;
-          fflush(stdout); //More PSExec Friendly
-          return 2;
+          if (sqlite3_column_text(dbMFTStmt, dbi) != NULL)
+            strncpy(Full_Fname, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 255);
         }
         else
-          if (dbrc == SQLITE_ROW)
+        if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "RecID", 5) == 0)
+        {
+          MFTFiles_RecNum = sqlite3_column_int(dbMFTStmt, dbi);
+          MFTFiles_RecID = MFTFiles_RecNum; //Save it for the Built Index
+        }
+        else
+        if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "MFTRecID", 8) == 0)
+        {
+          File_RecNum = sqlite3_column_int(dbMFTStmt, dbi);
+          File_RecID = File_RecNum; //Save it for the Built Index
+        }
+        else
+        if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "MFTPrvID", 8) == 0)
+        {
+          Dir_PrevNum = sqlite3_column_int(dbMFTStmt, dbi);
+        }
+      }
+
+      // Expand out the Full File Paths
+      MoreDirs = 0;
+      while (MoreDirs == 0)
+      {
+        MoreDirs = 1; //Assume we will Exit out
+
+        dbXQuery = sqlite3_mprintf("Select * from MFTDirs WHERE MFTRecID = '%ld'\0", Dir_PrevNum);
+
+        dbXrc = sqlite3_prepare(dbMFTHndl, dbXQuery, -1, &dbXMFTStmt, 0);
+        if (dbXrc == SQLITE_OK)
+        {
+          SpinLock = 0;
+          while ((dbXrc = sqlite3_step(dbXMFTStmt)) != SQLITE_DONE)
           {
-            SpinLock = 0;
-
-            memset(Ftmp_Fname, 0, 2048);
-            memset(Full_Fname, 0, 2048);
-            dbMaxCol = sqlite3_column_count(dbMFTStmt);
-
-            for (dbi = 0; dbi < dbMaxCol; dbi++)
+            if (dbXrc == SQLITE_BUSY)
+              Sleep(100);
+            else
+            if (dbXrc == SQLITE_LOCKED)
+              Sleep(100);
+            else
+            if (dbXrc == SQLITE_ERROR)
+              Sleep(100);
+            else
+            if (dbXrc == SQLITE_ROW)
             {
-              if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "FileName", 8) == 0)
+              SpinLock = 0;
+
+              dbMaxCol = sqlite3_column_count(dbXMFTStmt);
+
+              memset(Ftmp_Fname, 0, 260);
+              for (dbXi = 0; dbXi < dbMaxCol; dbXi++)
               {
-                if (sqlite3_column_text(dbMFTStmt, dbi) != NULL)
-                  strncpy(Full_Fname, (const char *)sqlite3_column_text(dbMFTStmt, dbi), 255);
-              }
-              else
-                if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "RecID", 5) == 0)
+                if (_strnicmp(sqlite3_column_name(dbXMFTStmt, dbXi), "DirsName", 8) == 0)
                 {
-                  MFTFiles_RecNum = sqlite3_column_int(dbMFTStmt, dbi);
-                  MFTFiles_RecID = MFTFiles_RecNum; //Save it for the Built Index
+                  if (sqlite3_column_text(dbXMFTStmt, dbXi) != NULL)
+                    strncpy(Ftmp_Fname, (const char *)sqlite3_column_text(dbXMFTStmt, dbXi), 255);
+
+                  // . is The Root (x:\)
+                  if (_strnicmp(Ftmp_Fname, ".", 1) == 0)
+                  {
+                    sprintf(Ftmp_Fname, "%s:\\\0\0", driveLetter);
+                    MoreDirs = 1; //No More Dirs
+                  }
+                  else
+                  {
+                    strcat(Ftmp_Fname, "\\\0\0");
+                    MoreDirs = 0; //Lets See if we have another Directory
+                  }
+
+                  strcat(Ftmp_Fname, Full_Fname);
+                  strncpy(Full_Fname, Ftmp_Fname, 2048);
                 }
                 else
-                  if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "MFTRecID", 8) == 0)
-                  {
-                    File_RecNum = sqlite3_column_int(dbMFTStmt, dbi);
-                    File_RecID = File_RecNum; //Save it for the Built Index
-                  }
-                  else
-                    if (_strnicmp(sqlite3_column_name(dbMFTStmt, dbi), "MFTPrvID", 8) == 0)
-                    {
-                      Dir_PrevNum = sqlite3_column_int(dbMFTStmt, dbi);
-                    }
-            }
-
-            // Expand out the Full File Paths
-            MoreDirs = 0;
-            while (MoreDirs == 0)
-            {
-              MoreDirs = 1; //Assume we will Exit out
-
-              dbXQuery = sqlite3_mprintf("Select * from MFTDirs WHERE MFTRecID = '%ld'\0", Dir_PrevNum);
-
-              dbXrc = sqlite3_prepare(dbMFTHndl, dbXQuery, -1, &dbXMFTStmt, 0);
-              if (dbXrc == SQLITE_OK)
-              {
-                SpinLock = 0;
-                while ((dbXrc = sqlite3_step(dbXMFTStmt)) != SQLITE_DONE)
+                if (_strnicmp(sqlite3_column_name(dbXMFTStmt, dbXi), "MFTRecID", 8) == 0)
                 {
-                  if (dbXrc == SQLITE_BUSY)
-                    Sleep(100);
-                  else
-                    if (dbXrc == SQLITE_LOCKED)
-                      Sleep(100);
-                    else
-                      if (dbXrc == SQLITE_ERROR)
-                        Sleep(100);
-                      else
-                        if (dbXrc == SQLITE_ROW)
-                        {
-                          SpinLock = 0;
-
-                          dbMaxCol = sqlite3_column_count(dbXMFTStmt);
-
-                          memset(Ftmp_Fname, 0, 260);
-                          for (dbXi = 0; dbXi < dbMaxCol; dbXi++)
-                          {
-                            if (_strnicmp(sqlite3_column_name(dbXMFTStmt, dbXi), "DirsName", 8) == 0)
-                            {
-                              if (sqlite3_column_text(dbXMFTStmt, dbXi) != NULL)
-                                strncpy(Ftmp_Fname, (const char *)sqlite3_column_text(dbXMFTStmt, dbXi), 255);
-
-                              // . is The Root (x:\)
-                              if (_strnicmp(Ftmp_Fname, ".", 1) == 0)
-                              {
-                                sprintf(Ftmp_Fname, "%s:\\\0\0", driveLetter);
-                                MoreDirs = 1; //No More Dirs
-                              }
-                              else
-                              {
-                                strcat(Ftmp_Fname, "\\\0\0");
-                                MoreDirs = 0; //Lets See if we have another Directory
-                              }
-
-                              strcat(Ftmp_Fname, Full_Fname);
-                              strncpy(Full_Fname, Ftmp_Fname, 2048);
-                            }
-                            else
-                              if (_strnicmp(sqlite3_column_name(dbXMFTStmt, dbXi), "MFTRecID", 8) == 0)
-                              {
-                                File_RecNum = sqlite3_column_int(dbXMFTStmt, dbXi);
-                              }
-                              else
-                                if (_strnicmp(sqlite3_column_name(dbXMFTStmt, dbXi), "MFTPrvID", 8) == 0)
-                                {
-                                  Dir_PrevNum = sqlite3_column_int(dbXMFTStmt, dbXi);
-                                }
-                          }
-
-                          if (Dir_PrevNum == File_RecNum)
-                            MoreDirs = 1;
-                        }
+                  File_RecNum = sqlite3_column_int(dbXMFTStmt, dbXi);
                 }
-
-                /*****************************************************************/
-                /* Check if we are stuck in a loop.                              */
-                /*****************************************************************/
-                if (dbXrc != SQLITE_ROW)
+                else
+                if (_strnicmp(sqlite3_column_name(dbXMFTStmt, dbXi), "MFTPrvID", 8) == 0)
                 {
-                  SpinLock++;
-
-                  if (SpinLock > 25)
-                  {
-                    break;
-                  }
+                  Dir_PrevNum = sqlite3_column_int(dbXMFTStmt, dbXi);
                 }
               }
 
-              sqlite3_finalize(dbXMFTStmt);
-              sqlite3_free(dbXQuery);
-            }
-
-            //Now Insert the Full Path FileName and MFT Record ID
-            dbXQuery = sqlite3_mprintf("INSERT INTO FileNames (MFTRecID, MFTFilesRecID, FullFileName) VALUES ('%ld', '%ld', '%q')\0", File_RecID, MFTFiles_RecID, Full_Fname);
-
-            SpinLock = 0;
-            while ((dbXrc = sqlite3_exec(dbMFTHndl, dbXQuery, 0, 0, &errmsg)) != SQLITE_OK)
-            {
-              if (dbXrc == SQLITE_BUSY)
-                Sleep(100); // In windows.h
-              else
-                if (dbXrc == SQLITE_LOCKED)
-                  Sleep(100); // In windows.h
-                else
-                  if (dbXrc == SQLITE_ERROR)
-                  {
-                    consPrefix("[!] ", consRed);
-                    printf("Error Adding Entry to FileNames Table\n%s\n", errmsg);
-                    MFT_Status = 2;
-                    break;
-                  }
-                  else
-                    Sleep(100); // In windows.h
-
-                                /*****************************************************************/
-                                /* Check if we are stuck in a loop.                              */
-                                /*****************************************************************/
-              SpinLock++;
-
-              if (SpinLock > 25)
-                break;
-            }
-
-            sqlite3_free(dbXQuery);
-
-            Progress++;
-            if (Progress > ProgUnit)
-            {
-              dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
-              dbrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
-
-              printf(".");
-              fflush(stdout); //More PSExec Friendly
-              Progress = 0;
+              if (Dir_PrevNum == File_RecNum)
+               MoreDirs = 1;
             }
           }
+
+          /*****************************************************************/
+          /* Check if we are stuck in a loop.                              */
+          /*****************************************************************/
+          if (dbXrc != SQLITE_ROW)
+          {
+            SpinLock++;
+
+            if (SpinLock > 25)
+            {
+              break;
+            }
+          }
+        }
+
+        sqlite3_finalize(dbXMFTStmt);
+        sqlite3_free(dbXQuery);
+      }
+
+      //Now Insert the Full Path FileName and MFT Record ID
+      dbXQuery = sqlite3_mprintf("INSERT INTO FileNames (MFTRecID, MFTFilesRecID, FullFileName) VALUES ('%ld', '%ld', '%q')\0", File_RecID, MFTFiles_RecID, Full_Fname);
+
+      SpinLock = 0;
+      while ((dbXrc = sqlite3_exec(dbMFTHndl, dbXQuery, 0, 0, &errmsg)) != SQLITE_OK)
+      {
+        if (dbXrc == SQLITE_BUSY)
+          Sleep(100); // In windows.h
+        else
+        if (dbXrc == SQLITE_LOCKED)
+          Sleep(100); // In windows.h
+        else
+        if (dbXrc == SQLITE_ERROR)
+        {
+          consPrefix("[!] ", consRed);
+          printf("Error Adding Entry to FileNames Table\n%s\n", errmsg);
+          MFT_Status = 2;
+          break;
+        }
+        else
+          Sleep(100); // In windows.h
+
+        /*****************************************************************/
+        /* Check if we are stuck in a loop.                              */
+        /*****************************************************************/
+        SpinLock++;
+
+        if (SpinLock > 25)
+          break;
+      }
+
+      sqlite3_free(dbXQuery);
+
+      Progress++;
+      if (Progress > ProgUnit)
+      {
+        dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
+        dbrc = sqlite3_exec(dbMFTHndl, "begin", 0, 0, &errmsg);
+
+        printf(".");
+        fflush(stdout); //More PSExec Friendly
+        Progress = 0;
+      }
+    }
 
     /*****************************************************************/
     /* Check if we are stuck in a loop.                              */
@@ -9879,7 +9905,7 @@ int FindActive()
     }
   }
   sqlite3_finalize(dbMFTStmt);
-
+  
   // Commit The FileNames Table
   dbrc = sqlite3_exec(dbMFTHndl, "commit", 0, 0, &errmsg);
 
@@ -9899,9 +9925,9 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   PUCHAR bufA;
   FILE* SectHndl;
   char SectFile[1024] = "C:\\AChoir\\Cache\\Sectors.tmp\0";
-  size_t inSize;
+  size_t inSize ;
   //size_t outSize;
-  size_t totSect, difSect;
+  size_t totSect, difSect ;
 
   PATTRIBUTE attrlist = NULL;
   PATTRIBUTE_LIST attrdata = NULL;
@@ -9928,7 +9954,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   ULONG attrLen, dataLen, rawdLen, cmprLen;
 
   int gotData, i, DDRetcd;
-
+ 
   // Signature Checking Variables
   CHAR filetype[11] = "\0";
   char *dotPos;
@@ -9937,7 +9963,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
   iDepth++;
 
   //Sanity Check - We should not have Attribute List Within a Data Record
-  if (iDepth > 2)
+  if(iDepth > 2)
   {
     if (binLog == 1)
       fprintf(LogHndl, "[+] Recursion Too Deep - Ignoring Additional Recursion...\n");
@@ -9952,8 +9978,8 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
   memset(Tooo_Fname, 0, 2048);
   snprintf(Tooo_Fname, 2040, "%s\\%s\0", outdir, filename);
-
-  if (Append == 1)
+  
+  if(Append == 1)
   {
     /****************************************************************/
     /* We are in Append Mode - Multiple Cluster Runs were found in  */
@@ -10032,7 +10058,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       fileIsFrag = 1;
       consPrefix("\n[+] ", consGre);
       printf("File is Fragmented ...  Parsing the Attribute List...\n");
-      fprintf(LogHndl, "\n[+] File is Fragmented... Parsing the Attribute List...\n");
+      fprintf(LogHndl,"\n[+] File is Fragmented... Parsing the Attribute List...\n");
 
       // Read the attribute list - Physical Size and Logical Size
       //  We use Physical size to READ the clusters and Logical Size to WRITE the new file
@@ -10042,25 +10068,25 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
 
       // If its a compressed file, used the CompressedSize.
-      if (iIsCompressed == 1)
+      if(iIsCompressed == 1)
       {
         strncpy(cIsCompressed, "(Compressed)\0", 13);
         //Test: Remove all Compress Sizes and Set To same as Uncompress
         //      LZNT1 appears to pad each 64K block chunk, making file size the same whether compressed or not
         //MaxDataSize = MaxCmprs ;
-        MaxDataSize = MaxRawsz;  //Test Using Actual Size
+        MaxDataSize = MaxRawsz ;  //Test Using Actual Size
       }
       else
       {
         strncpy(cIsCompressed, "             \0", 13);
-        MaxDataSize = MaxRawsz;
+        MaxDataSize = MaxRawsz ;
       }
 
-      bufA = (UCHAR *)malloc(MaxOffset);
+      bufA  = (UCHAR *) malloc(MaxOffset);
 
       // Did we allocate our Record oK?
-      if (bufA == NULL)
-        MemAllocErr("Attribute Buffer");
+      if(bufA == NULL) 
+       MemAllocErr("Attribute Buffer") ;
 
 
       LCNType = 0; // Read Attribute Not File
@@ -10075,11 +10101,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       leftFileSize = leftDataSize = 0; // Bytes Left in the File (Multiple Cluster Runs)
       while (MaxOffset > LastOffset)
       {
-        attrdatax = attrdata;
+        attrdatax = attrdata ;
         attrdata = PATTRIBUTE_LIST(Padd(attrdatax, attrdatax->Length));
         LastOffset += attrdatax->Length;
 
-        if (LastOffset > MaxOffset)
+        if(LastOffset > MaxOffset)
         {
           consPrefix("[!] ", consRed);
           printf("No MFT File Attribute List Found...  Bypassing...\n");
@@ -10088,7 +10114,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
           free(bufA);
           delete[] file;
           fflush(stdout); //More PSExec Friendly
-          return 1;
+          return 1 ;
         }
 
 
@@ -10097,7 +10123,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         {
           pointData = (LONG)attrdata->FileReferenceNumber; // it should be 6 bytes not 4  // YK
 
-          if (gotData == 0)
+          if(gotData == 0)
           {
             //printf("Now looking at MFT Record: %lu", pointData);
             DDRetcd = DumpDataII(pointData, filename, outdir, ToCreTime, ToModTime, ToAccTime, binLog, 0);
@@ -10107,7 +10133,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
             if (DDRetcd == 1)
             {
-              free(bufA);
+              free (bufA);
               delete[] file;
               return 1;
             }
@@ -10119,7 +10145,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
             if (DDRetcd == 1)
             {
-              free(bufA);
+              free (bufA);
               delete[] file;
               return 1;
             }
@@ -10130,7 +10156,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       fileIsFrag = 0;
 
       delete[] file;
-      free(bufA);
+      free (bufA);
     }
     else
     {
@@ -10140,7 +10166,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     }
 
     fflush(stdout); //More PSExec Friendly
-                    //return 1; 
+    //return 1; 
     return 2; //Everything is OK, but this is nested (0X80) - So return an RC to exit out.
 
   }
@@ -10151,26 +10177,26 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     //  Left in the File (leftSize)
 
     // Ver 2.3
-    // YK edit, Data size will only be available if LowestVCN==0, adding check for that here
+	  // YK edit, Data size will only be available if LowestVCN==0, adding check for that here
 
     // Ver 2.5
     // Remove (Comment Out) Mod from Ver 2.3 - To check LowestVCN
     //  The Mod caused issues with Resident Files - DP
     //
-    //if (PNONRESIDENT_ATTRIBUTE(attr)->LowVcn == 0) 
+	  //if (PNONRESIDENT_ATTRIBUTE(attr)->LowVcn == 0) 
     //{
 
     rawdLen = AttributeLengthDataSize(attr);
-    attrLen = AttributeLengthAllocated(attr);
-    //Test: Remove all Compress Sizes and Set To same as Uncompress
-    //      LZNT1 appears to pad each 64K block chunk, making file size the same whether compressed or not
-    //cmprLen = AttributeLengthCompressed(attr);
-    cmprLen = AttributeLengthAllocated(attr);  //Test setting the InFile Compression size to the whole Buffer Size 
+		attrLen = AttributeLengthAllocated(attr);
+		//Test: Remove all Compress Sizes and Set To same as Uncompress
+		//      LZNT1 appears to pad each 64K block chunk, making file size the same whether compressed or not
+		//cmprLen = AttributeLengthCompressed(attr);
+		cmprLen = AttributeLengthAllocated(attr);  //Test setting the InFile Compression size to the whole Buffer Size 
 
-                                               //}
-                                               // End Ver 2.3 LZNT1 Mod, and End Ver 2.5 removal
+	  //}
+    // End Ver 2.3 LZNT1 Mod, and End Ver 2.5 removal
 
-                                               //Global Last Data Length - Used to pass to LZNCopy Routine for the Size check (Sparse Data)
+    //Global Last Data Length - Used to pass to LZNCopy Routine for the Size check (Sparse Data)
     last_rawdLen = rawdLen;
 
     //Global Last File Name - Used to pass to LZNCopy Routine for the Output/Input File Name
@@ -10179,18 +10205,18 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
 
     // If the File is Compressed - Use Compression Size.
-    if (iIsCompressed == 1)
+    if(iIsCompressed == 1)
     {
       strncpy(cIsCompressed, "(Compressed)\0", 13);
       //Test: Remove all Compress Sizes and Set To same as Uncompress
       //      LZNT1 appears to pad each 64K block chunk, making file size the same whether compressed or not
       //dataLen = cmprLen ;
-      dataLen = rawdLen;  //Test using actual Length
+      dataLen = rawdLen ;  //Test using actual Length
     }
     else
     {
       strncpy(cIsCompressed, "            \0", 13);
-      dataLen = rawdLen;
+      dataLen = rawdLen ;
     }
 
 
@@ -10207,119 +10233,119 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       dataLen = leftDataSize;
     }
 
-
+ 
     // Changing to unique Buffer bufD - To avoid conflict with attr BufA
     // If File exceeds Max Memory, Cache the Extraction
     maxMemExceed = useDiskOrMem = 0;
     if (attrLen > maxMemBytes)
     {
-      maxMemExceed = 1;
-      useDiskOrMem = 1;
+      maxMemExceed = 1 ;
+      useDiskOrMem = 1 ;
     }
 
-
+    
     LCNType = 1;   // Read Actual File Clusters into buf
     iNCSFound = 0; // Default to NOT Found
 
-                   // For NCP: it's ALWAYS found, for NCS: do the compare
-    if (iNCS == 0)
-      iNCSFound = 1;
+    // For NCP: it's ALWAYS found, for NCS: do the compare
+    if(iNCS == 0)
+     iNCSFound = 1;
     else
-      if (iNCS == 1)
+    if(iNCS == 1)
+    {
+      /****************************************************************/
+      /* If we are doing an NCS - Read the First Cluster and compare  */
+      /*  to the Signature Table entries                              */
+      /****************************************************************/
+      ClustZero  = (UCHAR *) malloc(bootb.BytesPerSector * bootb.SectorsPerCluster)  ;
+      if(ClustZero == NULL) 
+       MemAllocErr("Cluster Search Buffer") ;
+      else
+       memset(ClustZero, 0, bootb.BytesPerSector * bootb.SectorsPerCluster);
+
+      ReadAttributeX(attr, ClustZero);
+
+      // Start with a clean slate
+      memset(tmpSig, 0, iSigSize);
+
+      // Convert n Bytes into n*2 Hex Chars
+      for (i=0; i < (iSigSize-1)/2; i++)
       {
-        /****************************************************************/
-        /* If we are doing an NCS - Read the First Cluster and compare  */
-        /*  to the Signature Table entries                              */
-        /****************************************************************/
-        ClustZero = (UCHAR *)malloc(bootb.BytesPerSector * bootb.SectorsPerCluster);
-        if (ClustZero == NULL)
-          MemAllocErr("Cluster Search Buffer");
-        else
-          memset(ClustZero, 0, bootb.BytesPerSector * bootb.SectorsPerCluster);
+        sprintf(tmpSig+(i*2), "%02x", ClustZero[i]);
+      }
 
-        ReadAttributeX(attr, ClustZero);
+      // No Longer Needed.
+      if (ClustZero != NULL)
+       free(ClustZero);
 
-        // Start with a clean slate
-        memset(tmpSig, 0, iSigSize);
+      // Parse Out the FileType for Signature Checking
+      memset(filetype, 0, 11);
+      dotPos = strrchr(filename, '.') ;
 
-        // Convert n Bytes into n*2 Hex Chars
-        for (i = 0; i < (iSigSize - 1) / 2; i++)
+      if(dotPos !=NULL)
+       strncpy(filetype, dotPos + 1, 10);
+
+
+      // Compare with the Signature and FileType Tables
+      for (i=0; i < iSigCount; i++)
+      {
+        if((strnicmp(tmpSig, SigTabl+(i*iSigSize), SizTabl[i]) == 0) && (strlen(SigTabl+(i*iSigSize)) > 0))
         {
-          sprintf(tmpSig + (i * 2), "%02x", ClustZero[i]);
-        }
+          iNCSFound = 1;
 
-        // No Longer Needed.
-        if (ClustZero != NULL)
-          free(ClustZero);
+          consPrefix("     (Sig) ", consGre);
+          printf("Header Signature Match Found in File (%s)\n", tmpSig);
+          fprintf(LogHndl, "     (Sig)Header Signature Match Found in File (%s)\n", tmpSig);
 
-        // Parse Out the FileType for Signature Checking
-        memset(filetype, 0, 11);
-        dotPos = strrchr(filename, '.');
-
-        if (dotPos != NULL)
-          strncpy(filetype, dotPos + 1, 10);
-
-
-        // Compare with the Signature and FileType Tables
-        for (i = 0; i < iSigCount; i++)
-        {
-          if ((strnicmp(tmpSig, SigTabl + (i*iSigSize), SizTabl[i]) == 0) && (strlen(SigTabl + (i*iSigSize)) > 0))
+          if (iSyslogLvl > 1)
           {
-            iNCSFound = 1;
-
-            consPrefix("     (Sig) ", consGre);
-            printf("Header Signature Match Found in File (%s)\n", tmpSig);
-            fprintf(LogHndl, "     (Sig)Header Signature Match Found in File (%s)\n", tmpSig);
-
-            if (iSyslogLvl > 1)
-            {
-              memset(SyslogTMSG, 0, 2048);
-              sprintf(SyslogTMSG, "NCS: Header Signature Match Found in File (%s)", tmpSig);
-              AChSyslog(SyslogTMSG);
-            }
-
-            break;
+            memset(SyslogTMSG, 0, 2048);
+            sprintf(SyslogTMSG, "NCS: Header Signature Match Found in File (%s)", tmpSig);
+            AChSyslog(SyslogTMSG);
           }
 
-          if ((strnicmp(filetype, TypTabl + (i*iTypSize), iTypSize) == 0) && (strlen(filetype) > 0))
-          {
-            iNCSFound = 1;
-            consPrefix("     (Sig) ", consGre);
-            printf("File Extention Match Found (%s)\n", filetype);
-            fprintf(LogHndl, "     (Sig)File Extention Match Found (%s)\n", filetype);
-
-            if (iSyslogLvl > 1)
-            {
-              memset(SyslogTMSG, 0, 2048);
-              sprintf(SyslogTMSG, "NCS: File Extension Match Found in File (%s)", filetype);
-              AChSyslog(SyslogTMSG);
-            }
-
-            break;
-          }
+          break;
         }
 
-        fflush(stdout); //More PSExec Friendly
-
-
-        if (iNCSFound == 0)
+        if((strnicmp(filetype, TypTabl+(i*iTypSize), iTypSize) == 0) && (strlen(filetype) > 0))
         {
-          consPrefix("     (Sig) ", consRed);
-          printf("No Signature Match in File - File Copy Bypassed.\n");
-          fprintf(LogHndl, "     (Sig)No Signature Match in File - File copy Bypassed.\n");
+          iNCSFound = 1;
+          consPrefix("     (Sig) ", consGre);
+          printf("File Extention Match Found (%s)\n", filetype);
+          fprintf(LogHndl, "     (Sig)File Extention Match Found (%s)\n", filetype);
 
-          delete[] file;
-          fflush(stdout); //More PSExec Friendly
-          return 1;
+          if (iSyslogLvl > 1)
+          {
+            memset(SyslogTMSG, 0, 2048);
+            sprintf(SyslogTMSG, "NCS: File Extension Match Found in File (%s)", filetype);
+            AChSyslog(SyslogTMSG);
+          }
+
+          break;
         }
       }
+
+      fflush(stdout); //More PSExec Friendly
+
+
+      if(iNCSFound == 0)
+      {
+        consPrefix("     (Sig) ", consRed);
+        printf("No Signature Match in File - File Copy Bypassed.\n");
+        fprintf(LogHndl, "     (Sig)No Signature Match in File - File copy Bypassed.\n");
+
+        delete[] file;
+        fflush(stdout); //More PSExec Friendly
+        return 1;
+      }
+    }
 
     // Complete the copy if we are doing an NCP: - or if the NCS: Signature was found
     if (iNCSFound == 1)
     {
       // Print Information about file for Verification
-      if (gotOwner != 1)
-        sprintf(SidString, "Could Not Get SID\0");
+      if(gotOwner != 1)
+       sprintf(SidString, "Could Not Get SID\0");
 
       printf("     (In)SID: %s\n", SidString);
       fprintf(LogHndl, "     (In)SID: %s\n", SidString);
@@ -10328,10 +10354,10 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       fprintf(LogHndl, "     (In)Time: %llu - %llu - %llu\n", File_CreDate, File_AccDate, File_ModDate);
 
 
-      if (maxMemExceed == 0)
+      if(maxMemExceed == 0)
       {
         // Fit the Whole File in a buffer
-        bufD = (UCHAR *)malloc(attrLen);
+        bufD  = (UCHAR *) malloc(attrLen)  ;
 
         //Set Entire Buffer to =x0 - This is in case the file is SPARSE (end of file will be =x0s)
         //This is especially important for LZNT1 Decompressed files
@@ -10366,7 +10392,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
 
         // MaxMem Exceeded! Just Use a Cluster at a Time - Also Show us the size.
-        bufD = (UCHAR *)malloc(bootb.BytesPerSector * bootb.SectorsPerCluster);
+        bufD  = (UCHAR *) malloc(bootb.BytesPerSector * bootb.SectorsPerCluster)  ;
 
         printf("     (In)Size: %lu ", dataLen);
         consPrefix(cIsCompressed, consYel);
@@ -10384,17 +10410,17 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
       fflush(stdout); //More PSExec Friendly
 
-                      // Did we allocate our Data Buffer OK?
-      if (bufD == NULL)
-        MemAllocErr("Data Buffer");
+      // Did we allocate our Data Buffer OK?
+      if(bufD == NULL) 
+       MemAllocErr("Data Buffer") ;
 
       ReadAttribute(attr, bufD);
 
       iDataSize = maxDataSize;
 
       //In cases where the file is Resident use maxDataSize
-      if (totdata > maxDataSize)
-        totdata = maxDataSize;
+      if(totdata > maxDataSize)
+       totdata = maxDataSize;
 
 
       //See if we have adequate disk space!
@@ -10404,7 +10430,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         iOutOfDiskSpace = 1;
 
         if (binLog == 1)
-          fprintf(LogHndl, "[!] Not Enough Disk Space Available: %lld of %ld\n", AvailDisk, iDataSize);
+         fprintf(LogHndl, "[!] Not Enough Disk Space Available: %lld of %ld\n", AvailDisk, iDataSize);
 
         consPrefix("[!] ", consRed);
         printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, iDataSize);
@@ -10425,26 +10451,26 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
 
       //Now show the iData Size since we didn't show the dataLen
-      if (maxMemExceed != 1)
+      if(maxMemExceed != 1)
       {
         printf("     (In)Size: %ld ", iDataSize);
         consPrefix(cIsCompressed, consYel);
         printf("                         \n");
-
+      
         if (binLog == 1)
           fprintf(LogHndl, "     (In)Size: %ld %s                        \n", iDataSize, cIsCompressed);
       }
 
       consPrefix("\n[+] ", consGre);
       printf("Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
-
+  
       if (binLog == 1)
         fprintf(LogHndl, "\n[+] Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
 
       fflush(stdout); //More PSExec Friendly
 
-
-      if (Append == 1)
+ 
+      if(Append == 1)
         hFile = CreateFile((LPCSTR)Tooo_Fname, FILE_APPEND_DATA, 0, 0, OPEN_ALWAYS, 0, 0);
       else
         hFile = CreateFile((LPCSTR)Tooo_Fname, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
@@ -10463,7 +10489,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         return 1;
       }
 
-      if (useDiskOrMem == 0)
+      if(useDiskOrMem == 0)
       {
         // Write the File From the memory Buffer
         if (WriteFile(hFile, bufD, totdata, &n, 0) == 0)
@@ -10479,14 +10505,16 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
           fflush(stdout); //More PSExec Friendly
           return 1;
         }
-      }
+      }  
       else
       {
         // Copy the Cache Data to the Actual File
-        sprintf(SectFile, "%s\\Sectors.tmp\0", CachDir, ACQName);
+        //  Note: Cache is Movable based on iCacheType and CachDir
+        //sprintf(SectFile, "%s\\%s\\Cache\\Sectors.tmp\0", BaseDir, ACQName);
+        sprintf(SectFile, "%s\\Sectors.tmp\0", CachDir);
         SectHndl = fopen(SectFile, "rb");
 
-        totSect = 0;
+        totSect = 0 ;
         if (SectHndl != NULL)
         {
           while ((inSize = fread(bufD, 1, bootb.BytesPerSector, SectHndl)) > 0)
@@ -10498,14 +10526,14 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
             {
               // Sometimes we can be in negative territory if we have extra File Slack Sectors
               // When that happens, ignore the File Slack Sectors (in the Cluster)
-              difSect = totSect - totdata;
-              if (difSect >= bootb.BytesPerSector)
-                continue;
+              difSect = totSect - totdata ;
+              if(difSect >= bootb.BytesPerSector)
+               continue;
               else
-                inSize -= difSect; // Subtract the delta from our Last Sector Read.
+               inSize -= difSect; // Subtract the delta from our Last Sector Read.
             }
 
-            if (WriteFile(hFile, bufD, (DWORD)inSize, &n, 0) == 0)
+            if (WriteFile(hFile, bufD, (DWORD) inSize, &n, 0) == 0)
             {
               if (binLog == 1)
                 fprintf(LogHndl, "[!] Error Writing File: %u\n", GetLastError());
@@ -10529,28 +10557,28 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
       fflush(stdout); //More PSExec Friendly
 
-                      //Set the File Times
-      if (SetFileTime(hFile, &ToCreTime, &ToAccTime, &ToModTime) == 0)
+      //Set the File Times
+      if(SetFileTime(hFile, &ToCreTime, &ToAccTime, &ToModTime) == 0)
       {
         consPrefix("[!] ", consRed);
         printf("Error Setting File Time!\n");
       }
 
       //Read it back out to Verify
-      if (GetFileTime(hFile, &ftCreate, &ftAccess, &ftWrite) == 0)
+      if(GetFileTime(hFile, &ftCreate, &ftAccess, &ftWrite) == 0)
       {
         consPrefix("[!] ", consRed);
         printf("Error Retrieving File Time!\n");
       }
 
       //Read it back out to Verify
-      if (GetFileSizeEx(hFile, &ftSize) == 0)
+      if(GetFileSizeEx(hFile, &ftSize) == 0)
       {
         consPrefix("[!] ", consRed);
         printf("Error Getting File Size!\n");
       }
 
-      if (CloseHandle(hFile) == 0)
+      if(CloseHandle(hFile) == 0)
       {
         consPrefix("[!] ", consRed);
         printf("Error Closing File!\n");
@@ -10560,9 +10588,9 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
       useDiskOrMem = maxMemExceed = 0; //Reset to Memory
 
-                                       /****************************************************************/
-                                       /* Set the SID (Owner) of the new file same as the old file     */
-                                       /****************************************************************/
+      /****************************************************************/
+      /* Set the SID (Owner) of the new file same as the old file     */
+      /****************************************************************/
       if (gotOwner == 1)
       {
         setOwner = SetFileSecurity(Tooo_Fname, OWNER_SECURITY_INFORMATION, SecDesc);
@@ -10626,12 +10654,12 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       }
 
       //Check if ANY of the File Size Calculations (mis)Match
-      if ((iDataSize != Toostat.st_size) && (dataLen != ftSize.QuadPart))
+      if ((iDataSize != Toostat.st_size)  && (dataLen != ftSize.QuadPart))
       {
-        if (fileIsFrag == 1)
+        if(fileIsFrag == 1)
         {
-          consPrefix("\n[+] ", consGre);
-          printf("File Size Fragmentation - More Data to be Appended...\n");
+           consPrefix("\n[+] ", consGre);
+           printf("File Size Fragmentation - More Data to be Appended...\n");
         }
         else
         {
@@ -10640,7 +10668,7 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         }
 
         if (binLog == 1)
-        {
+        { 
           if (fileIsFrag == 1)
             fprintf(LogHndl, "\n[*] File Size Fragmentation - More Data to be Appended...\n");
           else
@@ -10703,29 +10731,29 @@ void getCaseInfo(int SayOrGet)
       fprintf(LogHndl, "\n[*] Default Case Number: %s\n", caseNumbr);
       printf("Default Case Number: %s\n", caseNumbr);
       consInput("Enter New Case Number (Or Enter To Accept Default): ", 1, 0);
-      if (strlen(Conrec) > 0)
-        strncpy(caseNumbr, Conrec, 251);
+      if(strlen(Conrec) > 0)
+       strncpy(caseNumbr, Conrec, 251);
 
       consPrefix("\n[*] ", consBlu);
       fprintf(LogHndl, "\n[*] Default Case Description: %s\n", caseDescr);
       printf("Default Case Description: %s\n", caseDescr);
       consInput("Enter New Case Description (Or Enter to Accept Default: ", 1, 0);
-      if (strlen(Conrec) > 0)
-        strncpy(caseDescr, Conrec, 251);
+      if(strlen(Conrec) > 0)
+       strncpy(caseDescr, Conrec, 251);
 
       consPrefix("\n[*] ", consBlu);
       fprintf(LogHndl, "\n[*] Default Evidence Number: %s\n", evidNumbr);
       printf("Default Evidence Number: %s\n", evidNumbr);
       consInput("Enter New Evidence Number (Or Enter to Accept Default): ", 1, 0);
-      if (strlen(Conrec) > 0)
-        strncpy(evidNumbr, Conrec, 251);
+      if(strlen(Conrec) > 0)
+       strncpy(evidNumbr, Conrec, 251);
 
       consPrefix("\n[*] ", consBlu);
       fprintf(LogHndl, "\n[*] Default Examiner: %s\n", caseExmnr);
       printf("Default Examiner: %s\n", caseExmnr);
       consInput("Enter New Examiner (Or Enter to Accept Default): ", 1, 0);
-      if (strlen(Conrec) > 0)
-        strncpy(caseExmnr, Conrec, 251);
+      if(strlen(Conrec) > 0)
+       strncpy(caseExmnr, Conrec, 251);
     }
 
     fflush(stdout); //More PSExec Friendly
@@ -10773,7 +10801,7 @@ void getCaseInfo(int SayOrGet)
 /************************************************************/
 int ntpGetTime(char* ntpServer)
 {
-  int  ntpPort = 123;  //NTP is port 123
+  int  ntpPort=123;  //NTP is port 123
   long ntpRC;
   int  ntpRecvRC = -1;
   int  i;
@@ -10804,7 +10832,7 @@ int ntpGetTime(char* ntpServer)
 
   } ntpPacket;              // Total: 384 bits or 48 bytes.
 
-  ntpPacket ntpOut = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };  // the packet we send
+  ntpPacket ntpOut = {0, 0, 0, 0, 0, 0, 0, 0, 0};  // the packet we send
 
   char *ntpBuf = new char[1024];          // the buffer we get back
 
@@ -10816,38 +10844,38 @@ int ntpGetTime(char* ntpServer)
   struct tm *ntpLocal;
   int    ntpTimeVal = 1500;
 
-  char WhatZone[255];
-  TIME_ZONE_INFORMATION ltzinfo;
-  DWORD retval;
+  char WhatZone[255] ;
+  TIME_ZONE_INFORMATION ltzinfo ;
+  DWORD retval ; 
 
 
   //What is the Local Time Zone?
-  retval = GetTimeZoneInformation(&ltzinfo);
+  retval = GetTimeZoneInformation( &ltzinfo ) ;
 
 
   //Parse Local Time Zone into WhatZone
   //Not Currently in Use - But may be in the future
-  for (i = 0; i<32; i++)
+  for(i=0;i<32;i++)
   {
-    if (retval == TIME_ZONE_ID_STANDARD)
-      WhatZone[i] = (char)ltzinfo.StandardName[i];
-    else
-      WhatZone[i] = (char)ltzinfo.DaylightName[i];
+    if(retval == TIME_ZONE_ID_STANDARD ) 
+     WhatZone[i] = (char) ltzinfo.StandardName[i] ;
+    else 
+     WhatZone[i] = (char) ltzinfo.DaylightName[i];
   }
 
   //Start Winsock
   WSADATA wsaData;
   BYTE wsMajorVersion = 1;
   BYTE wsMinorVersion = 1;
-  WORD wVersionRequested = MAKEWORD(wsMinorVersion, wsMajorVersion);
-
-  if (WSAStartup(wVersionRequested, &wsaData) != 0)
+  WORD wVersionRequested = MAKEWORD(wsMinorVersion, wsMajorVersion);   
+ 
+  if (WSAStartup(wVersionRequested, &wsaData) != 0) 
   {
     consPrefix("\n[!] ", consRed);
     printf("NTP ERROR - Winsock could not startup.\n");
 
-    if (iLogOpen == 1)
-      fprintf(LogHndl, "[!] NTP ERROR - Winsock could not startup.\n");
+    if(iLogOpen == 1)
+     fprintf(LogHndl, "[!] NTP ERROR - Winsock could not startup.\n");
 
     sprintf(ntpDateTime, "<Winsock Error>");
     WSACleanup();
@@ -10859,8 +10887,8 @@ int ntpGetTime(char* ntpServer)
     consPrefix("\n[!] ", consRed);
     printf("NTP ERROR - Winsock 1.1 is not supported.\n");
 
-    if (iLogOpen == 1)
-      fprintf(LogHndl, "[!] NTP ERROR - Winsock 1.1 is not supported.\n");
+    if(iLogOpen == 1)
+     fprintf(LogHndl, "[!] NTP ERROR - Winsock 1.1 is not supported.\n");
 
     sprintf(ntpDateTime, "<Winsock Error>");
     WSACleanup();
@@ -10869,15 +10897,15 @@ int ntpGetTime(char* ntpServer)
 
 
   //Open a UDP Socket
-  Sockit = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  Sockit = socket( AF_INET, SOCK_DGRAM, IPPROTO_UDP );
 
   if (Sockit < 0)
   {
     consPrefix("\n[!] ", consRed);
-    printf("NTP ERROR opening socket.\n");
+    printf( "NTP ERROR opening socket.\n" );
 
-    if (iLogOpen == 1)
-      fprintf(LogHndl, "[!] NTP ERROR opening socket.\n");
+    if(iLogOpen == 1)
+     fprintf(LogHndl, "[!] NTP ERROR opening socket.\n");
 
     sprintf(ntpDateTime, "<Winsock Error>");
     return(3);
@@ -10886,28 +10914,28 @@ int ntpGetTime(char* ntpServer)
   //DNS Lookup to convert FQDN to IP
   ntpXServer = gethostbyname(ntpServer);
 
-  if (ntpXServer == NULL)
+  if ( ntpXServer == NULL )
   {
     consPrefix("\n[!] ", consRed);
-    printf("NTP ERROR, no such host.\n");
+    printf( "NTP ERROR, no such host.\n" );
 
-    if (iLogOpen == 1)
-      fprintf(LogHndl, "[!] NTP ERROR, no such host..\n");
+    if(iLogOpen == 1)
+     fprintf(LogHndl, "[!] NTP ERROR, no such host..\n");
 
     sprintf(ntpDateTime, "<Unknown NTP Host>");
     return(4);
   }
 
   //Pick First IP Address in the List - It's easier
-  ntpIPaddr.s_addr = *(u_long *)ntpXServer->h_addr_list[0];
+  ntpIPaddr.s_addr = *(u_long *) ntpXServer->h_addr_list[0];
 
   //printf("FQDN: %s\n", ntpServer);
   //printf("IPv4 Address: %s\n", inet_ntoa(ntpIPaddr));
 
   memset(&server_addr, 0, sizeof(server_addr));
-  server_addr.sin_family = AF_INET;
+  server_addr.sin_family=AF_INET;
   server_addr.sin_addr.s_addr = ntpIPaddr.s_addr;
-  server_addr.sin_port = htons(ntpPort);
+  server_addr.sin_port=htons(ntpPort);
 
 
   /***********************************************************************/
@@ -10916,16 +10944,16 @@ int ntpGetTime(char* ntpServer)
   /***********************************************************************/
   //printf("Sending...\n");
   memset(&ntpOut, 0, 48);
-  *((char *)&ntpOut + 0) = 0x1b;
+  *(( char *) &ntpOut + 0) = 0x1b;
 
-  ntpRC = sendto(Sockit, (char *)&ntpOut, sizeof(ntpOut), 0, (struct sockaddr *)&server_addr, sizeof(server_addr));
-  if (ntpRC == SOCKET_ERROR)
+  ntpRC = sendto(Sockit, (char *) &ntpOut, sizeof(ntpOut), 0, (struct sockaddr *)&server_addr, sizeof(server_addr));
+  if(ntpRC == SOCKET_ERROR)
   {
     consPrefix("\n[!] ", consRed);
     printf("NTP Socket Error.\n");
 
-    if (iLogOpen == 1)
-      fprintf(LogHndl, "[!] NTP Socket Error.\n");
+    if(iLogOpen == 1)
+     fprintf(LogHndl, "[!] NTP Socket Error.\n");
 
     sprintf(ntpDateTime, "<Winsock Error>");
     return(5);
@@ -10935,13 +10963,13 @@ int ntpGetTime(char* ntpServer)
 
 
   //Set The Socket Timeout to 1/2 Second
-  if (setsockopt(Sockit, SOL_SOCKET, SO_RCVTIMEO, (char*)&ntpTimeVal, sizeof(int)) < 0)
+  if (setsockopt(Sockit, SOL_SOCKET, SO_RCVTIMEO, (char*)&ntpTimeVal, sizeof(int)) < 0) 
   {
     consPrefix("\n[!] ", consRed);
     printf("NTP ERROR - Could not Set Socket TimeOut.\n");
 
-    if (iLogOpen == 1)
-      fprintf(LogHndl, "[!] NTP ERROR - Could not Set Socket TimeOut.\n");
+    if(iLogOpen == 1)
+     fprintf(LogHndl, "[!] NTP ERROR - Could not Set Socket TimeOut.\n");
 
     sprintf(ntpDateTime, "<Winsock Error>");
     return(6);
@@ -10951,7 +10979,7 @@ int ntpGetTime(char* ntpServer)
   // Receive NTP data into buffer
   //printf("Receiving...\n");
   ntpRecvRC = -1;
-  ntpRecvRC = recv(Sockit, (char *)&ntpOut, 1024, 0);
+  ntpRecvRC = recv(Sockit, (char *) &ntpOut, 1024, 0);
 
 
   if (ntpRecvRC > 0)
@@ -10959,50 +10987,50 @@ int ntpGetTime(char* ntpServer)
     ntpOut.txTm_s = ntohl(ntpOut.txTm_s);   // Time-stamp seconds.
     ntpOut.txTm_f = ntohl(ntpOut.txTm_f);   // Time-stamp fraction of a second.
 
-    time_t txTm = (time_t)(ntpOut.txTm_s - NTP_TIMESTAMP_DELTA);
+    time_t txTm = (time_t) (ntpOut.txTm_s - NTP_TIMESTAMP_DELTA );
 
     //Convert into a format I like
-    ntpLocal = localtime((const time_t*)&txTm);
+    ntpLocal = localtime((const time_t*) &txTm);
     sprintf(ntpDateTime, "%02d/%02d/%04d - %02d:%02d:%02d",
       ntpLocal->tm_mon + 1, ntpLocal->tm_mday, (ntpLocal->tm_year + 1900),
       ntpLocal->tm_hour, ntpLocal->tm_min, ntpLocal->tm_sec);
   }
   else
-    if (ntpRecvRC == 0)
-    {
-      //Connection Closed
-      return(7);
-    }
-    else
-    {
-      //The NTP Query had some type of Error
-      consPrefix("\n[!] ", consRed);
-      printf("NTP Query Failed: %d\n", WSAGetLastError());
+  if (ntpRecvRC == 0 )
+  {
+    //Connection Closed
+    return(7);
+  }
+  else
+  {
+    //The NTP Query had some type of Error
+    consPrefix("\n[!] ", consRed);
+    printf("NTP Query Failed: %d\n", WSAGetLastError());
 
-      if (iLogOpen == 1)
-        fprintf(LogHndl, "NTP Query Failed: %d\n", WSAGetLastError());
+    if(iLogOpen == 1)
+     fprintf(LogHndl, "NTP Query Failed: %d\n", WSAGetLastError());
 
-      sprintf(ntpDateTime, "<NTP Failed>");
-      return(8);
-    }
+    sprintf(ntpDateTime, "<NTP Failed>");
+    return(8);
+  }
 
   return(0);
 
 }
 
 
-static PUCHAR lznt1_decompress_chunk(UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG src_size)
+static PUCHAR lznt1_decompress_chunk (UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG src_size)
 {
   UCHAR *src_cur, *src_end, *dst_cur, *dst_end;
   ULONG displacement_bits, length_bits;
   ULONG code_displacement, code_length;
   WORD flags, code;
-
+  
   src_cur = src;
   src_end = src + src_size;
   dst_cur = dst;
   dst_end = dst + dst_size;
-
+  
   /* Partial decompression is no error on Windows. */
   while (src_cur < src_end && dst_cur < dst_end)
   {
@@ -11016,30 +11044,30 @@ static PUCHAR lznt1_decompress_chunk(UCHAR * dst, ULONG dst_size, UCHAR * src, U
       {
         /* backwards reference */
         if (src_cur + sizeof(WORD) > src_end)
-          return NULL;
+         return NULL;
 
         code = *(WORD *)src_cur;
         src_cur += sizeof(WORD);
-
+   
         /* find length / displacement bits */
         for (displacement_bits = 12; displacement_bits > 4; displacement_bits--)
-          if ((1 << (displacement_bits - 1)) < dst_cur - dst)
-            break;
+         if ((1 << (displacement_bits - 1)) < dst_cur - dst) 
+          break;
 
-        length_bits = 16 - displacement_bits;
-        code_length = (code & ((1 << length_bits) - 1)) + 3;
+        length_bits       = 16 - displacement_bits;
+        code_length       = (code & ((1 << length_bits) - 1)) + 3;
         code_displacement = (code >> length_bits) + 1;
-
+ 
         /* ensure reference is valid */
         if (dst_cur < dst + code_displacement)
-          return NULL;
-
+         return NULL;
+ 
         /* copy bytes of chunk - we can't use memcpy()
         * since source and dest can be overlapping */
         while (code_length--)
         {
-          if (dst_cur >= dst_end)
-            return dst_cur;
+          if (dst_cur >= dst_end) 
+           return dst_cur;
 
           *dst_cur = *(dst_cur - code_displacement);
           dst_cur++;
@@ -11049,20 +11077,20 @@ static PUCHAR lznt1_decompress_chunk(UCHAR * dst, ULONG dst_size, UCHAR * src, U
       {
         /* uncompressed data */
         if (dst_cur >= dst_end)
-          return dst_cur;
+         return dst_cur;
 
         *dst_cur++ = *src_cur++;
       }
       flags >>= 1;
     }
-
+    
   }
-
+  
   return dst_cur;
 }
 
 
-static NTSTATUS lznt1_decompress(UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG src_size, ULONG offset, ULONG * final_size, UCHAR * workspace)
+static NTSTATUS lznt1_decompress ( UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG src_size, ULONG offset, ULONG * final_size, UCHAR * workspace)
 {
   UCHAR *src_cur = src, *src_end = src + src_size;
   UCHAR *dst_cur = dst, *dst_end = dst + dst_size;
@@ -11077,7 +11105,7 @@ static NTSTATUS lznt1_decompress(UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG
     //printf ("Past src end 1 - Next Loc: %lu -- End: %lu \n", src_cur + sizeof(WORD), src_end);
     return STATUS_BAD_COMPRESSION_BUFFER;
   }
-
+ 
 
   /* skip over chunks which have a big distance (>= 0x1000) to the destination offset */
   while (offset >= 0x1000 && src_cur + sizeof(WORD) <= src_end)
@@ -11088,7 +11116,7 @@ static NTSTATUS lznt1_decompress(UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG
     //Debug
     //tot_byt_src += sizeof(WORD);
 
-    if (!chunk_header)
+    if(!chunk_header)
     {
       //Debug
       //printf ("Not Chunk Header 1\n");
@@ -11108,10 +11136,10 @@ static NTSTATUS lznt1_decompress(UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG
 
     //tot_byt_src += chunk_size;
     src_cur += chunk_size;
-    offset -= 0x1000;
+    offset  -= 0x1000;
   }
 
-
+  
   /* this chunk is can be included partially */
   if (offset && src_cur + sizeof(WORD) <= src_end)
   {
@@ -11140,8 +11168,8 @@ static NTSTATUS lznt1_decompress(UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG
 
 
     if (dst_cur >= dst_end)
-      goto out;
-
+     goto out;
+  
 
     if (chunk_header & 0x8000)
     {
@@ -11150,22 +11178,22 @@ static NTSTATUS lznt1_decompress(UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG
       {
         //Debug
         //printf ("Access Violation\n");
-        return STATUS_ACCESS_VIOLATION;
+       return STATUS_ACCESS_VIOLATION;
       }
 
 
       ptr = lznt1_decompress_chunk(workspace, 0x1000, src_cur, chunk_size);
-      if (!ptr)
+      if (!ptr) 
       {
         //Debug
         //printf ("Error Decompressing Chunk\n");
-        return STATUS_BAD_COMPRESSION_BUFFER;
+       return STATUS_BAD_COMPRESSION_BUFFER;
       }
 
 
       if (ptr - workspace > offset)
       {
-        block_size = min((ptr - workspace) - offset, dst_end - dst_cur);
+        block_size = min ((ptr - workspace) - offset, dst_end - dst_cur);
         memcpy(dst_cur, workspace + offset, block_size);
         dst_cur += block_size;
       }
@@ -11184,7 +11212,7 @@ static NTSTATUS lznt1_decompress(UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG
     //tot_byt_src += chunk_size;
   }
 
-
+  
   /* handle remaining chunks */
   while (src_cur + sizeof(WORD) <= src_end)
   {
@@ -11193,7 +11221,7 @@ static NTSTATUS lznt1_decompress(UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG
     src_cur += sizeof(WORD);
     //tot_byt_src += sizeof(WORD);
 
-    if (!chunk_header)
+    if (!chunk_header) 
     {
       //Debug
       //printf ("Not Chunk Header(2)\n");
@@ -11208,7 +11236,7 @@ static NTSTATUS lznt1_decompress(UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG
       //printf ("Past src end 5\n");
       return STATUS_BAD_COMPRESSION_BUFFER;
     }
-
+  
     /* add padding if required */
     block_size = ((dst_cur - dst) + offset) & 0xFFF;
     if (block_size)
@@ -11224,7 +11252,7 @@ static NTSTATUS lznt1_decompress(UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG
       memset(dst_cur, 0, block_size);
       dst_cur += block_size;
     }
-
+ 
     if (dst_cur >= dst_end)
     {
       //Debug
@@ -11240,7 +11268,7 @@ static NTSTATUS lznt1_decompress(UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG
       //printf("Good: Cur in: %04x - Last offset: %04x\n", src_cur, lst_cur);
       dst_cur = lznt1_decompress_chunk(dst_cur, dst_end - dst_cur, src_cur, chunk_size);
 
-      if (!dst_cur)
+      if (!dst_cur) 
       {
         //Debug
         //printf ("Error Decompressing Chunk\n");
@@ -11255,33 +11283,33 @@ static NTSTATUS lznt1_decompress(UCHAR * dst, ULONG dst_size, UCHAR * src, ULONG
       dst_cur += block_size;
     }
 
-    src_cur += chunk_size;
-    //tot_byt_src += chunk_size;
+      src_cur += chunk_size;
+      //tot_byt_src += chunk_size;
   }
-
+   
 out:
   if (final_size)
-    *final_size = dst_cur - dst;
-
+   *final_size = dst_cur - dst;
+  
   return STATUS_SUCCESS;
-
+  
 }
 
 
 BOOL CompareWindowsVersion(DWORD dwMajorVersion, DWORD dwMinorVersion)
 {
-  OSVERSIONINFOEX ver;
-  DWORDLONG dwlConditionMask = 0;
+    OSVERSIONINFOEX ver;
+    DWORDLONG dwlConditionMask = 0;
 
-  ZeroMemory(&ver, sizeof(OSVERSIONINFOEX));
-  ver.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-  ver.dwMajorVersion = dwMajorVersion;
-  ver.dwMinorVersion = dwMinorVersion;
+    ZeroMemory(&ver, sizeof(OSVERSIONINFOEX));
+    ver.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+    ver.dwMajorVersion = dwMajorVersion;
+    ver.dwMinorVersion = dwMinorVersion;
 
-  VER_SET_CONDITION(dwlConditionMask, VER_MAJORVERSION, VER_EQUAL);
-  VER_SET_CONDITION(dwlConditionMask, VER_MINORVERSION, VER_EQUAL);
+    VER_SET_CONDITION(dwlConditionMask, VER_MAJORVERSION, VER_EQUAL);
+    VER_SET_CONDITION(dwlConditionMask, VER_MINORVERSION, VER_EQUAL);
 
-  return VerifyVersionInfo(&ver, VER_MAJORVERSION | VER_MINORVERSION, dwlConditionMask);
+    return VerifyVersionInfo(&ver, VER_MAJORVERSION | VER_MINORVERSION, dwlConditionMask);
 }
 
 
@@ -11301,9 +11329,8 @@ int ExpandDirs(CHAR* FullDirName)
       strncpy(TempDirName + iDir, "\0\0\0\0\0", 5);
 
       //if (access(TempDirName, 0) != 0)
-      //  mkdir(TempDirName);
+      // mkdir(TempDirName);
       DirAllocErr(TempDirName);
-
     }
   }
 
@@ -11371,12 +11398,12 @@ int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName)
       /* Split The Domain from the File Structure                     */
       /****************************************************************/
       if (strnicmp(WGetURL, "http://", 7) == 0)
-        strncpy(WGetURL, HTTPGet_URL + 7, 1000);
+       strncpy(WGetURL, HTTPGet_URL + 7, 1000);
       else
-        if (strnicmp(WGetURL, "https://", 8) == 0)
-          strncpy(WGetURL, HTTPGet_URL + 8, 1000);
-        else
-          strncpy(WGetURL, HTTPGet_URL, 1000);
+      if (strnicmp(WGetURL, "https://", 8) == 0)
+       strncpy(WGetURL, HTTPGet_URL + 8, 1000);
+      else
+       strncpy(WGetURL, HTTPGet_URL, 1000);
 
       iWGetFIL = strchr(WGetURL, '/');
 
@@ -11423,7 +11450,7 @@ int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName)
                   printf("Error %u in WinHttpQueryDataAvailable.\n", GetLastError());
 
                   if (iLogOpen == 1)
-                    fprintf(LogHndl, "[!] Error %u in WinHttpQueryDataAvailable.\n", GetLastError());
+                   fprintf(LogHndl, "[!] Error %u in WinHttpQueryDataAvailable.\n", GetLastError());
                 }
 
                 if (dwSize > 0)
@@ -11436,7 +11463,7 @@ int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName)
                     printf("Ran Out Of Memory Reading HTTP\n");
 
                     if (iLogOpen == 1)
-                      fprintf(LogHndl, "[!] Ran Out Of Memory Reading HTTP\n");
+                     fprintf(LogHndl, "[!] Ran Out Of Memory Reading HTTP\n");
                     dwSize = 0;
                   }
                   else
@@ -11450,7 +11477,7 @@ int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName)
                       printf("Error %u in WinHttpReadData.\n", GetLastError());
 
                       if (iLogOpen == 1)
-                        fprintf(LogHndl, "[!] Error %u in WinHttpReadData.\n", GetLastError());
+                       fprintf(LogHndl, "[!] Error %u in WinHttpReadData.\n", GetLastError());
                     }
                     else
                       fwrite(pszOutBuffer, 1, dwSize, WGetHndl);
@@ -11470,7 +11497,7 @@ int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName)
               printf("Error %d has occurred.\n", GetLastError());
 
               if (iLogOpen == 1)
-                fprintf(LogHndl, "[!] Error %d has occurred.\n", GetLastError());
+               fprintf(LogHndl, "[!] Error %d has occurred.\n", GetLastError());
             }
           }
         }
@@ -11502,16 +11529,16 @@ int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName)
       fprintf(LogHndl, "[!] Error Getting File: %s\n", strerror(errno));
   }
   else
-    if (stat_record.st_size <= 1)
-    {
-      //printf("File is empty\n");
-      consPrefix("[!] ", consRed);
-      printf("Error Getting File: File is Empty\n");
+  if (stat_record.st_size <= 1)
+  {
+    //printf("File is empty\n");
+    consPrefix("[!] ", consRed);
+    printf("Error Getting File: File is Empty\n");
 
-      if (iLogOpen == 1)
-        fprintf(LogHndl, "[!] Error Getting File: File is Empty\n");
+    if (iLogOpen == 1)
+      fprintf(LogHndl, "[!] Error Getting File: File is Empty\n");
 
-    }
+  }
 
 
   fflush(stdout); //More PSExec Friendly
@@ -11530,20 +11557,20 @@ long long CheckDiskSpace(char *DiskToCheck)
 
   // If the function succeeds, the return value is nonzero. If the function fails, the return value is 0 (zero).
   FDResult = GetDiskFreeSpaceEx(RootToCheck,
-    (PULARGE_INTEGER)&lpFreeBytesAvailable,
-    (PULARGE_INTEGER)&lpTotalNumberOfBytes,
-    (PULARGE_INTEGER)&lpTotalNumberOfFreeBytes);
+             (PULARGE_INTEGER)&lpFreeBytesAvailable,
+             (PULARGE_INTEGER)&lpTotalNumberOfBytes,
+             (PULARGE_INTEGER)&lpTotalNumberOfFreeBytes);
 
   if (FDResult == 0)
-    return FDResult;
+   return FDResult;
   else
-    return lpTotalNumberOfFreeBytes;
+   return lpTotalNumberOfFreeBytes;
 }
 
 
 long long CheckMemSpace()
 {
-#define WIDTH 7
+  #define WIDTH 7
 
   MEMORYSTATUSEX statex;
   statex.dwLength = sizeof(statex);
@@ -11614,7 +11641,7 @@ int AChSyslog(char* SendLogMSG)
   Sockit = socket(AF_INET, SOCK_DGRAM, 0);
 
   if (Sockit == -1)
-    return(1);
+   return(1);
 
 
   iSyslogp = atoi(Syslogp);
