@@ -8021,7 +8021,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
               /*******************************************************************/
               fprintf(LogHndl, "[*] LZNT1 Rename Failed.  Process Continuing...\n");
               consPrefix("[*] ", consYel);
-              printf("LZNT1 Rename Failed. Process Continuing..\n");
+              printf("LZNT1 Rename Failed. Process Continuing...\n");
             }
 
 
@@ -8043,6 +8043,13 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
             }
             else
              strcat(Tooo_Fname, "NewFile\0");
+
+            /*******************************************************************/
+            /* Do a Binary API Copy                                            */
+            /*******************************************************************/
+            fprintf(LogHndl, "[*] Trying Binary API Based Copy...\n");
+            consPrefix("[*] ", consYel);
+            printf("Trying Binary API Based Copy...\n");
 
             binCopy(Full_Fname, Tooo_Fname, binLog);
 
