@@ -7960,16 +7960,35 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           printf("LZNT1 Rename:\n     From: %s\n     To: %s\n", Tooo_Fname, From_Fname);
 
           rename(Tooo_Fname, From_Fname);
+          
+          if (access(From_Fname, 0) == 0)
+          {
+            /*******************************************************************/
+            /* Rename worked:                                                  */
+            /* Now Decompress into Original Name                               */
+            /*******************************************************************/
+            fprintf(LogHndl, "[*] LZNT1 Decompress:\n     In: %s\n     Out: %s\n", From_Fname, Tooo_Fname);
+            consPrefix("[*] ", consYel);
+            printf("LZNT1 Decompress:\n     In: %s\n     Out: %s\n", From_Fname, Tooo_Fname);
 
+            lzRetcd = lznCopy(From_Fname, Tooo_Fname, maxDataSize /*last_rawdLen*/); //YK
+          }
+          else
+          {
+            /*******************************************************************/
+            /* Rename DID NOT work!!!                                          */
+            /*  Decompress into New Name instead                               */
+            /*******************************************************************/
+            fprintf(LogHndl, "[*] LZNT1 Rename Failed. Swapping File Names and Continuing...\n");
+            consPrefix("[*] ", consYel);
+            printf("LZNT1 RenameFaile. Swapping File Names and Continuing.\n");
 
-          /*******************************************************************/
-          /* Now Decompress into Original Name                               */
-          /*******************************************************************/
-          fprintf(LogHndl, "[*] LZNT1 Decompress:\n     In: %s\n     Out: %s\n", From_Fname, Tooo_Fname);
-          consPrefix("[*] ", consYel);
-          printf("LZNT1 Decompress:\n     In: %s\n     Out: %s\n", From_Fname, Tooo_Fname);
+            fprintf(LogHndl, "[*] LZNT1 Decompress:\n     In: %s\n     Out: %s\n", Tooo_Fname, From_Fname);
+            consPrefix("[*] ", consYel);
+            printf("LZNT1 Decompress:\n     In: %s\n     Out: %s\n", Tooo_Fname, From_Fname);
 
-          lzRetcd = lznCopy(From_Fname, Tooo_Fname, maxDataSize /*last_rawdLen*/); //YK
+            lzRetcd = lznCopy(Tooo_Fname, From_Fname, maxDataSize /*last_rawdLen*/); //YK
+          }
 
 
           /****************************************************************/
@@ -7983,7 +8002,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 
 
             /*******************************************************************/
-            /* Add (LX) to From_Fname - And Rename it (eXreacted)              */
+            /* Add (LX) to From_Fname - And Rename it (eXtracted)              */
             /*******************************************************************/
             memset(From_Fname, 0, 2048) ;
             strncpy(From_Fname, last_Fname, 2000) ;
@@ -7994,6 +8013,16 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
             printf("LZNT1 Rename:\n     From: %s\n     To: %s\n", Tooo_Fname, From_Fname);
 
             rename(Tooo_Fname, From_Fname);
+
+            if (access(From_Fname, 0) != 0)
+            {
+              /*******************************************************************/
+              /* Rename Failed, The routines should still work                   */
+              /*******************************************************************/
+              fprintf(LogHndl, "[*] LZNT1 Rename Failed.  Process Continuing...\n");
+              consPrefix("[*] ", consYel);
+              printf("LZNT1 Rename Failed. Process Continuing..\n");
+            }
 
 
             /*******************************************************************/
