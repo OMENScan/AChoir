@@ -202,6 +202,11 @@
 /*                 for CPY: (Does not work win NCP:) - This     */
 /*                 will help speed up copying by preventing     */
 /*                 unnecessary depth (Default is 10 SubDirs)    */
+/* AChoir v3.8  - Better mkdir Processing (Error Correction)    */
+/*              - Better Support for MAP: (Sets Target Dirs)    */
+/*                Set:Cache=<local> or <Movable> - Speed        */
+/*                 enhancement to keep the Cache local to the   */
+/*                 target machine - Use with caution.           */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -297,7 +302,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v3.7\0";
+char Version[10] = "v3.8\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -309,6 +314,8 @@ int  iExec = 0;
 int  iIsCompressed = 0;
 char cIsCompressed[15] = "\0";
 int  iCDepth = 0; // CopyDepth Counter
+int  iCacheType = 0; // Movable Cache (Default)
+
 
 int  setNCP = 2;    // 0=NODCMP, 1=DECOMP/RAWONLY, 2=OSCOPY (Default)
 int  setCPath = 0;  // 0=None, 1=Partial, 2=Full
@@ -343,6 +350,7 @@ long twoSplit(char *SpString);
 char *stristr(const char *String, const char *Pattern);
 int  FileMD5(char *MD5FileName);
 int  MemAllocErr(char *ErrType);
+int  DirAllocErr(char *DirToCreat);
 int  binCopy(char *FrmFile, char *TooFile, int binLog);
 int  lznCopy(char *FrmFile, char *TooFile, ULONG TooSize);
 void Time_tToFileTime(time_t InTimeT, int whichTime);
@@ -802,6 +810,7 @@ int main(int argc, char *argv[])
   iOutOfDiskSpace = 0;
   iSyslogLvl = 0;
   setMapErr = 0;
+  iCacheType = 0;
 
   memset(CurrDir, 0, 1024);
   memset(CurrWorkDir, 0, 1024);
@@ -1217,13 +1226,15 @@ int main(int argc, char *argv[])
   /****************************************************************/
   sprintf(IniFile, "%s\\%s\0", BaseDir, inFnam);
   sprintf(WGetFile, "%s\\AChoir.Dat\0", BaseDir);
-  sprintf(ForFile, "%s\\%s\\Cache\\ForFiles\0", BaseDir, ACQName);
-  sprintf(MCpFile, "%s\\%s\\Cache\\MCpFiles\0", BaseDir, ACQName);
-  sprintf(ForDisk, "%s\\%s\\Cache\\ForDisks\0", BaseDir, ACQName);
   sprintf(LstFile, "%s\\LstFiles\0", BaseDir);
   sprintf(ChkFile, "%s\\AChoir.exe\0", BaseDir);
+
   sprintf(BACQDir, "%s\\%s\0", BaseDir, ACQName);
   sprintf(CachDir, "%s\\%s\\Cache\0", BaseDir, ACQName);
+
+  sprintf(ForFile, "%s\\ForFiles\0", CachDir);
+  sprintf(MCpFile, "%s\\MCpFiles\0", CachDir);
+  sprintf(ForDisk, "%s\\ForDisks\0", CachDir);
 
 
 
@@ -1231,8 +1242,10 @@ int main(int argc, char *argv[])
   /* Create Log Dir if it aint there                              */
   /****************************************************************/
   sprintf(LogFile, "%s\\Logs\0", BaseDir);
-  if (access(LogFile, 0) != 0)
-    mkdir(LogFile);
+
+  //if (access(LogFile, 0) != 0)
+  //  mkdir(LogFile);
+  DirAllocErr(LogFile);
 
 
   /****************************************************************/
@@ -1512,8 +1525,10 @@ int main(int argc, char *argv[])
 
     if (access(BACQDir, 0) != 0)
     {
-      mkdir(BACQDir);
-      mkdir(CachDir);
+      //mkdir(BACQDir);
+      //mkdir(CachDir);
+      DirAllocErr(BACQDir);
+      DirAllocErr(CachDir);
       PreIndex();
     }
 
@@ -2393,8 +2408,10 @@ int main(int argc, char *argv[])
               // (In case we had not set it originally due to remote BACQDIR)
               iRunMode = 1;
 
-              mkdir(BACQDir);
-              mkdir(CachDir);
+              //mkdir(BACQDir);
+              //mkdir(CachDir);
+              DirAllocErr(BACQDir);
+              DirAllocErr(CachDir);
               PreIndex();
             }
 
@@ -3006,7 +3023,9 @@ int main(int argc, char *argv[])
               /****************************************************************/
               if ((strchr(Cpyrec + iPrm1, '*') != NULL) || (strchr(Cpyrec + iPrm1, '?') != NULL))
               {
-                sprintf(MD5File, "%s\\%s\\Cache\\MCpFiles\0", BaseDir, ACQName);
+                //Make Cache Movable based on iCacheType & CachDir
+                //sprintf(MD5File, "%s\\%s\\Cache\\MCpFiles\0", BaseDir, ACQName);
+                sprintf(MD5File, "%s\\MCpFiles\0", CachDir);
                 MD5Hndl = fopen(MD5File, "w");
 
                 if (MD5Hndl != NULL)
@@ -4272,7 +4291,6 @@ int main(int argc, char *argv[])
             else
              dskTyp = 3;
 
-
             //If Disk Type Matches, Write it Out
             DskHndl = fopen(ForDisk, "w");
             if(DskHndl != NULL)
@@ -4301,9 +4319,11 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\n");
             strtok(Inrec, "\r");
 
-            sprintf(MD5File, "%s\\%s\\Cache\\ForFiles\0", BaseDir, ACQName);
-            MD5Hndl = fopen(MD5File, "w");
+            //Make Cache Movable (Based on CachDir)
+            //sprintf(MD5File, "%s\\%s\\Cache\\ForFiles\0", BaseDir, ACQName);
+            sprintf(MD5File, "%s\\ForFiles\0", CachDir);
 
+            MD5Hndl = fopen(MD5File, "w");
             if (MD5Hndl != NULL)
             {
               iMaxCnt = 0;
@@ -4472,6 +4492,22 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\r");
 
             netShareDel(Inrec + 4, 1);
+          }
+          else
+          if (strnicmp(Inrec, "SET:CACHE=LOCAL", 13) == 0)
+          {
+            /****************************************************************/
+            /* Force the Cache to be on the Local Machine                   */
+            /****************************************************************/
+            iCacheType = 1;
+          }
+          else
+          if (strnicmp(Inrec, "SET:CACHE=MOVABLE", 13) == 0)
+          {
+            /****************************************************************/
+            /* Force the Cache to be on the Local Machine                   */
+            /****************************************************************/
+            iCacheType = 0;
           }
           else
           if (strnicmp(Inrec, "SET:MAPERR=CONT", 15) == 0)
@@ -5514,6 +5550,34 @@ int MemAllocErr(char *ErrType)
   fflush(stdout); //More PSExec Friendly
 
   exit(3);
+}
+
+
+
+/***********************************************************/
+/* Create a Directory - Err (Exit) if it fails             */
+/***********************************************************/
+int DirAllocErr(char *DirToCreat)
+{
+  // If its not there, Create it
+  if (access(DirToCreat, 0) != 0)
+    mkdir(DirToCreat);
+
+  // If its still not there, Permissions are prolly wrong
+  if (access(DirToCreat, 0) != 0)
+  {
+    fprintf(LogHndl, "[!] Error Creating Directory: %s\n\n", DirToCreat);
+
+    consPrefix("[!] ", consRed);
+    printf("Error Creating Directory: %s\n\n", DirToCreat);
+
+    fflush(stdout); //More PSExec Friendly
+
+    exit(3);
+  }
+
+  return(0);
+
 }
 
 
@@ -7896,16 +7960,35 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           printf("LZNT1 Rename:\n     From: %s\n     To: %s\n", Tooo_Fname, From_Fname);
 
           rename(Tooo_Fname, From_Fname);
+          
+          if (access(From_Fname, 0) == 0)
+          {
+            /*******************************************************************/
+            /* Rename worked:                                                  */
+            /* Now Decompress into Original Name                               */
+            /*******************************************************************/
+            fprintf(LogHndl, "[*] LZNT1 Decompress:\n     In: %s\n     Out: %s\n", From_Fname, Tooo_Fname);
+            consPrefix("[*] ", consYel);
+            printf("LZNT1 Decompress:\n     In: %s\n     Out: %s\n", From_Fname, Tooo_Fname);
 
+            lzRetcd = lznCopy(From_Fname, Tooo_Fname, maxDataSize /*last_rawdLen*/); //YK
+          }
+          else
+          {
+            /*******************************************************************/
+            /* Rename DID NOT work!!!                                          */
+            /*  Decompress into New Name instead                               */
+            /*******************************************************************/
+            fprintf(LogHndl, "[*] LZNT1 Rename Failed. Swapping File Names and Continuing...\n");
+            consPrefix("[*] ", consYel);
+            printf("LZNT1 RenameFaile. Swapping File Names and Continuing.\n");
 
-          /*******************************************************************/
-          /* Now Decompress into Original Name                               */
-          /*******************************************************************/
-          fprintf(LogHndl, "[*] LZNT1 Decompress:\n     In: %s\n     Out: %s\n", From_Fname, Tooo_Fname);
-          consPrefix("[*] ", consYel);
-          printf("LZNT1 Decompress:\n     In: %s\n     Out: %s\n", From_Fname, Tooo_Fname);
+            fprintf(LogHndl, "[*] LZNT1 Decompress:\n     In: %s\n     Out: %s\n", Tooo_Fname, From_Fname);
+            consPrefix("[*] ", consYel);
+            printf("LZNT1 Decompress:\n     In: %s\n     Out: %s\n", Tooo_Fname, From_Fname);
 
-          lzRetcd = lznCopy(From_Fname, Tooo_Fname, maxDataSize /*last_rawdLen*/); //YK
+            lzRetcd = lznCopy(Tooo_Fname, From_Fname, maxDataSize /*last_rawdLen*/); //YK
+          }
 
 
           /****************************************************************/
@@ -7919,7 +8002,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 
 
             /*******************************************************************/
-            /* Add (LX) to From_Fname - And Rename it (eXreacted)              */
+            /* Add (LX) to From_Fname - And Rename it (eXtracted)              */
             /*******************************************************************/
             memset(From_Fname, 0, 2048) ;
             strncpy(From_Fname, last_Fname, 2000) ;
@@ -7930,6 +8013,16 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
             printf("LZNT1 Rename:\n     From: %s\n     To: %s\n", Tooo_Fname, From_Fname);
 
             rename(Tooo_Fname, From_Fname);
+
+            if (access(From_Fname, 0) != 0)
+            {
+              /*******************************************************************/
+              /* Rename Failed, The routines should still work                   */
+              /*******************************************************************/
+              fprintf(LogHndl, "[*] LZNT1 Rename Failed.  Process Continuing...\n");
+              consPrefix("[*] ", consYel);
+              printf("LZNT1 Rename Failed. Process Continuing...\n");
+            }
 
 
             /*******************************************************************/
@@ -7950,6 +8043,13 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
             }
             else
              strcat(Tooo_Fname, "NewFile\0");
+
+            /*******************************************************************/
+            /* Do a Binary API Copy                                            */
+            /*******************************************************************/
+            fprintf(LogHndl, "[*] Trying Binary API Based Copy...\n");
+            consPrefix("[*] ", consYel);
+            printf("Trying Binary API Based Copy...\n");
 
             binCopy(Full_Fname, Tooo_Fname, binLog);
 
@@ -8248,8 +8348,25 @@ long mapsDrive(char *mapString, int mapLog)
       
       strncpy(MapDrive, szConnection, 3);
 
+      sprintf(WGetFile, "%s\\AChoir.Dat\0", szConnection);
+      sprintf(LstFile, "%s\\LstFiles\0", szConnection);
+
       sprintf(BACQDir, "%s\\%s\0", szConnection, ACQName);
-      sprintf(CachDir, "%s\\%s\\Cache\0", szConnection, ACQName);
+
+      // Only Move TheCache Dir if iCacheType==0 (Default)
+      if (iCacheType == 0)
+      {
+        sprintf(CachDir, "%s\\%s\\Cache\0", szConnection, ACQName);
+
+        sprintf(ForFile, "%s\\ForFiles\0", CachDir);
+        sprintf(MCpFile, "%s\\MCpFiles\0", CachDir);
+        sprintf(ForDisk, "%s\\ForDisks\0", CachDir);
+      }
+
+      ExpandDirs(BACQDir);
+      ExpandDirs(CachDir);
+      PreIndex();
+      
 
       fflush(stdout); //More PSExec Friendly
 
@@ -9045,7 +9162,9 @@ VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
   FILE* SectHndl;
   char SectFile[1024] = "C:\\AChoir\\Cache\\Sectors.tmp\0";
 
-  sprintf(SectFile, "%s\\%s\\Cache\\Sectors.tmp\0", BaseDir, ACQName);
+  //Note: Cache is Movable based on iCacheType & CacheDir
+  //sprintf(SectFile, "%s\\%s\\Cache\\Sectors.tmp\0", BaseDir, ACQName);
+  sprintf(SectFile, "%s\\Sectors.tmp\0", CachDir);
 
   // If useDiskOrMem == 1 (<2) It is the first cluster run (new Temp File)
   //  if it is > 1 then Append the cluster run.
@@ -9092,7 +9211,7 @@ VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
   else
   {
     consPrefix("[!] ", consRed);
-    printf("Error Creating Sector Cache File!\n");
+    printf("Error Creating Sector Cache File: %s\n", SectFile);
   }
 
   fflush(stdout); //More PSExec Friendly
@@ -10426,7 +10545,9 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       else
       {
         // Copy the Cache Data to the Actual File
-        sprintf(SectFile, "%s\\%s\\Cache\\Sectors.tmp\0", BaseDir, ACQName);
+        //  Note: Cache is Movable based on iCacheType and CachDir
+        //sprintf(SectFile, "%s\\%s\\Cache\\Sectors.tmp\0", BaseDir, ACQName);
+        sprintf(SectFile, "%s\\Sectors.tmp\0", CachDir);
         SectHndl = fopen(SectFile, "rb");
 
         totSect = 0 ;
@@ -11243,12 +11364,15 @@ int ExpandDirs(CHAR* FullDirName)
       strncpy(TempDirName, FullDirName, iDir);
       strncpy(TempDirName + iDir, "\0\0\0\0\0", 5);
 
-      if (access(TempDirName, 0) != 0)
-       mkdir(TempDirName);
+      //if (access(TempDirName, 0) != 0)
+      // mkdir(TempDirName);
+      DirAllocErr(TempDirName);
     }
   }
 
-  mkdir(FullDirName);
+  //mkdir(FullDirName);
+  DirAllocErr(FullDirName);
+
   return 0;
 
 }

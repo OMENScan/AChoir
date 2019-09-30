@@ -1,4 +1,4 @@
-AChoir - v3.7
+AChoir - v3.8
 
 AChoir
 ======
@@ -137,6 +137,16 @@ Here is a list of all the Actions and Objects:
 
 Actions:
 ========
+SET:Cache=Local Used in Conjunction with SMB (MAP:) collections 
+                Uses the Local (Target) machines drive to cache working files
+                 This will impact Forensic Soundness - but it makes
+                 Processing much faster since AChoir does not have to Cache
+                 files over the network
+SET:Cache=Movable (Default) - Used in Conjunction with SMB (MAP:) collections 
+                Uses the Remote (SMB) drive to cache working files.  This 
+                 Prevents files from being written to the target machine, but 
+                 Processing is slower since AChoir will have to Cache files
+                 over the network
 SET:MapErr=Continue If a MAP: fails to Map a drive
                 Continue.  The Return code will be 
                 Set to 1 (This is the default behavior)
