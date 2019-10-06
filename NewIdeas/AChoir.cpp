@@ -207,6 +207,11 @@
 /*                Set:Cache=<local> or <Movable> - Speed        */
 /*                 enhancement to keep the Cache local to the   */
 /*                 target machine - Use with caution.           */
+/* AChoir v3.9  - Cut down on the Display Messages              */
+/*                CON:MSGLevel=<min>, <std>, <max>, <debug>     */
+/*                 min=What it is doing                         */
+/*                 std= What it is doing and results            */
+/*                 max= What it is doing and expanded results   */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -302,7 +307,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v3.8\0";
+char Version[10] = "v3.9\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -317,11 +322,12 @@ int  iCDepth = 0; // CopyDepth Counter
 int  iCacheType = 0; // Movable Cache (Default)
 
 
-int  setNCP = 2;    // 0=NODCMP, 1=DECOMP/RAWONLY, 2=OSCOPY (Default)
-int  setCPath = 0;  // 0=None, 1=Partial, 2=Full
-int  setMapErr = 0; // 0=Continue, 1=Query, 2=Fail
-int  setTrim = 1;   // 0=NoTrim, 1=Trim (Default Trim the read records &For and &Lst)
+int  setNCP = 2;     // 0=NODCMP, 1=DECOMP/RAWONLY, 2=OSCOPY (Default)
+int  setCPath = 0;   // 0=None, 1=Partial, 2=Full
+int  setMapErr = 0;  // 0=Continue, 1=Query, 2=Fail
+int  setTrim = 1;    // 0=NoTrim, 1=Trim (Default Trim the read records &For and &Lst)
 int  setCDepth = 10; // Maximum CPY: Directory Depth (0 = Unlimited) - Default is 10
+int  setMSGLvl = 2;  // Display Message Level - Default=2 (med)
 
 char Delims[10] = ",\0\0\0\0\0\0\0\0";
 char *TokPtr;
@@ -811,6 +817,7 @@ int main(int argc, char *argv[])
   iSyslogLvl = 0;
   setMapErr = 0;
   iCacheType = 0;
+  setMSGLvl = 2;
 
   memset(CurrDir, 0, 1024);
   memset(CurrWorkDir, 0, 1024);
@@ -1513,8 +1520,11 @@ int main(int argc, char *argv[])
     // Have we created the Base Acquisition Directory Yet?
     fprintf(LogHndl, "[+] Creating Base Acquisition Directory: %s\n", BACQDir);
 
-    consPrefix("[+] ", consGre);
-    printf("Creating Base Acquisition Directory: %s\n", BACQDir);
+    if (setMSGLvl > 1)
+    {
+      consPrefix("[+] ", consGre);
+      printf("Creating Base Acquisition Directory: %s\n", BACQDir);
+    }
 
     if (iSyslogLvl > 0)
     {
@@ -2446,8 +2456,12 @@ int main(int argc, char *argv[])
             {
               fprintf(LogHndl, "SET: Creating Acquisition Sub-Directory: %s\n", ACQDir);
 
-              consPrefix("SET: ", consBlu);
-              printf("Creating Acquisition Sub-Directory: %s\n", ACQDir);
+              if (setMSGLvl > 1)
+              {
+                consPrefix("SET: ", consBlu);
+                printf("Creating Acquisition Sub-Directory: %s\n", ACQDir);
+              }
+
               //mkdir(TempDir);
               ExpandDirs(TempDir);
 
@@ -2469,8 +2483,12 @@ int main(int argc, char *argv[])
             }
 
             fprintf(LogHndl, "SET: Acquisition Sub-Directory Has Been Set To: %s\n", ACQDir);
-            consPrefix("SET: ", consBlu);
-            printf("Acquisition Sub-Directory Has Been Set To: %s\n", ACQDir);
+
+            if (setMSGLvl > 1)
+            {
+              consPrefix("SET: ", consBlu);
+              printf("Acquisition Sub-Directory Has Been Set To: %s\n", ACQDir);
+            }
 
           }
           else
@@ -2510,15 +2528,24 @@ int main(int argc, char *argv[])
             if (access(TempDir, 0) != 0)
             {
               fprintf(LogHndl, "SET: Creating Directory: %s\n", CurrDir);
-              consPrefix("SET: ", consBlu);
-              printf("Creating Directory: %s\n", CurrDir);
+
+              if (setMSGLvl > 1)
+              {
+                consPrefix("SET: ", consBlu);
+                printf("Creating Directory: %s\n", CurrDir);
+              }
+
               //mkdir(TempDir);
               ExpandDirs(TempDir);
             }
 
             fprintf(LogHndl, "SET: Directory Has Been Set To: %s\n", CurrDir);
-            consPrefix("SET: ", consBlu);
-            printf("Directory Has Been Set To: %s\n", CurrDir);
+
+            if (setMSGLvl > 1)
+            {
+              consPrefix("SET: ", consBlu);
+              printf("Directory Has Been Set To: %s\n", CurrDir);
+            }
 
             // Reset The WorkingDirectory to the new Directory
             sprintf(CurrWorkDir, "%s\\%s\0", BaseDir, CurrDir);
@@ -2540,16 +2567,25 @@ int main(int argc, char *argv[])
             if (access(TempDir, 0) != 0)
             {
               fprintf(LogHndl, "SET: Creating Directory: %s\n", CurrDir);
-              consPrefix("SET: ", consBlu);
-              printf("Creating Directory: %s\n", CurrDir);
+
+              if (setMSGLvl > 1)
+              {
+                consPrefix("SET: ", consBlu);
+                printf("Creating Directory: %s\n", CurrDir);
+              }
+
               //mkdir(TempDir);
               ExpandDirs(TempDir);
 
             }
 
             fprintf(LogHndl, "SET: File Has Been Set To: %s\n", CurrFil);
-            consPrefix("SET: ", consBlu);
-            printf("File Has Been Set To: %s\n", CurrFil);
+
+            if (setMSGLvl > 1)
+            {
+              consPrefix("SET: ", consBlu);
+              printf("File Has Been Set To: %s\n", CurrFil);
+            }
 
           }
           else
@@ -2703,8 +2739,12 @@ int main(int argc, char *argv[])
             if ((Inrec[5] == ':') && (strlen(Inrec) == 6))
             {
               strncpy(DiskDrive, Inrec + 4, 2);
-              consPrefix("SET: ", consBlu);
-              printf("Disk Drive Set: %s\n", DiskDrive);
+
+              if (setMSGLvl > 1)
+              {
+                consPrefix("SET: ", consBlu);
+                printf("Disk Drive Set: %s\n", DiskDrive);
+              }
             }
             else
             {
@@ -2755,8 +2795,11 @@ int main(int argc, char *argv[])
             {
               fprintf(LogHndl, "[+] Switching to INI File: %s\n", Inrec + 4);
 
-              consPrefix("[+] ", consGre);
-              printf("Switching to INI File: %s\n", Inrec + 4);
+              if (setMSGLvl > 1)
+              {
+                consPrefix("[+] ", consGre);
+                printf("Switching to INI File: %s\n", Inrec + 4);
+              }
 
               if (iSyslogLvl > 0)
               {
@@ -2845,9 +2888,14 @@ int main(int argc, char *argv[])
             memset(ntpFQDN, 0, 255);
             sprintf(ntpFQDN, "%s\0", Inrec + 4);
 
-            consPrefix("[+] ", consGre);
-            printf("NTP Server FQDN Set to: %s\n", ntpFQDN);
+            if (setMSGLvl > 1)
+            {
+              consPrefix("[+] ", consGre);
+              printf("NTP Server FQDN Set to: %s\n", ntpFQDN);
+            }
+
             fprintf(LogHndl, "NTP Server FQDN Set to: %s\n", ntpFQDN);
+
           }
           else
           if (strnicmp(Inrec, "Con:Hide", 8) == 0)
@@ -2875,6 +2923,26 @@ int main(int argc, char *argv[])
             ShowWindow(conHndl, SW_SHOW);
             ShowWindow(conHndl, SW_RESTORE);
 
+          }
+          else
+          if (strnicmp(Inrec, "Con:MSGLevel=min", 16) == 0)
+          {
+              setMSGLvl = 1;
+          }
+          else
+          if (strnicmp(Inrec, "Con:MSGLevel=std", 16) == 0)
+          {
+            setMSGLvl = 2;
+          }
+          else
+          if (strnicmp(Inrec, "Con:MSGLevel=max", 16) == 0)
+          {
+            setMSGLvl = 3;
+          }
+          else
+          if (strnicmp(Inrec, "Con:MSGLevel=debug", 16) == 0)
+          {
+            setMSGLvl = 4;
           }
           else
           if (strnicmp(Inrec, "Slp:", 4) == 0)
@@ -3043,8 +3111,11 @@ int main(int argc, char *argv[])
                       if (iLogOpen == 1)
                         fprintf(LogHndl, "[*] Non-Native Flag Has Been Detected - Adding Sysnative Redirection: \n %s\n", TempDir);
 
-                      consPrefix("[*] ", consYel);
-                      printf("Non-Native Flag Has Been Detected - Adding Sysnative Redirection: \n %s\n", TempDir);
+                      if (setMSGLvl > 1)
+                      {
+                        consPrefix("[*] ", consYel);
+                        printf("Non-Native Flag Has Been Detected - Adding Sysnative Redirection: \n %s\n", TempDir);
+                      }
 
                       ListDir(TempDir, "FOR");
                     }
@@ -3321,16 +3392,24 @@ int main(int argc, char *argv[])
                       sprintf(Cpyrec, "%s\\%s\\%ls-%s\0", BACQDir, ACQDir, ORlpValueName, iPtr3);
 
                       fprintf(LogHndl, "\nARN: %ls\n     %s\n", ORlpValueName, o32VarRec);
-                      consPrefix("\nARN: ", consBlu);
-                      printf("%ls\n     %s\n", ORlpValueName, o32VarRec);
+
+                      if (setMSGLvl > 1)
+                      {
+                        consPrefix("\nARN: ", consBlu);
+                        printf("%ls\n     %s\n", ORlpValueName, o32VarRec);
+                      }
 
                       binCopy(o32VarRec, Cpyrec, 1);
                     }
                     else
                     {
                       fprintf(LogHndl, "\nARN: Not Found - %ls\n     %s\n", ORlpValueName, o32VarRec);
-                      consPrefix("\nARN: ", consRed);
-                      printf("Not Found - %ls\n     %s\n", ORlpValueName, o32VarRec);
+
+                      if (setMSGLvl > 1)
+                      {
+                        consPrefix("\nARN: ", consRed);
+                        printf("Not Found - %ls\n     %s\n", ORlpValueName, o32VarRec);
+                      }
                     }
 
 
@@ -3342,16 +3421,22 @@ int main(int argc, char *argv[])
                       sprintf(Cpyrec, "%s\\%s\\%ls(64)-%s\0", BACQDir, ACQDir, ORlpValueName, iPtr3);
 
                       fprintf(LogHndl, "\nARN: (64bit)%ls\n     %s\n", ORlpValueName, o64VarRec);
-                      consPrefix("\nARN: ", consBlu);
-                      printf("(64bit)%Ls\n     %s\n", ORlpValueName, o64VarRec);
+                      if (setMSGLvl > 1)
+                      {
+                        consPrefix("\nARN: ", consBlu);
+                        printf("(64bit)%Ls\n     %s\n", ORlpValueName, o64VarRec);
+                      }
 
                       binCopy(o64VarRec, Cpyrec, 1);
                     }
                     else
                     {
                       fprintf(LogHndl, "\nARN: Not Found (64bit) - %ls\n     %s\n", ORlpValueName, o64VarRec);
-                      consPrefix("\nARN: ", consRed);
-                      printf("Not Found (64bit) - %ls\n     %s\n", ORlpValueName, o64VarRec);
+                      if (setMSGLvl > 1)
+                      {
+                        consPrefix("\nARN: ", consRed);
+                        printf("Not Found (64bit) - %ls\n     %s\n", ORlpValueName, o64VarRec);
+                      }
                     }
                   }
                   else
@@ -3539,15 +3624,21 @@ int main(int argc, char *argv[])
                     if (access(o32VarRec, 0) == 0)
                     {
                       fprintf(LogHndl, "\nARN: %s\n     %s\n", lpValueName, (LPTSTR)lpData);
-                      consPrefix("\nARN: ", consBlu);
-                      printf("%s\n     %s\n", lpValueName, (LPTSTR)lpData);
+
+                      if (setMSGLvl > 1)
+                      {
+                        consPrefix("\nARN: ", consBlu);
+                        printf("%s\n     %s\n", lpValueName, (LPTSTR)lpData);
+                      }
 
                       if (isNTFS == 1)
                       {
                         sprintf(Cpyrec, "%s\\%s\0", BACQDir, ACQDir);
 
                         fprintf(LogHndl, "     Searching %s Volume(Raw Copy)...\n", fileSystemName);
-                        printf("     Searching %s Volume(Raw Copy)...\n", fileSystemName);
+
+                        if (setMSGLvl > 2)
+                         printf("     Searching %s Volume(Raw Copy)...\n", fileSystemName);
 
                         rawCopy(o32VarRec, Cpyrec, 1);
 
@@ -3561,8 +3652,12 @@ int main(int argc, char *argv[])
                     else
                     {
                       fprintf(LogHndl, "\nARN: Not Found - %s\n     %s\n", lpValueName, (LPTSTR)lpData);
-                      consPrefix("\nARN: ", consRed);
-                      printf("Not Found - %s\n     %s\n", lpValueName, (LPTSTR)lpData);
+
+                      if (setMSGLvl > 1)
+                      {
+                        consPrefix("\nARN: ", consRed);
+                        printf("Not Found - %s\n     %s\n", lpValueName, (LPTSTR)lpData);
+                      }
                     }
 
 
@@ -3574,15 +3669,21 @@ int main(int argc, char *argv[])
                       if (access(o64VarRec, 0) == 0)
                       {
                         fprintf(LogHndl, "\nARN: (64bit)%s\n     %s\n", lpValueName, (LPTSTR)lpData);
-                        consPrefix("\nARN: ", consBlu);
-                        printf("(64bit)%s\n     %s\n", lpValueName, (LPTSTR)lpData);
+
+                        if (setMSGLvl > 1)
+                        {
+                          consPrefix("\nARN: ", consBlu);
+                          printf("(64bit)%s\n     %s\n", lpValueName, (LPTSTR)lpData);
+                        }
 
                         if (isNTFS == 1)
                         {
                           sprintf(Cpyrec, "%s\\%s\0", BACQDir, ACQDir);
 
                           fprintf(LogHndl, "     Searching %s Volume(Raw Copy)...\n", fileSystemName);
-                          printf("     Searching %s Volume(Raw Copy)...\n", fileSystemName);
+
+                          if (setMSGLvl > 2)
+                           printf("     Searching %s Volume(Raw Copy)...\n", fileSystemName);
 
                           rawCopy(o64VarRec, Cpyrec, 1);
 
@@ -3596,8 +3697,12 @@ int main(int argc, char *argv[])
                       else
                       {
                         fprintf(LogHndl, "\nARN: Not Found (64bit) - %s\n     %s\n", lpValueName, (LPTSTR) lpData);
-                        consPrefix("\nARN: ", consBlu);
-                        printf("Not Found (64bit) - %s\n     %s\n", lpValueName, (LPTSTR) lpData);
+
+                        if (setMSGLvl > 1)
+                        {
+                          consPrefix("\nARN: ", consBlu);
+                          printf("Not Found (64bit) - %s\n     %s\n", lpValueName, (LPTSTR)lpData);
+                        }
                       }
                     }
                   }
@@ -4172,8 +4277,12 @@ int main(int argc, char *argv[])
             else
             {
               fprintf(LogHndl, "[+] Required File Found: %s\n", Inrec + 4);
-              consPrefix("[+] ", consGre);
-              printf("Required File Found: %s\n", Inrec + 4);
+
+              if (setMSGLvl > 1)
+              {
+                consPrefix("[+] ", consGre);
+                printf("Required File Found: %s\n", Inrec + 4);
+              }
 
               if (iSyslogLvl > 1)
               {
@@ -4231,6 +4340,7 @@ int main(int argc, char *argv[])
 
             consPrefix("[+] ", consGre);
             printf("Now Hashing Acquisition Files\n");
+
             sprintf(MD5File, "%s\\ACQHash.txt\0", BACQDir);
             sprintf(TempDir, "%s\\*.*\0", BACQDir);
 
@@ -4252,8 +4362,10 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\r");
             
             fprintf(LogHndl, "[+] Now Hashing AChoir Files\n");
+
             consPrefix("[+] ", consGre);
             printf("Now Hashing AChoir Files\n");
+
             sprintf(MD5File, "%s\\DirHash.txt\0", BaseDir);
             sprintf(TempDir, "%s\\*.*\0", BaseDir);
 
@@ -4339,8 +4451,11 @@ int main(int argc, char *argv[])
                   if(iLogOpen == 1)
                    fprintf(LogHndl, "[*] Non-Native Flag Has Been Detected - Adding Sysnative Redirection: \n %s\n", TempDir);
 
-                  consPrefix("[*] ", consYel);
-                  printf("Non-Native Flag Has Been Detected - Adding Sysnative Redirection: \n %s\n", TempDir);
+                  if (setMSGLvl > 1)
+                  {
+                    consPrefix("[*] ", consYel);
+                    printf("Non-Native Flag Has Been Detected - Adding Sysnative Redirection: \n %s\n", TempDir);
+                  }
 
                   ListDir(TempDir, "FOR");
                 }
@@ -4717,8 +4832,11 @@ int main(int argc, char *argv[])
 
             fprintf(LogHndl, "\nXIT: Exit Program Set:\nXit: %s\n", XitCmd);
 
-            consPrefix("\nXIT: ", consBlu);
-            printf("Exit Program Set:\nXit: %s\n", XitCmd);
+            if (setMSGLvl > 1)
+            {
+              consPrefix("\nXIT: ", consBlu);
+              printf("Exit Program Set:\nXit: %s\n", XitCmd);
+            }
           }
           else
           if (strnicmp(Inrec, "SYS:", 4) == 0)
@@ -4864,8 +4982,11 @@ int main(int argc, char *argv[])
                 printf("   : %s\n", Redrec);
 
                 fprintf(LogHndl, "MD5: %s\n", MD5Out);
-                consPrefix("MD5: ", consGre);
-                printf("%s\n", MD5Out);
+                if (setMSGLvl > 2)
+                {
+                  consPrefix("MD5: ", consGre);
+                  printf("%s\n", MD5Out);
+                }
 
                 if(iExec == 1)
                  LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
@@ -4886,8 +5007,11 @@ int main(int argc, char *argv[])
                 printf("   : %s\n", Redrec);
 
                 fprintf(LogHndl, "MD5: %s\n", MD5Out);
-                consPrefix("MD5: ", consGre);
-                printf("%s\n", MD5Out);
+                if (setMSGLvl > 2)
+                {
+                  consPrefix("MD5: ", consGre);
+                  printf("%s\n", MD5Out);
+                }
 
                 if(iExec == 1)
                  LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, Exerec + iPrm2, NULL);
@@ -4903,8 +5027,11 @@ int main(int argc, char *argv[])
                 // 1 Command Line Parameter
                 // No Redaction necessary
                 fprintf(LogHndl, "MD5: %s\n", MD5Out);
-                consPrefix("MD5: ", consGre);
-                printf("%s\n", MD5Out);
+                if (setMSGLvl > 2)
+                {
+                  consPrefix("MD5: ", consGre);
+                  printf("%s\n", MD5Out);
+                }
 
                 if(iExec == 1)
                  LastRC = (int) spawnlp(P_WAIT, TempDir, TempDir, NULL);
@@ -5025,8 +5152,11 @@ int main(int argc, char *argv[])
                   printf("   : %s\n", Redrec);
 
                   fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
-                  consPrefix("MD5: ", consGre);
-                  printf("Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+                  if (setMSGLvl > 2)
+                  {
+                    consPrefix("MD5: ", consGre);
+                    printf("Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+                  }
 
                   LastRC = (int)spawnlp(P_WAIT, CmdExe, CmdExe, "/c", TempDir, Exerec + iPrm2, Exerec + iPrm3, NULL);
                 }
@@ -5043,8 +5173,11 @@ int main(int argc, char *argv[])
                   printf("   : %s\n", Redrec);
 
                   fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
-                  consPrefix("MD5: ", consGre);
-                  printf("Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+                  if (setMSGLvl > 2)
+                  {
+                    consPrefix("MD5: ", consGre);
+                    printf("Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+                  }
 
                   LastRC = (int)spawnlp(P_WAIT, CmdExe, CmdExe, "/c", TempDir, Exerec + iPrm2, NULL);
                 }
@@ -5055,8 +5188,11 @@ int main(int argc, char *argv[])
                   printf("%s\n", Exerec + iPrm1);
 
                   fprintf(LogHndl, "MD5: Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
-                  consPrefix("MD5: ", consGre);
-                  printf("Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+                  if (setMSGLvl > 2)
+                  {
+                    consPrefix("MD5: ", consGre);
+                    printf("Cmd/Pgm: %s/%s\n", CmdHash, MD5Out);
+                  }
 
                   LastRC = (int)spawnlp(P_WAIT, CmdExe, CmdExe, "/c", TempDir, NULL);
                 }
@@ -5106,9 +5242,13 @@ int main(int argc, char *argv[])
                
         if ((ForMe == 1) && (ForHndl != NULL))
         {
-          consPrefix("\n[+] ", consGre);
           fprintf(LogHndl, "\n[+] Total Files (Loop): %d\n", LoopNum);
-          printf("Total Files (Loop): %d\n", LoopNum);
+
+          if (setMSGLvl > 1)
+          {
+            consPrefix("\n[+] ", consGre);
+            printf("Total Files (Loop): %d\n", LoopNum);
+          }
           iMaxCnt = LoopNum;
 
           fclose(ForHndl);
@@ -5116,9 +5256,12 @@ int main(int argc, char *argv[])
 
         if ((LstMe == 1) && (LstHndl != NULL))
         {
-          consPrefix("\n[+] ", consGre);
+          if (setMSGLvl > 1)
+          {
+            consPrefix("\n[+] ", consGre);
+            printf("Total List Entries (Loop): %d\n", LoopNum);
+          }
           fprintf(LogHndl, "\n[+] Total List Entries (Loop): %d\n", LoopNum);
-          printf("Total List Entries (Loop): %d\n", LoopNum);
           iMaxCnt = LoopNum;
 
           fclose(LstHndl);
@@ -5126,9 +5269,12 @@ int main(int argc, char *argv[])
 
         if ((DskMe == 1) && (DskHndl != NULL))
         {
-          consPrefix("\n[+] ", consGre);
+          if (setMSGLvl > 1)
+          {
+            consPrefix("\n[+] ", consGre);
+            printf("Total Disks (Loop): %d\n", LoopNum);
+          }
           fprintf(LogHndl, "\n[+] Total Disks (Loop): %d\n", LoopNum);
-          printf("Total Disks (Loop): %d\n", LoopNum);
           iMaxCnt = LoopNum;
 
           fclose(DskHndl);
@@ -5174,8 +5320,11 @@ int main(int argc, char *argv[])
   {
     fprintf(LogHndl, "[!] You have and extra END: Hanging! Check your Logic.\n");
 
-    consPrefix("[!] ", consRed);
-    printf("You have and extra END: Hanging! Check your Logic.\n");
+    if (setMSGLvl > 2)
+    {
+      consPrefix("[!] ", consRed);
+      printf("You have and extra END: Hanging! Check your Logic.\n");
+    }
   }
 
   fflush(stdout); //More PSExec Friendly
@@ -6050,9 +6199,11 @@ int ListDir(char *DirName, char *LisType)
       {
         fprintf(LogHndl, "[!] Max Path Exceeded: %s%s\n", RootDir, inName);
  
-        consPrefix("[!] ", consRed);
-        printf("Max Path Exceeded: %s%s\n", RootDir, inName);
-
+        if (setMSGLvl > 1)
+        {
+          consPrefix("[!] ", consRed);
+          printf("Max Path Exceeded: %s%s\n", RootDir, inName);
+        }
         fflush(stdout); //More PSExec Friendly
         return 0;
       }
@@ -6073,9 +6224,11 @@ int ListDir(char *DirName, char *LisType)
         {
           fprintf(LogHndl, "[!] Max Directory Depth Exceeded: %d\n    %s\n", setCDepth, RootDir);
 
-          consPrefix("[!] ", consRed);
-          printf("Max Directory Depth Exceeded: %d\n    %s\n", setCDepth, RootDir);
-
+          if (setMSGLvl > 1)
+          {
+            consPrefix("[!] ", consRed);
+            printf("Max Directory Depth Exceeded: %d\n    %s\n", setCDepth, RootDir);
+          }
           fflush(stdout); //More PSExec Friendly
           return 0;
         }
@@ -6090,8 +6243,11 @@ int ListDir(char *DirName, char *LisType)
       {
         fprintf(LogHndl, "[!] Directory Recursion Error: %s%s\n", RootDir, inName);
 
-        consPrefix("[!] ", consRed);
-        printf("Directory Recursion Error: %s%s\n", RootDir, inName);
+        if (setMSGLvl > 1)
+        {
+          consPrefix("[!] ", consRed);
+          printf("Directory Recursion Error: %s%s\n", RootDir, inName);
+        }
 
         fflush(stdout); //More PSExec Friendly
         return 0;
@@ -6207,8 +6363,11 @@ int PreIndex()
   {
     fprintf(HtmHndl, "[!] Could not Create Artifact Index: %s\n", HtmFile);
 
-    consPrefix("[!] ", consRed);
-    printf("Could not Create Artifact Index: %s\n", HtmFile);
+    if (setMSGLvl > 1)
+    {
+      consPrefix("[!] ", consRed);
+      printf("Could not Create Artifact Index: %s\n", HtmFile);
+    }
   }
 
   fflush(stdout); //More PSExec Friendly
@@ -6308,6 +6467,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   memset(TooTooFile, 0, 4096);
   strncpy(TooTooFile, tmpTooFile, 4000);
 
+  if(setMSGLvl > 1)
   printf("     %s\n", tmpTooFile);
 
   if(binLog == 1)
@@ -6334,7 +6494,9 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
   {
     fprintf(LogHndl, "[*] Destination File Already Exists. \n     Renamed To: %s\n", tmpTooFile);
     consPrefix("[*] ", consYel);
-    printf("Destination File Already Exists. \n     Renamed To: %s\n", tmpTooFile);
+
+    if (setMSGLvl > 1)
+     printf("Destination File Already Exists. \n     Renamed To: %s\n", tmpTooFile);
 
     if (iSyslogLvl > 1)
     {
@@ -6354,12 +6516,14 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
     if(binLog == 1)
       fprintf(LogHndl, "[!] Source Copy File Not Found: \n %s\n", tmpFrmFile);
 
-    consPrefix("[!] ", consRed);
-    printf("Source Copy File Not Found: \n %s\n", tmpFrmFile);
-
+    if (setMSGLvl > 1)
+    {
+      consPrefix("[!] ", consRed);
+      printf("Source Copy File Not Found: \n %s\n", tmpFrmFile);
+    }
 
     // Check for Sysnative edge case (running 32 bit on 64 bit)
-    //if (strnicmp(Procesr, "X86", 3) == 0)
+    // if (strnicmp(Procesr, "X86", 3) == 0)
     if (iNative == 0)
     {
       iFileFound = 1; //Wait... Maybe it's a file Redirect
@@ -6372,8 +6536,11 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         if(binLog == 1)
           fprintf(LogHndl, "[*] Non-Native Flag Has Been Detected - Trying Sysnative Redirection: \n %s\n", tmpFrmFile);
 
-        consPrefix("[*] ", consYel);
-        printf("Non-Native Flag Has Been Detected - Trying Sysnative Redirection: \n %s\n", tmpFrmFile);
+        if (setMSGLvl > 1)
+        {
+          consPrefix("[*] ", consYel);
+          printf("Non-Native Flag Has Been Detected - Trying Sysnative Redirection: \n %s\n", tmpFrmFile);
+        }
 
         if (access(tmpFrmFile, 0) != 0)
         {
@@ -6382,8 +6549,12 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
           if(binLog == 1)
             fprintf(LogHndl, "[*] Sysnative Source Copy Also File Not Found: \n %s\n", tmpFrmFile);
 
-          consPrefix("[*] ", consYel);
-          printf("Sysnative Source Copy Also File Not Found: \n %s\n", tmpFrmFile);
+          if (setMSGLvl > 1)
+          {
+            consPrefix("[*] ", consYel);
+            printf("Sysnative Source Copy Also File Not Found: \n %s\n", tmpFrmFile);
+          }
+
           fflush(stdout); //More PSExec Friendly
           return 0;
         }
@@ -6394,8 +6565,12 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
           if(binLog == 1)
             fprintf(LogHndl, "[*] Sysnative Source Copy File Found, Now Substituting.\n");
 
-          consPrefix("[*] ", consYel);
-          printf("Sysnative Source Copy File Found, Now Substituting.\n");
+          if (setMSGLvl > 1)
+          {
+            consPrefix("[*] ", consYel);
+            printf("Sysnative Source Copy File Found, Now Substituting.\n");
+          }
+
           fflush(stdout); //More PSExec Friendly
         }
       }
@@ -6427,8 +6602,11 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
       if (binLog == 1)
         fprintf(LogHndl, "[!] Not Enough Disk Space Available: %lld of %ld\n", AvailDisk, Frmstat.st_size);
 
-      consPrefix("[!] ", consRed);
-      printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, Frmstat.st_size);
+      if (setMSGLvl > 1)
+      {
+        consPrefix("[!] ", consRed);
+        printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, Frmstat.st_size);
+      }
 
       if (iSyslogLvl > 1)
       {
@@ -6470,8 +6648,11 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
     FrmHndl = fopen(tmpFrmFile, "rb"); // Open From File
     if (FrmHndl == NULL)
     {
-      consPrefix("[!] ", consRed);
-      printf("Could Not Open File for Reading - File Copy Bypassed.\n");
+      if (setMSGLvl > 1)
+      {
+        consPrefix("[!] ", consRed);
+        printf("Could Not Open File for Reading - File Copy Bypassed.\n");
+      }
       fprintf(LogHndl, "[!] Could Not Open File for Reading - File copy Bypassed.\n");
 
       fflush(stdout); //More PSExec Friendly
@@ -6522,8 +6703,11 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         {
           iCPSFound = 1;
 
-          consPrefix("     (Sig) ", consGre);
-          printf("Header Signature Match Found in File (%s)\n", tmpSig);
+          if (setMSGLvl > 1)
+          {
+            consPrefix("     (Sig) ", consGre);
+            printf("Header Signature Match Found in File (%s)\n", tmpSig);
+          }
           fprintf(LogHndl, "     (Sig)Header Signature Match Found in File (%s)\n", tmpSig);
           break;
         }
@@ -6531,8 +6715,12 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         if((strnicmp(filetype, TypTabl+(i*iTypSize), iTypSize) == 0) && (strlen(filetype) > 0))
         {
           iCPSFound = 1;
-          consPrefix("     (Sig) ", consGre);
-          printf("File Extention Match Found (%s)\n", filetype);
+
+          if (setMSGLvl > 1)
+          {
+            consPrefix("     (Sig) ", consGre);
+            printf("File Extention Match Found (%s)\n", filetype);
+          }
           fprintf(LogHndl, "     (Sig)File Extention Match Found (%s)\n", filetype);
           break;
         }
@@ -6540,8 +6728,11 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
 
       if(iCPSFound == 0)
       {
-        consPrefix("     (Sig) ", consRed);
-        printf("No Signature Match in File - File Copy Bypassed.\n");
+        if (setMSGLvl > 1)
+        {
+          consPrefix("     (Sig) ", consRed);
+          printf("No Signature Match in File - File Copy Bypassed.\n");
+        }
         fprintf(LogHndl, "     (Sig)No Signature Match in File - File copy Bypassed.\n");
 
         fclose(FrmHndl);
@@ -6562,8 +6753,11 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
       {
         while ((inSize = fread(Cpybuf, 1, sizeof Cpybuf, FrmHndl)) > 0)
         {
-          consPrefix("[+] ", consGre);
-          printf("8K Block: %d\r", NBlox++);
+          if (setMSGLvl > 1)
+          {
+            consPrefix("[+] ", consGre);
+            printf("8K Block: %d\r", NBlox++);
+          }
 
           outSize = fwrite(Cpybuf, 1, inSize, TooHndl);
           if (outSize < inSize)
@@ -6576,16 +6770,22 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
               if (binLog == 1)
                 fprintf(LogHndl, "[!] Error Copying File (Output Error)\n");
 
-              consPrefix("[!] ", consRed);
-              printf("Error Copying File (Output Error)\n");
+              if (setMSGLvl > 1)
+              {
+                consPrefix("[!] ", consRed);
+                printf("Error Copying File (Output Error)\n");
+              }
             }
             else
             {
               if (binLog == 1)
-                fprintf(LogHndl, "[!] Error Copying File (Disk Full)\n");
+               fprintf(LogHndl, "[!] Error Copying File (Disk Full)\n");
 
-              consPrefix("[!] ", consRed);
-              printf("Error Copying File (Disk full)\n");
+              if (setMSGLvl > 1)
+              {
+                consPrefix("[!] ", consRed);
+                printf("Error Copying File (Disk full)\n");
+              }
             }
             break;
           }
@@ -6660,8 +6860,11 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
 
         if (TimeNotGood == 1)
         {
-          consPrefix("[+] ", consGre);
-          printf("Converging Mismatched TimeStamp(s)\n");
+          if (setMSGLvl > 2)
+          {
+            consPrefix("[+] ", consGre);
+            printf("Converging Mismatched TimeStamp(s)\n");
+          }
 
           if (binLog == 1)
             fprintf(LogHndl, "[+] Converging Mismatched TimeStamp(s)\n");
@@ -6683,24 +6886,33 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
                 
           if (setOwner)
           {
-            consPrefix("[+] ", consGre);
-            printf("File Owner Set (%s)\n", SidString);
+            if (setMSGLvl > 2)
+            {
+              consPrefix("[+] ", consGre);
+              printf("File Owner Set (%s)\n", SidString);
+            }
 
             if (binLog == 1)
              fprintf(LogHndl, "[+] File Owner Set (%s)\n", SidString);
           }
           else
           {
-            consPrefix("[*] ", consYel);
-            printf("Can NOT Set Target File Owner(%s)\n", SidString);
+            if (setMSGLvl > 2)
+            {
+              consPrefix("[*] ", consYel);
+              printf("Can NOT Set Target File Owner(%s)\n", SidString);
+            }
             if (binLog == 1)
              fprintf(LogHndl, "[*] Can NOT Set Target File Owner (%s)\n", SidString);
           }
         }
         else
         {
-          consPrefix("[*] ", consYel);
-          printf("Could NOT Determine Source File Owner(Unknown)\n");
+          if (setMSGLvl > 2)
+          {
+            consPrefix("[*] ", consYel);
+            printf("Could NOT Determine Source File Owner(Unknown)\n");
+          }
 
           if (binLog == 1)
             fprintf(LogHndl, "[*] Could NOT Determine Source File Owner (Unknown)\n");
@@ -6719,11 +6931,15 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
           fprintf(LogHndl, "[+] Source File MD5.....: %s\n", MD5Out);
           fprintf(LogHndl, "[+] Source MetaData.....: %ld-%lld-%lld-%lld\n", Frmstat.st_size, Frmstat.st_ctime, Frmstat.st_atime, Frmstat.st_mtime);
         }
-        consPrefix("[+] ", consGre);
-        printf("Source File MD5.....: %s\n", MD5Out);
 
-        consPrefix("[+] ", consGre);
-        printf("Source MetaData.....: %ld-%lld-%lld-%lld\n", Frmstat.st_size, Frmstat.st_ctime, Frmstat.st_atime, Frmstat.st_mtime);
+        if (setMSGLvl > 2)
+        {
+          consPrefix("[+] ", consGre);
+          printf("Source File MD5.....: %s\n", MD5Out);
+
+          consPrefix("[+] ", consGre);
+          printf("Source MetaData.....: %ld-%lld-%lld-%lld\n", Frmstat.st_size, Frmstat.st_ctime, Frmstat.st_atime, Frmstat.st_mtime);
+        }
 
         _stat(tmpTooFile, &Toostat);
         FileMD5(tmpTooFile);
@@ -6732,24 +6948,35 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
           fprintf(LogHndl, "[+] Destination File MD5: %s\n", MD5Out);
           fprintf(LogHndl, "[+] Destination MetaData: %ld-%lld-%lld-%lld\n", Toostat.st_size, Toostat.st_ctime, Toostat.st_atime, Toostat.st_mtime);
         }
-        consPrefix("[+] ", consGre);
-        printf("Destination File MD5: %s\n", MD5Out);
 
-        consPrefix("[+] ", consGre);
-        printf("Destination MetaData: %ld-%lld-%lld-%lld\n", Toostat.st_size, Toostat.st_ctime, Toostat.st_atime, Toostat.st_mtime);
+        if (setMSGLvl > 2)
+        {
+          consPrefix("[+] ", consGre);
+          printf("Destination File MD5: %s\n", MD5Out);
+
+          consPrefix("[+] ", consGre);
+          printf("Destination MetaData: %ld-%lld-%lld-%lld\n", Toostat.st_size, Toostat.st_ctime, Toostat.st_atime, Toostat.st_mtime);
+        }
 
         if (strnicmp(MD5Tmp, MD5Out, 255) != 0)
         {
-          consPrefix("[!] ", consRed);
-          printf("MD5 MisMatch!\n");
+          if (setMSGLvl > 1)
+          {
+            consPrefix("[!] ", consRed);
+            printf("MD5 MisMatch!\n");
+          }
+
           if (binLog == 1)
            fprintf(LogHndl, "[!] MD5 MisMatch!\n");
         }
 
         if (Frmstat.st_size != Toostat.st_size)
         {
-          consPrefix("[!] ", consRed);
-          printf("Size Mismatch!\n");
+          if (setMSGLvl > 2)
+          {
+            consPrefix("[!] ", consRed);
+            printf("Size Mismatch!\n");
+          }
           if (binLog == 1)
            fprintf(LogHndl, "[!] Size MisMatch!\n");
         }
@@ -6759,8 +6986,11 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
           Old_CTime = localtime(&Frmstat.st_ctime);
           strftime(OldDate, 25, "%m/%d/%y@%H:%M:%S\0", Old_CTime);
 
-          consPrefix("[!] ", consRed);
-          printf("Create Time Mismatch! Actual Create Time: %s\n", OldDate);
+          if (setMSGLvl > 2)
+          {
+            consPrefix("[!] ", consRed);
+            printf("Create Time Mismatch! Actual Create Time: %s\n", OldDate);
+          }
 
           if (binLog == 1)
             fprintf(LogHndl, "[!] Create Time MisMatch! Actual Create Time: %s\n", OldDate);
@@ -6771,8 +7001,11 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
           Old_MTime = localtime(&Frmstat.st_mtime);
           strftime(OldDate, 25, "%m/%d/%y@%H:%M:%S\0", Old_MTime);
 
-          consPrefix("[!] ", consRed);
-          printf("Modify Time Mismatch! Actual Modify Time: %s\n", OldDate);
+          if (setMSGLvl > 2)
+          {
+            consPrefix("[!] ", consRed);
+            printf("Modify Time Mismatch! Actual Modify Time: %s\n", OldDate);
+          }
 
           if (binLog == 1)
             fprintf(LogHndl, "[!] Modify MisMatch! Actual Modify Time: %s\n", OldDate);
@@ -6783,8 +7016,11 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
           Old_ATime = localtime(&Frmstat.st_atime);
           strftime(OldDate, 25, "%m/%d/%y@%H:%M:%S\0", Old_ATime);
 
-          consPrefix("[!] ", consRed);
-          printf("Access Time Mismatch! Actual Access Time: %s\n", OldDate);
+          if (setMSGLvl > 2)
+          {
+            consPrefix("[!] ", consRed);
+            printf("Access Time Mismatch! Actual Access Time: %s\n", OldDate);
+          }
 
           if (binLog == 1)
             fprintf(LogHndl, "[!] Access MisMatch! Actual Access Time: %s\n", OldDate);
@@ -6795,8 +7031,11 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         if (binLog == 1)
           fprintf(LogHndl, "[!] Could Not Open File(s) for Copy\n");
 
-        consPrefix("[!] ", consRed);
-        printf("Could Not Open File(s) for Copy\n");
+        if (setMSGLvl > 1)
+        {
+          consPrefix("[!] ", consRed);
+          printf("Could Not Open File(s) for Copy\n");
+        }
       }
 
       fflush(stdout); //More PSExec Friendly
@@ -6900,8 +7139,12 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
   if (iFileCount > 0)
   {
     fprintf(LogHndl, "[*] DeCompressed File Already Exists. \n     Renamed To: %s\n", tmpTooFile);
-    consPrefix("[*] ", consYel);
-    printf("Decompressed File Already Exists. \n     Renamed To: %s\n", tmpTooFile);
+
+    if (setMSGLvl > 1)
+    {
+      consPrefix("[*] ", consYel);
+      printf("Decompressed File Already Exists. \n     Renamed To: %s\n", tmpTooFile);
+    }
 
     if (iSyslogLvl > 1)
     {
@@ -6919,9 +7162,12 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
     iFileFound = 0; // Not Found
 
     fprintf(LogHndl, "[!] Source Compressed File Not Found: \n %s\n", tmpFrmFile);
-    consPrefix("[!] ", consRed);
-    printf("Source Compressed File Not Found: \n %s\n", tmpFrmFile);
 
+    if (setMSGLvl > 1)
+    {
+      consPrefix("[!] ", consRed);
+      printf("Source Compressed File Not Found: \n %s\n", tmpFrmFile);
+    }
 
     // Check for Sysnative edge case (running 32 bit on 64 bit)
     if (iNative == 0)
@@ -6934,16 +7180,25 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
         sprintf(tmpFrmFile, "%s\\Sysnative\\%s\0", WinRoot, FrmFile+strlen(WinRoot)+10);
 
         fprintf(LogHndl, "[*] Non-Native Flag Has Been Detected - Trying Sysnative Redirection: \n %s\n", tmpFrmFile);
-        consPrefix("[*] ", consYel);
-        printf("Non-Native Flag Has Been Detected - Trying Sysnative Redirection: \n %s\n", tmpFrmFile);
+
+        if (setMSGLvl > 1)
+        {
+          consPrefix("[*] ", consYel);
+          printf("Non-Native Flag Has Been Detected - Trying Sysnative Redirection: \n %s\n", tmpFrmFile);
+        }
 
         if (access(tmpFrmFile, 0) != 0)
         {
           iFileFound = 0; //No... Sorry... Not Sysnative
 
           fprintf(LogHndl, "[*] Sysnative Source Compressed File Also Not Found: \n %s\n", tmpFrmFile);
-          consPrefix("[*] ", consYel);
-          printf("Sysnative Source Compressed File Also Not Found: \n %s\n", tmpFrmFile);
+
+          if (setMSGLvl > 1)
+          {
+            consPrefix("[*] ", consYel);
+            printf("Sysnative Source Compressed File Also Not Found: \n %s\n", tmpFrmFile);
+          }
+
           fflush(stdout); //More PSExec Friendly
 
           deCompRC =  1;
@@ -6954,8 +7209,13 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
           iFileFound = 1; // Yes... Substitution Successful
 
           fprintf(LogHndl, "[*] Sysnative Source Compressed File Found, Now Substituting.\n");
-          consPrefix("[*] ", consYel);
-          printf("Sysnative Source Compressed File Found, Now Substituting.\n");
+
+          if (setMSGLvl > 1)
+          {
+            consPrefix("[*] ", consYel);
+            printf("Sysnative Source Compressed File Found, Now Substituting.\n");
+          }
+
           fflush(stdout); //More PSExec Friendly
         }
       }
@@ -6988,8 +7248,11 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       if (iLogOpen == 1)
         fprintf(LogHndl, "[!] Not Enough Disk Space Available: %lld of %ld\n", AvailDisk, Frmstat.st_size);
 
-      consPrefix("[!] ", consRed);
-      printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, Frmstat.st_size);
+      if (setMSGLvl > 1)
+      {
+        consPrefix("[!] ", consRed);
+        printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, Frmstat.st_size);
+      }
 
       if (iSyslogLvl > 1)
       {
@@ -7030,8 +7293,11 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
     FrmHndl = fopen(tmpFrmFile, "rb"); // Open From File
     if (FrmHndl == NULL)
     {
-      consPrefix("[!] ", consRed);
-      printf("Could Not Open Compressed File for Reading - File Decompress Bypassed.\n");
+      if (setMSGLvl > 1)
+      {
+        consPrefix("[!] ", consRed);
+        printf("Could Not Open Compressed File for Reading - File Decompress Bypassed.\n");
+      }
       fprintf(LogHndl, "[!] Could Not Open Compressed File for Reading - File Decompress Bypassed.\n");
 
       fflush(stdout); //More PSExec Friendly
@@ -7043,8 +7309,11 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
     HndlToo = CreateFile((LPCSTR)TooFile, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
     if (HndlToo == INVALID_HANDLE_VALUE)
     {
-      consPrefix("[!] ", consRed);
-      printf("Could Not Open UnCompressed Output File for Writing - File Decompress Bypassed.\n");
+      if (setMSGLvl > 1)
+      {
+        consPrefix("[!] ", consRed);
+        printf("Could Not Open UnCompressed Output File for Writing - File Decompress Bypassed.\n");
+      }
       fprintf(LogHndl, "[!] Could Not Open UnCompressed Output File for Writing - File Decompress Bypassed.\n");
 
       fflush(stdout); //More PSExec Friendly
@@ -7074,8 +7343,11 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
     // Did we allocate our Buffers OK?
     if (InLzbuf == NULL || UnLzbuf == NULL || Wrkzbuf == NUL)
     {
-      consPrefix("[!] ", consRed);
-      printf("LZNT1 - Buffer Allocation Error - File Decompress Bypassed.\n");
+      if (setMSGLvl > 1)
+      {
+        consPrefix("[!] ", consRed);
+        printf("LZNT1 - Buffer Allocation Error - File Decompress Bypassed.\n");
+      }
       fprintf(LogHndl, "[!] LZNT1 Buffer Allocation Error - File Decompress Bypassed.\n");
 
       free(InLzbuf);
@@ -7093,8 +7365,11 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
 
     while ((inSize = fread(InLzbuf, 1, iLZNTSz, FrmHndl)) > 0)
     {
-      consPrefix("[+] ", consGre);
-      printf("LZNT1 64K Block: %d\r", NBlox++);
+      if (setMSGLvl > 2)
+      {
+        consPrefix("[+] ", consGre);
+        printf("LZNT1 64K Block: %d\r", NBlox++);
+      }
 
       //Make sure we have a chunk Header 
       chunk_hdr_test = *(WORD *)(InLzbuf);
@@ -7102,9 +7377,12 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       {
         //Bad Chunk Header - Zero Out the Chunk (This is the Observed Windows Behavior)
         //May not always be bad, sometimes source data is all zeroes, usually at the end of the file //YK
-        consPrefix("[!] ", consRed);
-        printf("Invalid Chunk Header...  Zeroing Chunk: %d\n", NBlox);
-        fprintf(LogHndl, "[!] Invalid Chunk Header...  Zeroing Chunk %d\n", NBlox);
+        if (setMSGLvl > 2)
+        {
+          consPrefix("[!] ", consRed);
+          printf("Invalid Chunk Header...  Zeroing Chunk: %d\n", NBlox);
+          fprintf(LogHndl, "[!] Invalid Chunk Header...  Zeroing Chunk %d\n", NBlox);
+        }
 
         //Write out a 64K Chunk of Nulls
         writLen = iLZNTSz;
@@ -7149,8 +7427,11 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
         }
         else
         {
-          consPrefix("[!] ", consRed);
-          printf("Decompress RetCD: %08x Encountered in Chunk: %d - Zeroing Chunk.\n", lastStatus, NBlox);
+          if (setMSGLvl > 2)
+          {
+            consPrefix("[!] ", consRed);
+            printf("Decompress RetCD: %08x Encountered in Chunk: %d - Zeroing Chunk.\n", lastStatus, NBlox);
+          }
           fprintf(LogHndl, "[!] Decompressed RetCD: %08x Encounterd in Chunk %d - Zeroing Chunk.\n", lastStatus, NBlox);
 
           //Write out a 64K Chunk of Nulls
@@ -7186,8 +7467,11 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
     //For now: Deal with that here (Set Error Code so we can use OS Copy)
     if (tot_byt_dst < 1)
     {
-      consPrefix("[!] ", consRed);
-      printf("Decompress Error: 0 Bytes Were Decompressed.\n");
+      if (setMSGLvl > 1)
+      {
+        consPrefix("[!] ", consRed);
+        printf("Decompress Error: 0 Bytes Were Decompressed.\n");
+      }
       fprintf(LogHndl, "[!] Decompress Error: 0 Bytes Were Decompressed.\n");
 
       deCompRC = 7;
@@ -7277,9 +7561,11 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
 
     if (TimeNotGood == 1)
     {
-      consPrefix("[+] ", consGre);
-      printf("Converging Mismatched TimeStamp(s)\n");
-
+      if (setMSGLvl > 2)
+      {
+        consPrefix("[+] ", consGre);
+        printf("Converging Mismatched TimeStamp(s)\n");
+      }
       fprintf(LogHndl, "[+] Converging Mismatched TimeStamp(s)\n");
 
       HndlToo = CreateFile(tmpTooFile, FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
@@ -7299,22 +7585,32 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
                 
       if (setOwner)
       {
-        consPrefix("[+] ", consGre);
-        printf("File Owner Set (%s)\n", SidString);
+        if (setMSGLvl > 2)
+        {
+          consPrefix("[+] ", consGre);
+          printf("File Owner Set (%s)\n", SidString);
+        }
 
         fprintf(LogHndl, "[+] File Owner Set (%s)\n", SidString);
       }
       else
       {
-        consPrefix("[*] ", consYel);
-        printf("Can NOT Set Target File Owner(%s)\n", SidString);
+        if (setMSGLvl > 2)
+        {
+          consPrefix("[*] ", consYel);
+          printf("Can NOT Set Target File Owner(%s)\n", SidString);
+        }
+
         fprintf(LogHndl, "[*] Can NOT Set Target File Owner (%s)\n", SidString);
       }
     }
     else
     {
-      consPrefix("[*] ", consYel);
-      printf("Could NOT Determine Source File Owner(Unknown)\n");
+      if (setMSGLvl > 2)
+      {
+        consPrefix("[*] ", consYel);
+        printf("Could NOT Determine Source File Owner(Unknown)\n");
+      }
       fprintf(LogHndl, "[*] Could NOT Determine Source File Owner (Unknown)\n");
     }
 
@@ -7328,23 +7624,29 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       
     fprintf(LogHndl, "[+] Source File MD5.....: %s\n", MD5Out);
     fprintf(LogHndl, "[+] Source MetaData.....: %ld-%lld-%lld-%lld\n", Frmstat.st_size, Frmstat.st_ctime, Frmstat.st_atime, Frmstat.st_mtime);
-    consPrefix("[+] ", consGre);
-    printf("Source File MD5.....: %s\n", MD5Out);
 
-    consPrefix("[+] ", consGre);
-    printf("Source MetaData.....: %ld-%lld-%lld-%lld\n", Frmstat.st_size, Frmstat.st_ctime, Frmstat.st_atime, Frmstat.st_mtime);
+    if (setMSGLvl > 2)
+    {
+      consPrefix("[+] ", consGre);
+      printf("Source File MD5.....: %s\n", MD5Out);
+
+      consPrefix("[+] ", consGre);
+      printf("Source MetaData.....: %ld-%lld-%lld-%lld\n", Frmstat.st_size, Frmstat.st_ctime, Frmstat.st_atime, Frmstat.st_mtime);
+    }
 
     _stat(tmpTooFile, &Toostat);
     FileMD5(tmpTooFile);
     fprintf(LogHndl, "[+] Destination File MD5: %s\n", MD5Out);
     fprintf(LogHndl, "[+] Destination MetaData: %ld-%lld-%lld-%lld\n", Toostat.st_size, Toostat.st_ctime, Toostat.st_atime, Toostat.st_mtime);
 
-    consPrefix("[+] ", consGre);
-    printf("Destination File MD5: %s\n", MD5Out);
+    if (setMSGLvl > 2)
+    {
+      consPrefix("[+] ", consGre);
+      printf("Destination File MD5: %s\n", MD5Out);
 
-    consPrefix("[+] ", consGre);
-    printf("Destination MetaData: %ld-%lld-%lld-%lld\n", Toostat.st_size, Toostat.st_ctime, Toostat.st_atime, Toostat.st_mtime);
-
+      consPrefix("[+] ", consGre);
+      printf("Destination MetaData: %ld-%lld-%lld-%lld\n", Toostat.st_size, Toostat.st_ctime, Toostat.st_atime, Toostat.st_mtime);
+    }
 
     /****************************************************************/
     /* Make Sure Times copied over OK                               */
@@ -7354,8 +7656,11 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       Old_CTime = localtime(&Frmstat.st_ctime);
       strftime(OldDate, 25, "%m/%d/%y@%H:%M:%S\0", Old_CTime);
 
-      consPrefix("[!] ", consRed);
-      printf("Create Time Mismatch! Actual Create Time: %s\n", OldDate);
+      if (setMSGLvl > 2)
+      {
+        consPrefix("[!] ", consRed);
+        printf("Create Time Mismatch! Actual Create Time: %s\n", OldDate);
+      }
       fprintf(LogHndl, "[!] Create Time MisMatch! Actual Create Time: %s\n", OldDate);
     }
 
@@ -7364,8 +7669,11 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       Old_MTime = localtime(&Frmstat.st_mtime);
       strftime(OldDate, 25, "%m/%d/%y@%H:%M:%S\0", Old_MTime);
 
-      consPrefix("[!] ", consRed);
-      printf("Modify Time Mismatch! Actual Modify Time: %s\n", OldDate);
+      if (setMSGLvl > 1)
+      {
+        consPrefix("[!] ", consRed);
+        printf("Modify Time Mismatch! Actual Modify Time: %s\n", OldDate);
+      }
       fprintf(LogHndl, "[!] Modify MisMatch! Actual Modify Time: %s\n", OldDate);
     }
 
@@ -7374,8 +7682,11 @@ int lznCopy(char *FrmFile, char *TooFile, ULONG TooSize)
       Old_ATime = localtime(&Frmstat.st_atime);
       strftime(OldDate, 25, "%m/%d/%y@%H:%M:%S\0", Old_ATime);
 
-      consPrefix("[!] ", consRed);
-      printf("Access Time Mismatch! Actual Access Time: %s\n", OldDate);
+      if (setMSGLvl > 2)
+      {
+        consPrefix("[!] ", consRed);
+        printf("Access Time Mismatch! Actual Access Time: %s\n", OldDate);
+      }
       fprintf(LogHndl, "[!] Access MisMatch! Actual Access Time: %s\n", OldDate);
     }
 
@@ -7856,10 +8167,17 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           
         }
 
+        if (setMSGLvl > 2)
+         printf("\n");
 
-        consPrefix("\n[+] ", consGre);
-        printf("Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
-        printf("    %s\n", Full_Fname);
+        if (setMSGLvl > 1)
+        {
+         consPrefix("[+] ", consGre);
+         printf("Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
+        }
+
+        if(setMSGLvl > 2)
+         printf("    %s\n", Full_Fname);
 
         fprintf(LogHndl, "\n[+] Raw Copying MFT File: %s (%d)\n", Full_Fname + i + 1, Full_MFTID);
         fprintf(LogHndl, "    %s\n", Full_Fname);
@@ -7886,7 +8204,9 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         if (DDRetcd == 0)
 		    {
 		      // If we got SI and FN, Check for possible TimeStomping
-		      printf("     Time Type: %s", Text_FileTyp);
+          if (setMSGLvl > 2)
+           printf("     Time Type: %s", Text_FileTyp);
+
 		      fprintf(LogHndl, "     Time Type: %s", Text_FileTyp);
 
           if (strnicmp(Text_FileTyp, "SI", 2) == 0)
@@ -7895,21 +8215,30 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
 				    strnicmp(Text_FNAccDate, Text_SIAccDate, 25) != 0 ||
 				    strnicmp(Text_FNAccDate, Text_SIAccDate, 25) != 0)
 			      {
-              consPrefix("     Status: ", consRed);
-			        printf("FN/SI Not Matched\n");
+              if (setMSGLvl > 2)
+              {
+                consPrefix("     Status: ", consRed);
+                printf("FN/SI Not Matched\n");
+              }
 			        fprintf(LogHndl, "     Status: FN/SI Not Matched\n");
 			      }
             else
 			      {
-              consPrefix("     Status: ", consGre);
-			        printf("FN/SI Matched\n");
+              if (setMSGLvl > 2)
+              {
+                consPrefix("     Status: ", consGre);
+                printf("FN/SI Matched\n");
+              }
 			        fprintf(LogHndl, "     Status: FN/SI Matched\n");
 			      }
 		      }
 		      else
 		      {
-            consPrefix("     Status: ", consYel);
-			      printf("FN Only\n");
+            if (setMSGLvl > 2)
+            {
+              consPrefix("     Status: ", consYel);
+              printf("FN Only\n");
+            }
 			      fprintf(LogHndl, "     Status: FN Only\n");
 		      }
 
@@ -7920,8 +8249,11 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         else
         {
 		      // We had an Error Copying Raw
-          consPrefix("\n[!] ", consRed);
-		      printf("Error Encountered Copying the file.  Internal Return Code: %d\n", DDRetcd);
+          if (setMSGLvl > 1)
+          {
+            consPrefix("\n[!] ", consRed);
+            printf("Error Encountered Copying the file.  Internal Return Code: %d\n", DDRetcd);
+          }
 		      fprintf(LogHndl, "Error Encountered Copying the file.  Internal Return Code: %d\n", DDRetcd);
         }
 
@@ -7932,8 +8264,12 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
         if(iIsCompressed == 1)
         {
           fprintf(LogHndl, "[*] Raw Copied File Was Detected as COMPRESSED\n");
-          consPrefix("[*] ", consYel);
-          printf("Raw Copied File Was Detected as  COMPRESSED!\n");
+
+          if (setMSGLvl > 2)
+          {
+            consPrefix("[*] ", consYel);
+            printf("Raw Copied File Was Detected as  COMPRESSED!\n");
+          }
        }
 
 
@@ -7956,8 +8292,11 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           strcat(From_Fname, "(LZ)") ;
 
           fprintf(LogHndl, "[*] LZNT1 Rename:\n     From: %s\n     To: %s\n", Tooo_Fname, From_Fname);
-          consPrefix("[*] ", consYel);
-          printf("LZNT1 Rename:\n     From: %s\n     To: %s\n", Tooo_Fname, From_Fname);
+          if (setMSGLvl > 2)
+          {
+            consPrefix("[*] ", consYel);
+            printf("LZNT1 Rename:\n     From: %s\n     To: %s\n", Tooo_Fname, From_Fname);
+          }
 
           rename(Tooo_Fname, From_Fname);
           
@@ -7968,9 +8307,12 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
             /* Now Decompress into Original Name                               */
             /*******************************************************************/
             fprintf(LogHndl, "[*] LZNT1 Decompress:\n     In: %s\n     Out: %s\n", From_Fname, Tooo_Fname);
-            consPrefix("[*] ", consYel);
-            printf("LZNT1 Decompress:\n     In: %s\n     Out: %s\n", From_Fname, Tooo_Fname);
 
+            if (setMSGLvl > 1)
+            {
+              consPrefix("[*] ", consYel);
+              printf("LZNT1 Decompress:\n     In: %s\n     Out: %s\n", From_Fname, Tooo_Fname);
+            }
             lzRetcd = lznCopy(From_Fname, Tooo_Fname, maxDataSize /*last_rawdLen*/); //YK
           }
           else
@@ -7980,13 +8322,18 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
             /*  Decompress into New Name instead                               */
             /*******************************************************************/
             fprintf(LogHndl, "[*] LZNT1 Rename Failed. Swapping File Names and Continuing...\n");
-            consPrefix("[*] ", consYel);
-            printf("LZNT1 RenameFaile. Swapping File Names and Continuing.\n");
+            if (setMSGLvl > 2)
+            {
+              consPrefix("[*] ", consYel);
+              printf("LZNT1 RenameFailed. Swapping File Names and Continuing.\n");
+            }
 
             fprintf(LogHndl, "[*] LZNT1 Decompress:\n     In: %s\n     Out: %s\n", Tooo_Fname, From_Fname);
-            consPrefix("[*] ", consYel);
-            printf("LZNT1 Decompress:\n     In: %s\n     Out: %s\n", Tooo_Fname, From_Fname);
-
+            if (setMSGLvl > 1)
+            {
+              consPrefix("[*] ", consYel);
+              printf("LZNT1 Decompress:\n     In: %s\n     Out: %s\n", Tooo_Fname, From_Fname);
+            }
             lzRetcd = lznCopy(Tooo_Fname, From_Fname, maxDataSize /*last_rawdLen*/); //YK
           }
 
@@ -7997,8 +8344,12 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
           if((setNCP == 2) && (lzRetcd !=0 || DDRetcd != 0))
           {
             fprintf(LogHndl, "[*] LZNT1 Decompress Encountered Errors, Trying Standard OS Copy to create Decompressed version.\n");
-            consPrefix("[*] ", consYel);
-            printf("LZNT1 Decompress Encountered Errors, Trying Standard OS Copy to create Decompressed version.\n");
+
+            if (setMSGLvl > 1)
+            {
+              consPrefix("[*] ", consYel);
+              printf("LZNT1 Decompress Encountered Errors, Trying Standard OS Copy to create Decompressed version.\n");
+            }
 
 
             /*******************************************************************/
@@ -8009,9 +8360,11 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
             strcat(From_Fname, "(LX)") ;
 
             fprintf(LogHndl, "[*] LZNT1 Rename:\n     From: %s\n     To: %s\n", Tooo_Fname, From_Fname);
-            consPrefix("[*] ", consYel);
-            printf("LZNT1 Rename:\n     From: %s\n     To: %s\n", Tooo_Fname, From_Fname);
-
+            if (setMSGLvl > 2)
+            {
+              consPrefix("[*] ", consYel);
+              printf("LZNT1 Rename:\n     From: %s\n     To: %s\n", Tooo_Fname, From_Fname);
+            }
             rename(Tooo_Fname, From_Fname);
 
             if (access(From_Fname, 0) != 0)
@@ -8020,8 +8373,11 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
               /* Rename Failed, The routines should still work                   */
               /*******************************************************************/
               fprintf(LogHndl, "[*] LZNT1 Rename Failed.  Process Continuing...\n");
-              consPrefix("[*] ", consYel);
-              printf("LZNT1 Rename Failed. Process Continuing...\n");
+              if (setMSGLvl > 2)
+              {
+                consPrefix("[*] ", consYel);
+                printf("LZNT1 Rename Failed. Process Continuing...\n");
+              }
             }
 
 
@@ -8048,8 +8404,12 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
             /* Do a Binary API Copy                                            */
             /*******************************************************************/
             fprintf(LogHndl, "[*] Trying Binary API Based Copy...\n");
-            consPrefix("[*] ", consYel);
-            printf("Trying Binary API Based Copy...\n");
+
+            if (setMSGLvl > 1)
+            {
+              consPrefix("[*] ", consYel);
+              printf("Trying Binary API Based Copy...\n");
+            }
 
             binCopy(Full_Fname, Tooo_Fname, binLog);
 
@@ -8088,13 +8448,16 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   //UnLoad MFT Info - Disabled for now - Sometimes causes a crash
   //UnloadMFT();
 
-  if (TotFilesFound == 0)
-   consPrefix("\n[!] ", consRed);
-  else
-   consPrefix("\n[+] ", consGre);
+  if (setMSGLvl > 1)
+  {
+    if (TotFilesFound == 0)
+      consPrefix("\n[!] ", consRed);
+    else
+      consPrefix("\n[+] ", consGre);
 
+    printf("Total Files Found: %d\n", TotFilesFound);
+  }
   fprintf(LogHndl, "\n[+] Total Files Found: %d\n", TotFilesFound);
-  printf("Total Files Found: %d\n", TotFilesFound);
   iMaxCnt = TotFilesFound;
 
   fflush(stdout); //More PSExec Friendly
@@ -8333,8 +8696,12 @@ long mapsDrive(char *mapString, int mapLog)
     else
     {
       iGoodMap = 1;
-      consPrefix("[+] ", consGre);
-      printf("Successfully Mapped %s to drive %s\n", Conrec, szConnection);
+
+      if (setMSGLvl > 1)
+      {
+        consPrefix("[+] ", consGre);
+        printf("Successfully Mapped %s to drive %s\n", Conrec, szConnection);
+      }
 
       if (mapLog == 1)
         fprintf(LogHndl, "[+] Successfully Mapped %s to drive %s\n", Conrec, szConnection);
@@ -8504,8 +8871,12 @@ long netLocalShare(char *netServer, char *netSharePath, char *netShareName, int 
     else
     {
       iGoodShr = 1;
-      consPrefix("[+] ", consGre);
-      printf("Successfully Created Share on %s: %s -> %s\n", netServer, xnetSharePath, xnetShareName);
+
+      if (setMSGLvl > 1)
+      {
+        consPrefix("[+] ", consGre);
+        printf("Successfully Created Share on %s: %s -> %s\n", netServer, xnetSharePath, xnetShareName);
+      }
 
       if (shrLog == 1)
         fprintf(LogHndl, "[+] Successfully Created Share on %s: %s -> %s\n", netServer, xnetSharePath, xnetShareName);
@@ -8555,8 +8926,11 @@ long netShareDel(char *netShareName, int shrLog)
   }
   else
   {
-    consPrefix("[+] ", consGre);
-    printf("Successfully Deleted Share: %s\n", netShareName);
+    if (setMSGLvl > 1)
+    {
+      consPrefix("[+] ", consGre);
+      printf("Successfully Deleted Share: %s\n", netShareName);
+    }
 
     if (shrLog == 1)
       fprintf(LogHndl, "[+] Successfully Deleted Share: %s\n", netShareName);
@@ -8871,8 +9245,11 @@ void cleanUp_Exit(int exitRC)
   {
     fprintf(LogHndl, "[+] Setting All Artifacts to Read-Only.\n");
 
-    consPrefix("[+] ", consGre);
-    printf("Setting All Artifacts to Read-Only.\n");
+    if (setMSGLvl > 1)
+    {
+      consPrefix("[+] ", consGre);
+      printf("Setting All Artifacts to Read-Only.\n");
+    }
 
     sprintf(TempDir, "%s\\*.*\0", BACQDir);
     ListDir(TempDir, "ROS");
@@ -8901,8 +9278,11 @@ void cleanUp_Exit(int exitRC)
 
     fprintf(LogHndl, "\n[+] Copying Log File...\n");
 
-    consPrefix("\n[+] ", consGre);
-    printf("Copying Log File...\n");
+    if (setMSGLvl > 1)
+    {
+      consPrefix("\n[+] ", consGre);
+      printf("Copying Log File...\n");
+    }
 
     //Very Last Log Entry - Close Log now, and copy WITHOUT LOGGING
     fclose(LogHndl);
@@ -9143,8 +9523,11 @@ VOID ReadSectorToMem(ULONGLONG sector, ULONG count, PVOID buffer)
 
   if (readRetcd == 0)
   {
-    consPrefix("[!] ", consRed);
-    printf("Error Reading Sector To Memory!  Cannot Process This Volume in RAW Mode!\n");
+    if (setMSGLvl > 2)
+    {
+      consPrefix("[!] ", consRed);
+      printf("Error Reading Sector To Memory!  Cannot Process This Volume in RAW Mode!\n");
+    }
   }
 
   fflush(stdout); //More PSExec Friendly
@@ -9210,8 +9593,11 @@ VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
   }
   else
   {
-    consPrefix("[!] ", consRed);
-    printf("Error Creating Sector Cache File: %s\n", SectFile);
+    if (setMSGLvl > 1)
+    {
+      consPrefix("[!] ", consRed);
+      printf("Error Creating Sector Cache File: %s\n", SectFile);
+    }
   }
 
   fflush(stdout); //More PSExec Friendly
@@ -9949,6 +10335,7 @@ int FindActive()
   delete[] bitmap;
   delete[] file;
 
+  printf("\n");
   fflush(stdout); //More PSExec Friendly
 
   return 0;
@@ -10004,8 +10391,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     if (binLog == 1)
       fprintf(LogHndl, "[+] Recursion Too Deep - Ignoring Additional Recursion...\n");
 
-    consPrefix("[+] ", consGre);
-    printf("Recursion Too Deep - Ignoring Additional Recursion...\n");
+    if (setMSGLvl > 2)
+    {
+      consPrefix("[+] ", consGre);
+      printf("Recursion Too Deep - Ignoring Additional Recursion...\n");
+    }
 
     delete[] file;
     fflush(stdout); //More PSExec Friendly
@@ -10024,8 +10414,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     if (binLog == 1)
       fprintf(LogHndl, "\n[+] Appending Data (Multiple Cluster Runs).\n");
 
-    consPrefix("\n[+] ", consGre);
-    printf("Appending Data (Multiple Cluster Runs).\n");
+    if (setMSGLvl > 2)
+    {
+      consPrefix("\n[+] ", consGre);
+      printf("Appending Data (Multiple Cluster Runs).\n");
+    }
   }
   else
   {
@@ -10052,8 +10445,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       if (binLog == 1)
         fprintf(LogHndl, "[+] Destination File Already Exists. \n     Renamed To: %s\n", Tooo_Fname);
 
-      consPrefix("[+] ", consGre);
-      printf("Destination File Already Exists. \n     Renamed To: %s\n", Tooo_Fname);
+      if (setMSGLvl > 1)
+      {
+        consPrefix("[+] ", consGre);
+        printf("Destination File Already Exists. \n     Renamed To: %s\n", Tooo_Fname);
+      }
 
       if (iSyslogLvl > 1)
       {
@@ -10073,8 +10469,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
   if (file->Ntfs.Type != 'ELIF')
   {
-    consPrefix("[!] ", consRed);
-    printf("Not a Valid MFT Record...  Bypassing...\n");
+    if (setMSGLvl > 1)
+    {
+      consPrefix("[!] ", consRed);
+      printf("Not a Valid MFT Record...  Bypassing...\n");
+    }
     fprintf(LogHndl, "[!] Not a Valid MFT Record...  Bypassing...\n");
 
     delete[] file;
@@ -10092,8 +10491,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     if (attrlist != 0)
     {
       fileIsFrag = 1;
-      consPrefix("\n[+] ", consGre);
-      printf("File is Fragmented ...  Parsing the Attribute List...\n");
+      if (setMSGLvl > 2)
+      {
+        consPrefix("\n[+] ", consGre);
+        printf("File is Fragmented ...  Parsing the Attribute List...\n");
+      }
       fprintf(LogHndl,"\n[+] File is Fragmented... Parsing the Attribute List...\n");
 
       // Read the attribute list - Physical Size and Logical Size
@@ -10143,8 +10545,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
         if(LastOffset > MaxOffset)
         {
-          consPrefix("[!] ", consRed);
-          printf("No MFT File Attribute List Found...  Bypassing...\n");
+          if (setMSGLvl > 1)
+          {
+            consPrefix("[!] ", consRed);
+            printf("No MFT File Attribute List Found...  Bypassing...\n");
+          }
           fprintf(LogHndl, "[!] No MFT File Attribute List Found...  Bypassing...\n");
 
           free(bufA);
@@ -10196,8 +10601,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
     }
     else
     {
-      consPrefix("[!] ", consRed);
-      printf("No MFT File Attribute Data Found...  Bypassing...\n");
+      if (setMSGLvl > 1)
+      {
+        consPrefix("[!] ", consRed);
+        printf("No MFT File Attribute Data Found...  Bypassing...\n");
+      }
       fprintf(LogHndl, "[!] No MFT File Attribute Data Found...  Bypassing...\n");
     }
 
@@ -10329,8 +10737,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         {
           iNCSFound = 1;
 
-          consPrefix("     (Sig) ", consGre);
-          printf("Header Signature Match Found in File (%s)\n", tmpSig);
+          if (setMSGLvl > 2)
+          {
+            consPrefix("     (Sig) ", consGre);
+            printf("Header Signature Match Found in File (%s)\n", tmpSig);
+          }
           fprintf(LogHndl, "     (Sig)Header Signature Match Found in File (%s)\n", tmpSig);
 
           if (iSyslogLvl > 1)
@@ -10346,8 +10757,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         if((strnicmp(filetype, TypTabl+(i*iTypSize), iTypSize) == 0) && (strlen(filetype) > 0))
         {
           iNCSFound = 1;
-          consPrefix("     (Sig) ", consGre);
-          printf("File Extention Match Found (%s)\n", filetype);
+          if (setMSGLvl > 2)
+          {
+            consPrefix("     (Sig) ", consGre);
+            printf("File Extention Match Found (%s)\n", filetype);
+          }
           fprintf(LogHndl, "     (Sig)File Extention Match Found (%s)\n", filetype);
 
           if (iSyslogLvl > 1)
@@ -10366,8 +10780,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
 
       if(iNCSFound == 0)
       {
-        consPrefix("     (Sig) ", consRed);
-        printf("No Signature Match in File - File Copy Bypassed.\n");
+        if (setMSGLvl > 2)
+        {
+          consPrefix("     (Sig) ", consRed);
+          printf("No Signature Match in File - File Copy Bypassed.\n");
+        }
         fprintf(LogHndl, "     (Sig)No Signature Match in File - File copy Bypassed.\n");
 
         delete[] file;
@@ -10383,10 +10800,12 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       if(gotOwner != 1)
        sprintf(SidString, "Could Not Get SID\0");
 
-      printf("     (In)SID: %s\n", SidString);
+      if(setMSGLvl > 2)
+       printf("     (In)SID: %s\n", SidString);
       fprintf(LogHndl, "     (In)SID: %s\n", SidString);
 
-      printf("     (In)Time: %llu - %llu - %llu\n", File_CreDate, File_AccDate, File_ModDate);
+      if (setMSGLvl > 2)
+       printf("     (In)Time: %llu - %llu - %llu\n", File_CreDate, File_AccDate, File_ModDate);
       fprintf(LogHndl, "     (In)Time: %llu - %llu - %llu\n", File_CreDate, File_AccDate, File_ModDate);
 
 
@@ -10410,8 +10829,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
           if (binLog == 1)
             fprintf(LogHndl, "[!] Not Enough Disk Space Available: %lld of %ld\n", AvailDisk, iDataSize);
 
-          consPrefix("[!] ", consRed);
-          printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, iDataSize);
+          if (setMSGLvl > 1)
+          {
+            consPrefix("[!] ", consRed);
+            printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, iDataSize);
+          }
 
           if (iSyslogLvl > 1)
           {
@@ -10430,12 +10852,15 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         // MaxMem Exceeded! Just Use a Cluster at a Time - Also Show us the size.
         bufD  = (UCHAR *) malloc(bootb.BytesPerSector * bootb.SectorsPerCluster)  ;
 
-        printf("     (In)Size: %lu ", dataLen);
-        consPrefix(cIsCompressed, consYel);
-        printf("\n");
+        if (setMSGLvl > 2)
+        {
+          printf("     (In)Size: %lu ", dataLen);
+          consPrefix(cIsCompressed, consYel);
+          printf("\n");
 
-        consPrefix("\n[+] ", consGre);
-        printf("File Exceeds Max Memory Size...  Disk Caching Sectors...\n");
+          consPrefix("\n[+] ", consGre);
+          printf("File Exceeds Max Memory Size...  Disk Caching Sectors...\n");
+        }
 
         if (binLog == 1)
         {
@@ -10468,8 +10893,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         if (binLog == 1)
          fprintf(LogHndl, "[!] Not Enough Disk Space Available: %lld of %ld\n", AvailDisk, iDataSize);
 
-        consPrefix("[!] ", consRed);
-        printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, iDataSize);
+        if (setMSGLvl > 1)
+        {
+          consPrefix("[!] ", consRed);
+          printf("Not Enough Disk Space Available : %lld of %ld\n", AvailDisk, iDataSize);
+        }
 
         if (iSyslogLvl > 1)
         {
@@ -10489,17 +10917,23 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       //Now show the iData Size since we didn't show the dataLen
       if(maxMemExceed != 1)
       {
-        printf("     (In)Size: %ld ", iDataSize);
-        consPrefix(cIsCompressed, consYel);
-        printf("                         \n");
-      
+        if (setMSGLvl > 2)
+        {
+          printf("     (In)Size: %ld ", iDataSize);
+          consPrefix(cIsCompressed, consYel);
+          printf("                         \n");
+        }
+
         if (binLog == 1)
           fprintf(LogHndl, "     (In)Size: %ld %s                        \n", iDataSize, cIsCompressed);
       }
 
-      consPrefix("\n[+] ", consGre);
-      printf("Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
-  
+      if (setMSGLvl > 2)
+      {
+        consPrefix("\n[+] ", consGre);
+        printf("Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
+      }
+
       if (binLog == 1)
         fprintf(LogHndl, "\n[+] Dumping Raw Data to FileName:\n    %s\n", Tooo_Fname);
 
@@ -10516,8 +10950,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         if (binLog == 1)
           fprintf(LogHndl, "[!] Error Creating File: %u\n", GetLastError());
 
-        consPrefix("[!] ", consRed);
-        printf("Error Creating File: %u\n", GetLastError());
+        if (setMSGLvl > 1)
+        {
+          consPrefix("[!] ", consRed);
+          printf("Error Creating File: %u\n", GetLastError());
+        }
 
         free(bufD);
         delete[] file;
@@ -10533,8 +10970,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
           if (binLog == 1)
             fprintf(LogHndl, "[!] Error Writing File: %u\n", GetLastError());
 
-          consPrefix("[!] ", consRed);
-          printf("Error Writing File: %u\n", GetLastError());
+          if (setMSGLvl > 1)
+          {
+            consPrefix("[!] ", consRed);
+            printf("Error Writing File: %u\n", GetLastError());
+          }
 
           free(bufD);
           delete[] file;
@@ -10574,9 +11014,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
               if (binLog == 1)
                 fprintf(LogHndl, "[!] Error Writing File: %u\n", GetLastError());
 
-              consPrefix("[!] ", consRed);
-              printf("Error Writing File: %u\n", GetLastError());
-
+              if (setMSGLvl > 1)
+              {
+                consPrefix("[!] ", consRed);
+                printf("Error Writing File: %u\n", GetLastError());
+              }
 
               free(bufD);
               delete[] file;
@@ -10596,28 +11038,40 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       //Set the File Times
       if(SetFileTime(hFile, &ToCreTime, &ToAccTime, &ToModTime) == 0)
       {
-        consPrefix("[!] ", consRed);
-        printf("Error Setting File Time!\n");
+        if (setMSGLvl > 2)
+        {
+          consPrefix("[!] ", consRed);
+          printf("Error Setting File Time!\n");
+        }
       }
 
       //Read it back out to Verify
       if(GetFileTime(hFile, &ftCreate, &ftAccess, &ftWrite) == 0)
       {
-        consPrefix("[!] ", consRed);
-        printf("Error Retrieving File Time!\n");
+        if (setMSGLvl > 2)
+        {
+          consPrefix("[!] ", consRed);
+          printf("Error Retrieving File Time!\n");
+        }
       }
 
       //Read it back out to Verify
       if(GetFileSizeEx(hFile, &ftSize) == 0)
       {
-        consPrefix("[!] ", consRed);
-        printf("Error Getting File Size!\n");
+        if (setMSGLvl > 2)
+        {
+          consPrefix("[!] ", consRed);
+          printf("Error Getting File Size!\n");
+        }
       }
 
       if(CloseHandle(hFile) == 0)
       {
-        consPrefix("[!] ", consRed);
-        printf("Error Closing File!\n");
+        if (setMSGLvl > 2)
+        {
+          consPrefix("[!] ", consRed);
+          printf("Error Closing File!\n");
+        }
       }
 
       fflush(stdout); //More PSExec Friendly
@@ -10636,15 +11090,19 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
           if (binLog == 1)
             fprintf(LogHndl, "     (Out)File Owner was Set Succesfully.\n");
 
-          printf("     (Out)File Owner was Set Succesfully.\n");
+          if(setMSGLvl > 2)
+           printf("     (Out)File Owner was Set Succesfully.\n");
         }
         else
         {
           if (binLog == 1)
             fprintf(LogHndl, "[*] Could NOT Set Target File Owner.\n");
 
-          consPrefix("[*] ", consYel);
-          printf("Could NOT Set Target File Owner.\n");
+          if (setMSGLvl > 2)
+          {
+            consPrefix("[*] ", consYel);
+            printf("Could NOT Set Target File Owner.\n");
+          }
         }
       }
       else
@@ -10652,8 +11110,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         if (binLog == 1)
           fprintf(LogHndl, "[*] Could NOT Determine Source File Owner(Unknown)\n");
 
-        consPrefix("[*] ", consYel);
-        printf("Could NOT Determine Source File Owner(Unknown)\n");
+        if (setMSGLvl > 2)
+        {
+          consPrefix("[*] ", consYel);
+          printf("Could NOT Determine Source File Owner(Unknown)\n");
+        }
       }
 
       fflush(stdout); //More PSExec Friendly
@@ -10674,16 +11135,23 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
         fprintf(LogHndl, "     (Out)Size: %llu %s\n", ftSize.QuadPart, cIsCompressed);
         fprintf(LogHndl, "     (Out)File MD5: %s\n", MD5Out);
       }
-      printf("     (Out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
-      printf("     (Out)Size: %llu ", ftSize.QuadPart);
-      consPrefix(cIsCompressed, consYel);
-      printf("\n");
-      printf("     (Out)File MD5: %s\n", MD5Out);
+
+      if (setMSGLvl > 2)
+      {
+        printf("     (Out)Time: %llu - %llu - %llu\n", ftCreate, ftAccess, ftWrite);
+        printf("     (Out)Size: %llu ", ftSize.QuadPart);
+        consPrefix(cIsCompressed, consYel);
+        printf("\n");
+        printf("     (Out)File MD5: %s\n", MD5Out);
+      }
 
       if ((CompareFileTime(&ToCreTime, &ftCreate) != 0) || (CompareFileTime(&ToAccTime, &ftAccess) != 0) || (CompareFileTime(&ToModTime, &ftWrite) != 0))
       {
-        consPrefix("\n[*] ", consYel);
-        printf("File TimeStamp MisMatch\n");
+        if (setMSGLvl > 2)
+        {
+          consPrefix("\n[*] ", consYel);
+          printf("File TimeStamp MisMatch\n");
+        }
 
         if (binLog == 1)
           fprintf(LogHndl, "\n[*] File TimeStamp MisMatch\n");
@@ -10694,13 +11162,19 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       {
         if(fileIsFrag == 1)
         {
-           consPrefix("\n[+] ", consGre);
-           printf("File Size Fragmentation - More Data to be Appended...\n");
+          if (setMSGLvl > 2)
+          {
+            consPrefix("\n[+] ", consGre);
+            printf("File Size Fragmentation - More Data to be Appended...\n");
+          }
         }
         else
         {
-          consPrefix("\n[*] ", consYel);
-          printf("File Size MisMatch\n");
+          if (setMSGLvl > 2)
+          {
+            consPrefix("\n[*] ", consYel);
+            printf("File Size MisMatch\n");
+          }
         }
 
         if (binLog == 1)
@@ -10713,8 +11187,11 @@ int DumpDataII(ULONG index, CHAR* filename, CHAR* outdir, FILETIME ToCreTime, FI
       }
       else
       {
-        consPrefix("\n[+] ", consGre);
-        printf("File Sizes Match\n");
+        if (setMSGLvl > 2)
+        {
+          consPrefix("\n[+] ", consGre);
+          printf("File Sizes Match\n");
+        }
 
         if (binLog == 1)
           fprintf(LogHndl, "[+] File Sizes Match\n");
@@ -10907,8 +11384,11 @@ int ntpGetTime(char* ntpServer)
  
   if (WSAStartup(wVersionRequested, &wsaData) != 0) 
   {
-    consPrefix("\n[!] ", consRed);
-    printf("NTP ERROR - Winsock could not startup.\n");
+    if (setMSGLvl > 1)
+    {
+      consPrefix("\n[!] ", consRed);
+      printf("NTP ERROR - Winsock could not startup.\n");
+    }
 
     if(iLogOpen == 1)
      fprintf(LogHndl, "[!] NTP ERROR - Winsock could not startup.\n");
@@ -10920,8 +11400,11 @@ int ntpGetTime(char* ntpServer)
 
   if (LOBYTE(wsaData.wVersion) != wsMajorVersion || HIBYTE(wsaData.wVersion) != wsMinorVersion)
   {
-    consPrefix("\n[!] ", consRed);
-    printf("NTP ERROR - Winsock 1.1 is not supported.\n");
+    if (setMSGLvl > 1)
+    {
+      consPrefix("\n[!] ", consRed);
+      printf("NTP ERROR - Winsock 1.1 is not supported.\n");
+    }
 
     if(iLogOpen == 1)
      fprintf(LogHndl, "[!] NTP ERROR - Winsock 1.1 is not supported.\n");
@@ -10937,8 +11420,11 @@ int ntpGetTime(char* ntpServer)
 
   if (Sockit < 0)
   {
-    consPrefix("\n[!] ", consRed);
-    printf( "NTP ERROR opening socket.\n" );
+    if (setMSGLvl > 1)
+    {
+      consPrefix("\n[!] ", consRed);
+      printf("NTP ERROR opening socket.\n");
+    }
 
     if(iLogOpen == 1)
      fprintf(LogHndl, "[!] NTP ERROR opening socket.\n");
@@ -10952,9 +11438,11 @@ int ntpGetTime(char* ntpServer)
 
   if ( ntpXServer == NULL )
   {
-    consPrefix("\n[!] ", consRed);
-    printf( "NTP ERROR, no such host.\n" );
-
+    if (setMSGLvl > 1)
+    {
+      consPrefix("\n[!] ", consRed);
+      printf("NTP ERROR, no such host.\n");
+    }
     if(iLogOpen == 1)
      fprintf(LogHndl, "[!] NTP ERROR, no such host..\n");
 
@@ -10985,8 +11473,11 @@ int ntpGetTime(char* ntpServer)
   ntpRC = sendto(Sockit, (char *) &ntpOut, sizeof(ntpOut), 0, (struct sockaddr *)&server_addr, sizeof(server_addr));
   if(ntpRC == SOCKET_ERROR)
   {
-    consPrefix("\n[!] ", consRed);
-    printf("NTP Socket Error.\n");
+    if (setMSGLvl > 1)
+    {
+      consPrefix("\n[!] ", consRed);
+      printf("NTP Socket Error.\n");
+    }
 
     if(iLogOpen == 1)
      fprintf(LogHndl, "[!] NTP Socket Error.\n");
@@ -11001,8 +11492,11 @@ int ntpGetTime(char* ntpServer)
   //Set The Socket Timeout to 1/2 Second
   if (setsockopt(Sockit, SOL_SOCKET, SO_RCVTIMEO, (char*)&ntpTimeVal, sizeof(int)) < 0) 
   {
-    consPrefix("\n[!] ", consRed);
-    printf("NTP ERROR - Could not Set Socket TimeOut.\n");
+    if (setMSGLvl > 1)
+    {
+      consPrefix("\n[!] ", consRed);
+      printf("NTP ERROR - Could not Set Socket TimeOut.\n");
+    }
 
     if(iLogOpen == 1)
      fprintf(LogHndl, "[!] NTP ERROR - Could not Set Socket TimeOut.\n");
@@ -11040,8 +11534,11 @@ int ntpGetTime(char* ntpServer)
   else
   {
     //The NTP Query had some type of Error
-    consPrefix("\n[!] ", consRed);
-    printf("NTP Query Failed: %d\n", WSAGetLastError());
+    if (setMSGLvl > 1)
+    {
+      consPrefix("\n[!] ", consRed);
+      printf("NTP Query Failed: %d\n", WSAGetLastError());
+    }
 
     if(iLogOpen == 1)
      fprintf(LogHndl, "NTP Query Failed: %d\n", WSAGetLastError());
@@ -11402,11 +11899,14 @@ int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName)
     fprintf(LogHndl, "[+] Getting File: %s\n", WGetFile);
   }
 
-  consPrefix("[+] ", consGre);
-  printf("Getting URL: %s\n", WGetURL);
+  if (setMSGLvl > 1)
+  {
+    consPrefix("[+] ", consGre);
+    printf("Getting URL: %s\n", WGetURL);
 
-  consPrefix("[+] ", consGre);
-  printf("Getting File: %s\n", WGetFile);
+    consPrefix("[+] ", consGre);
+    printf("Getting File: %s\n", WGetFile);
+  }
 
   if (iSyslogLvl > 0)
   {
@@ -11482,8 +11982,11 @@ int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName)
                 dwSize = 0;
                 if (!WinHttpQueryDataAvailable(hRequest, &dwSize))
                 {
-                  consPrefix("[!] ", consRed);
-                  printf("Error %u in WinHttpQueryDataAvailable.\n", GetLastError());
+                  if (setMSGLvl > 1)
+                  {
+                    consPrefix("[!] ", consRed);
+                    printf("Error %u in WinHttpQueryDataAvailable.\n", GetLastError());
+                  }
 
                   if (iLogOpen == 1)
                    fprintf(LogHndl, "[!] Error %u in WinHttpQueryDataAvailable.\n", GetLastError());
@@ -11495,8 +11998,11 @@ int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName)
                   pszOutBuffer = new (std::nothrow) char[dwSize + 1];
                   if (pszOutBuffer == NULL)
                   {
-                    consPrefix("[!] ", consRed);
-                    printf("Ran Out Of Memory Reading HTTP\n");
+                    if (setMSGLvl > 1)
+                    {
+                      consPrefix("[!] ", consRed);
+                      printf("Ran Out Of Memory Reading HTTP\n");
+                    }
 
                     if (iLogOpen == 1)
                      fprintf(LogHndl, "[!] Ran Out Of Memory Reading HTTP\n");
@@ -11509,8 +12015,11 @@ int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName)
 
                     if (!WinHttpReadData(hRequest, (LPVOID)pszOutBuffer, dwSize, &dwDownloaded))
                     {
-                      consPrefix("[!] ", consRed);
-                      printf("Error %u in WinHttpReadData.\n", GetLastError());
+                      if (setMSGLvl > 1)
+                      {
+                        consPrefix("[!] ", consRed);
+                        printf("Error %u in WinHttpReadData.\n", GetLastError());
+                      }
 
                       if (iLogOpen == 1)
                        fprintf(LogHndl, "[!] Error %u in WinHttpReadData.\n", GetLastError());
@@ -11558,8 +12067,11 @@ int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName)
   {
     // printf("%s", strerror(errno));
 
-    consPrefix("[!] ", consRed);
-    printf("Error Getting File: %s\n", strerror(errno));
+    if (setMSGLvl > 1)
+    {
+      consPrefix("[!] ", consRed);
+      printf("Error Getting File: %s\n", strerror(errno));
+    }
 
     if (iLogOpen == 1)
       fprintf(LogHndl, "[!] Error Getting File: %s\n", strerror(errno));
@@ -11568,8 +12080,12 @@ int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName)
   if (stat_record.st_size <= 1)
   {
     //printf("File is empty\n");
-    consPrefix("[!] ", consRed);
-    printf("Error Getting File: File is Empty\n");
+
+    if (setMSGLvl > 1)
+    {
+      consPrefix("[!] ", consRed);
+      printf("Error Getting File: File is Empty\n");
+    }
 
     if (iLogOpen == 1)
       fprintf(LogHndl, "[!] Error Getting File: File is Empty\n");
