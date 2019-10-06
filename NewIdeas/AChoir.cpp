@@ -4278,7 +4278,7 @@ int main(int argc, char *argv[])
             {
               fprintf(LogHndl, "[+] Required File Found: %s\n", Inrec + 4);
 
-              if (setMSGLvl > 1)
+              if (setMSGLvl > 2)
               {
                 consPrefix("[+] ", consGre);
                 printf("Required File Found: %s\n", Inrec + 4);
@@ -4336,9 +4336,9 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\n");
             strtok(Inrec, "\r");
 
-            fprintf(LogHndl, "[+] Now Hashing Acquisition Files\n");
+            fprintf(LogHndl, "HSH: Now Hashing Acquisition Files\n");
 
-            consPrefix("[+] ", consGre);
+            consPrefix("HSH: ", consBlu);
             printf("Now Hashing Acquisition Files\n");
 
             sprintf(MD5File, "%s\\ACQHash.txt\0", BACQDir);
@@ -4361,9 +4361,9 @@ int main(int argc, char *argv[])
             strtok(Inrec, "\n");
             strtok(Inrec, "\r");
             
-            fprintf(LogHndl, "[+] Now Hashing AChoir Files\n");
+            fprintf(LogHndl, "HSH: Now Hashing AChoir Files\n");
 
-            consPrefix("[+] ", consGre);
+            consPrefix("HSH: ", consBlu);
             printf("Now Hashing AChoir Files\n");
 
             sprintf(MD5File, "%s\\DirHash.txt\0", BaseDir);
@@ -4565,8 +4565,12 @@ int main(int argc, char *argv[])
             maxMemBytes = strtoul(Inrec+4, &pointEnd, 10);
 
             fprintf(LogHndl, "[+] Max Memory/File Bytes Set: %lu\n", maxMemBytes);
-            consPrefix("[+] ", consGre);
-            printf("Max Memory/File Bytes Set: %lu\n", maxMemBytes);
+
+            if (setMSGLvl > 2)
+            {
+              consPrefix("[+] ", consGre);
+              printf("Max Memory/File Bytes Set: %lu\n", maxMemBytes);
+            }
           }
           else
           if (strnicmp(Inrec, "MAP:", 4) == 0)
@@ -6199,7 +6203,7 @@ int ListDir(char *DirName, char *LisType)
       {
         fprintf(LogHndl, "[!] Max Path Exceeded: %s%s\n", RootDir, inName);
  
-        if (setMSGLvl > 1)
+        if (setMSGLvl > 2)
         {
           consPrefix("[!] ", consRed);
           printf("Max Path Exceeded: %s%s\n", RootDir, inName);
@@ -6224,7 +6228,7 @@ int ListDir(char *DirName, char *LisType)
         {
           fprintf(LogHndl, "[!] Max Directory Depth Exceeded: %d\n    %s\n", setCDepth, RootDir);
 
-          if (setMSGLvl > 1)
+          if (setMSGLvl > 2)
           {
             consPrefix("[!] ", consRed);
             printf("Max Directory Depth Exceeded: %d\n    %s\n", setCDepth, RootDir);
@@ -6243,7 +6247,7 @@ int ListDir(char *DirName, char *LisType)
       {
         fprintf(LogHndl, "[!] Directory Recursion Error: %s%s\n", RootDir, inName);
 
-        if (setMSGLvl > 1)
+        if (setMSGLvl > 2)
         {
           consPrefix("[!] ", consRed);
           printf("Directory Recursion Error: %s%s\n", RootDir, inName);
@@ -6703,7 +6707,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         {
           iCPSFound = 1;
 
-          if (setMSGLvl > 1)
+          if (setMSGLvl > 2)
           {
             consPrefix("     (Sig) ", consGre);
             printf("Header Signature Match Found in File (%s)\n", tmpSig);
@@ -6716,7 +6720,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
         {
           iCPSFound = 1;
 
-          if (setMSGLvl > 1)
+          if (setMSGLvl > 2)
           {
             consPrefix("     (Sig) ", consGre);
             printf("File Extention Match Found (%s)\n", filetype);
@@ -6728,7 +6732,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
 
       if(iCPSFound == 0)
       {
-        if (setMSGLvl > 1)
+        if (setMSGLvl > 2)
         {
           consPrefix("     (Sig) ", consRed);
           printf("No Signature Match in File - File Copy Bypassed.\n");
@@ -6902,6 +6906,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
               consPrefix("[*] ", consYel);
               printf("Can NOT Set Target File Owner(%s)\n", SidString);
             }
+
             if (binLog == 1)
              fprintf(LogHndl, "[*] Can NOT Set Target File Owner (%s)\n", SidString);
           }
@@ -6960,7 +6965,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
 
         if (strnicmp(MD5Tmp, MD5Out, 255) != 0)
         {
-          if (setMSGLvl > 1)
+          if (setMSGLvl > 2)
           {
             consPrefix("[!] ", consRed);
             printf("MD5 MisMatch!\n");
@@ -6977,6 +6982,7 @@ int binCopy(char *FrmFile, char *TooFile, int binLog)
             consPrefix("[!] ", consRed);
             printf("Size Mismatch!\n");
           }
+
           if (binLog == 1)
            fprintf(LogHndl, "[!] Size MisMatch!\n");
         }
@@ -7768,7 +7774,7 @@ int rawCopy(char *FrmFile, char *TooFile, int binLog)
   {
     fprintf(LogHndl, "[+] Invalid From File Format: %s\n", FrmFile);
 
-    consPrefix("[+] ", consGre);
+    consPrefix("[!] ", consRed);
     printf("Invalid From File Format: %s\n", FrmFile);
     fflush(stdout); //More PSExec Friendly
     return 1;
@@ -9048,28 +9054,44 @@ void USB_Protect(DWORD USBOnOff)
       if (numUSB == 0)
       {
         fprintf(LogHndl, "[+] USB WriteProtect Key: Off\n");
-        consPrefix("[+] ", consGre);
-        printf("USB WriteProtect Key: Off\n");
+
+        if (setMSGLvl > 2)
+        {
+          consPrefix("[+] ", consGre);
+          printf("USB WriteProtect Key: Off\n");
+        }
       }
       else
       {
         fprintf(LogHndl, "[+] USB WriteProtect Key: On\n");
-        consPrefix("[+] ", consGre);
-        printf("USB WriteProtect Key: On\n");
+
+        if (setMSGLvl > 2)
+        {
+          consPrefix("[+] ", consGre);
+          printf("USB WriteProtect Key: On\n");
+        }
       }
     }
     else
     if (ReadK == ERROR_FILE_NOT_FOUND)
     {
       fprintf(LogHndl,"[*] USB WriteProtect Key Is Empty (Off)\n");
-      consPrefix("[*] ", consYel);
-      printf("USB WriteProtect Key Is Empty (Off)\n");
+
+      if (setMSGLvl > 2)
+      {
+        consPrefix("[*] ", consYel);
+        printf("USB WriteProtect Key Is Empty (Off)\n");
+      }
     }
     else
     {
       fprintf(LogHndl, "[!] Error Reading USB Write Protect Key!\n");
-      consPrefix("[!] ", consRed);
-      printf("Error Reading USB Write Protect Key!\n");
+
+      if (setMSGLvl > 1)
+      {
+        consPrefix("[!] ", consRed);
+        printf("Error Reading USB Write Protect Key!\n");
+      }
     }
 
     // No Need to Set it if already set 
@@ -9080,14 +9102,22 @@ void USB_Protect(DWORD USBOnOff)
       if (USBOnOff == 0)
       {
         fprintf(LogHndl, "[+] Resetting WriteProtect Key To: Off\n");
-        consPrefix("[+] ", consGre);
-        printf("Resetting WriteProtect Key To: Off\n");
+
+        if (setMSGLvl > 2)
+        {
+          consPrefix("[+] ", consGre);
+          printf("Resetting WriteProtect Key To: Off\n");
+        }
       }
       else
       {
         fprintf(LogHndl, "[+] Resetting WriteProtect Key To: On\n");
-        consPrefix("[+] ", consGre);
-        printf("Resetting WriteProtect Key To: On\n");
+
+        if (setMSGLvl > 2)
+        {
+          consPrefix("[+] ", consGre);
+          printf("Resetting WriteProtect Key To: On\n");
+        }
       }
 
 
@@ -9097,14 +9127,22 @@ void USB_Protect(DWORD USBOnOff)
         gotSet = 1;
 
         fprintf(LogHndl, "[+] USB WriteProtect Key Set Succesfully\n");
-        consPrefix("[+] ", consGre);
-        printf("USB WriteProtect Key Set Succesfully\n");
-        
+
+        if (setMSGLvl > 1)
+        {
+          consPrefix("[+] ", consGre);
+          printf("USB WriteProtect Key Set Succesfully\n");
+        }
+
         if (USBOnOff == 1)
         {
           fprintf(LogHndl, "\n[+] Important Note: ONLY NEW ATTACHED DRIVES WILL BE WRITE PROTECTED.\n");
-          consPrefix("\n[+] ", consGre);
-          printf("Important Note: ONLY NEW ATTACHED DRIVES WILL BE WRITE PROTECTED.\n");
+
+          if (setMSGLvl > 1)
+          {
+            consPrefix("\n[+] ", consGre);
+            printf("Important Note: ONLY NEW ATTACHED DRIVES WILL BE WRITE PROTECTED.\n");
+          }
         }
       }
       else
@@ -9523,11 +9561,8 @@ VOID ReadSectorToMem(ULONGLONG sector, ULONG count, PVOID buffer)
 
   if (readRetcd == 0)
   {
-    if (setMSGLvl > 2)
-    {
-      consPrefix("[!] ", consRed);
-      printf("Error Reading Sector To Memory!  Cannot Process This Volume in RAW Mode!\n");
-    }
+    consPrefix("[!] ", consRed);
+    printf("Error Reading Sector To Memory!  Cannot Process This Volume in RAW Mode!\n");
   }
 
   fflush(stdout); //More PSExec Friendly
@@ -9572,6 +9607,7 @@ VOID ReadSectorToDisk(ULONGLONG sector, ULONG count, PVOID buffer)
       {
         consPrefix("\n[!] ", consRed);
         printf("Error Reading Sector To Disk!  Cannot Process This Volume in RAW Mode!\n");
+
         cCount = count;    // Bypass the rest
         fclose(SectHndl);  // Close
         continue;          // Loop back to top
@@ -11541,9 +11577,9 @@ int ntpGetTime(char* ntpServer)
     }
 
     if(iLogOpen == 1)
-     fprintf(LogHndl, "NTP Query Failed: %d\n", WSAGetLastError());
+     fprintf(LogHndl, "[!] NTP Query Failed: %d\n", WSAGetLastError());
 
-    sprintf(ntpDateTime, "<NTP Failed>");
+    sprintf(ntpDateTime, "[!] NTP Failed");
     return(8);
   }
 
@@ -12066,12 +12102,9 @@ int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName)
   if (stat(WGetFile, &stat_record))
   {
     // printf("%s", strerror(errno));
-
-    if (setMSGLvl > 1)
-    {
-      consPrefix("[!] ", consRed);
-      printf("Error Getting File: %s\n", strerror(errno));
-    }
+    // Critical Error - Always Display
+    consPrefix("[!] ", consRed);
+    printf("Error Getting File: %s\n", strerror(errno));
 
     if (iLogOpen == 1)
       fprintf(LogHndl, "[!] Error Getting File: %s\n", strerror(errno));
@@ -12080,12 +12113,9 @@ int HTTP_GetFile(char *HTTPGet_URL, char *HTTPGet_FileName)
   if (stat_record.st_size <= 1)
   {
     //printf("File is empty\n");
-
-    if (setMSGLvl > 1)
-    {
-      consPrefix("[!] ", consRed);
-      printf("Error Getting File: File is Empty\n");
-    }
+    // Critical Error - Always Display
+    consPrefix("[!] ", consRed);
+    printf("Error Getting File: File is Empty\n");
 
     if (iLogOpen == 1)
       fprintf(LogHndl, "[!] Error Getting File: File is Empty\n");
