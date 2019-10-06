@@ -214,6 +214,15 @@ CON:Hide Hide The Console Screen - For quiet Acquisition
 CON:Show Show a Previously Hidden Console
          Be Sure to Show any hidden screens before needed 
          Input. 
+CON:MSGLevel=<min>, <std>, <max>, <debug> Set console messages level.
+         Levels break down (generally) as follows:
+          min=Just display the command, progress and critical errors
+           but no output
+          std=Display the command, progress, critical errors, 
+           and standard output
+          max=Display the command, progress, critical errors, warnings,
+           standard and extended output
+          debug=display everything, including internal debugging information 
 SLP:<Sec>  Sleep for <Sec> Seconds
 NTP:<FQDN> Set the FQDN of the NTP Server.
            Note: This WILL NOT do an NTP request.  It ONLY 
