@@ -213,6 +213,8 @@
 /*                 std= What it is doing and results (default)  */
 /*                 max= What it is doing and expanded results   */
 /*                 debug= Same as max for now                   */
+/* AChoir v4.0  - No changes - Releasing v4.0 in honor of the   */
+/*                 Mr. Robot Season 4 premier 10/06/2019        */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -308,7 +310,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v3.9\0";
+char Version[10] = "v4.0\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
