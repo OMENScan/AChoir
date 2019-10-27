@@ -1,0 +1,111 @@
+*******************************************************
+* AChoir and Plaso Timeline an AChoir collection      *
+* - Requires Plaso to be in &Dir\Plaso directory      *
+*   - AChoir will Check                               *
+*******************************************************
+SET:CopyPath=Part
+*******************************************************
+* Is Plaso in the AChoir directory? If not, Install   *
+*******************************************************
+SAY:[+] Checking for Plaso in: &Dir\Plaso
+REQ:&Dir\cURL.exe
+REQ:&Dir\unzip.exe
+CKN:&Dir\Plaso\log2timeline.exe
+  DIR:\Plaso
+  SAY:
+  SAY:[*] Log2TimeLine Not Found, Downloading it... 
+  SAY:
+  FIL:Plaso.zip
+  EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\Plaso.txt https://github.com/log2timeline/plaso/releases/download/20190708/plaso-20190708-py2.7-amd64.zip
+  SAY:
+  SAY:[*] Unzipping Plaso...
+  SAY:
+  EXE:\unzip.exe -o &Dir\&Fil -d &Dir
+  SAY:
+END:
+DIR:\
+REQ:&Dir\Plaso\log2timeline.exe
+REQ:&Dir\Plaso\psort.exe
+SAY:
+SAY:[+] Plaso (log2timeline, psort) has been found in: &Dir\Plaso\
+*******************************************************
+* Get the Collection To Timeline                      *
+*******************************************************
+ACQ:\TimeLine
+SAY:
+LBL:ChkDir
+VR0:GotDir
+INP:Enter the Collection Directory to TimeLine: 
+CKN:&Dir\&Inp
+  SAY:
+  SAY:[!] That Collection Does Not Exist.
+  VR0:ChkDir
+END:
+JMP:&VR0
+LBL:GotDir
+SAY:
+SAY:[+] Now TimeLining &Dir\&Inp
+SAY:
+*******************************************************
+* Timeline MFT(s)                                     *
+*******************************************************
+SAY:[+] Now TimeLining &Dir\&Inp\RawData\$MFT*
+SAY:
+FOR:&Dir\&Inp\RawData\$MFT*
+EXE:&Dir\Plaso\Log2TimeLine.exe -z "UTC" --parsers "win7_slow" --status_view "none" --quiet --logfile "&Acq\Temp.Log" &Acq\timeline.bodyfile "&For"
+*******************************************************
+* Timeline Event ViewerLogs                           *
+*******************************************************
+SAY:
+SAY:[+] Now TimeLining &Dir\&Inp\Evt\*.evtx
+SAY:
+FOR:&Dir\&Inp\Evt\*.evtx
+EXE:&Dir\Plaso\Log2TimeLine.exe -z "UTC" --parsers "win7_slow" --status_view "none" --quiet --logfile "&Acq\Temp.Log" &Acq\timeline.bodyfile "&For"
+*******************************************************
+* Timeline Prefetch                                   *
+*******************************************************
+SAY:
+SAY:[+] Now TimeLining &Dir\&Inp\Prf\*.*
+SAY:
+FOR:&Dir\&Inp\Prf\*.*
+EXE:&Dir\Plaso\Log2TimeLine.exe -z "UTC" --parsers "win7_slow" --status_view "none" --quiet --logfile "&Acq\Temp.Log" &Acq\timeline.bodyfile "&For"
+*******************************************************
+* Timeline Registrties                                *
+*******************************************************
+SAY:
+SAY:[+] Now TimeLining &Dir\&Inp\Reg\*.*
+SAY:
+FOR:&Dir\&Inp\Reg\*.*
+EXE:&Dir\Plaso\Log2TimeLine.exe -z "UTC" --parsers "win7_slow" --status_view "none" --quiet --logfile "&Acq\Temp.Log" &Acq\timeline.bodyfile "&For"
+*******************************************************
+* Timeline Browse Hist                                *
+*******************************************************
+SAY:
+SAY:[+] Now TimeLining &Dir\&Inp\Brw\*.csv
+SAY:
+FOR:&Dir\&Inp\Brw\*.csv
+EXE:&Dir\Plaso\Log2TimeLine.exe -z "UTC" --parsers "win7_slow" --status_view "none" --quiet --logfile "&Acq\Temp.Log" &Acq\timeline.bodyfile "&For"
+SAY:
+SAY:[+] Timeline Generation Completed...
+SAY:
+*******************************************************
+* Convert BodyFile to CSV                             *
+*******************************************************
+LBL:BodyCSV
+VR0:BodyCSV
+INP:Would you like to convert the BodyFile to CSV (y/n)?
+EQU:&Inp y
+ VR0:AllDun
+ SAY:
+ SAY:[+] Coverting BodyFile to CSV
+ EXE:&Dir\Plaso\psort.exe -z "UTC" -o l2tcsv -w &Acq\timeline.csv &Acq\timeline.bodyfile
+END
+EQU:&Inp n
+ VR0:AllDun
+ SAY:
+ SAY:[+] Bypass Coverting BodyFile to CSV
+END
+JMP:&VR0
+LBL:AllDun
+SAY:
+SAY:[+] Processing Complete...  Bye...
