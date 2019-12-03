@@ -215,6 +215,14 @@
 /*                 debug= Same as max for now                   */
 /* AChoir v4.0  - No changes - Releasing v4.0 in honor of the   */
 /*                 Mr. Robot Season 4 premier 10/06/2019        */
+/* AChoir v4.1  - Add OPN: Opens a file for output, if a file   */
+/*                 is already OPN, it will be closed. Only one  */
+/*                 file can be OPN at a time.                   */
+/*              - Add OUT: Action - Appends a string to the     */
+/*                 OPN: File                                    */
+/*              - Expand parsing to &LSA - &LSP and &FOA - &FOP */
+/*              - Add Experimental Unicode File Processing      */
+/*                 - Only UTF-16 (Big & Little Endian)          */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -310,7 +318,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v4.0\0";
+char Version[10] = "v4.1\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -323,6 +331,8 @@ int  iIsCompressed = 0;
 char cIsCompressed[15] = "\0";
 int  iCDepth = 0; // CopyDepth Counter
 int  iCacheType = 0; // Movable Cache (Default)
+int  iIsUnicode = 0; // Check file for UniCode BOM (0=No, 2=LittleEndian, 1=BigEndian)
+int  LstRC = 0; // Return Code for Reading LST: Record
 
 
 int  setNCP = 2;     // 0=NODCMP, 1=DECOMP/RAWONLY, 2=OSCOPY (Default)
@@ -355,6 +365,7 @@ int ListDir(char *DirName, char *LisType);
 size_t Squish(char *SqString);
 size_t unIndent(char *SqString);
 size_t LRTrim(char *SqString);
+size_t UA_fgets(char *UA_string, int UA_maxlen, FILE* UA_handle, int UA_AscOrUni);
 long twoSplit(char *SpString);
 char *stristr(const char *String, const char *Pattern);
 int  FileMD5(char *MD5FileName);
@@ -465,6 +476,7 @@ FILE* MD5Hndl;
 FILE* IniHndl;
 FILE* WGetHndl;
 FILE* HtmHndl;
+FILE* OPNHndl;
 
 char LogFile[1024] = "C:\\AChoir\\AChoir.exe\0";
 char CpyFile[1024] = "C:\\AChoir\\AChoir.exe\0";
@@ -492,6 +504,7 @@ char *ProgVar = "C:\\Program Files";
 char CrLf[3] = {0x0D, 0x0A, 0x00};
 
 int  iLogOpen = 0 ;
+int  iOPNisOpen = 0;
 
 HANDLE SecTokn;
 int PrivSet = 0;
@@ -766,6 +779,7 @@ int main(int argc, char *argv[])
   char Shrrec[1024];
   char Redrec[1024];
 
+
   DWORD dwSize = 0;
   DWORD dwDownloaded = 0;
   //LPSTR pszOutBuffer;
@@ -821,6 +835,7 @@ int main(int argc, char *argv[])
   setMapErr = 0;
   iCacheType = 0;
   setMSGLvl = 2;
+  iOPNisOpen = 0;
 
   memset(CurrDir, 0, 1024);
   memset(CurrWorkDir, 0, 1024);
@@ -1585,6 +1600,10 @@ int main(int argc, char *argv[])
       //Remove any preceding blanks
       unIndent(Tmprec);
 
+      // Dont Process any Comments
+      if (Tmprec[0] == '*')
+        continue;
+
       /****************************************************************/
       /* Conditional Execution                                        */
       /****************************************************************/
@@ -1645,7 +1664,12 @@ int main(int argc, char *argv[])
         if ((stristr(Tmprec, "&FOR") > 0) || (stristr(Tmprec, "&FO0") > 0) || (stristr(Tmprec, "&FO1") > 0)
          || (stristr(Tmprec, "&FO2") > 0) || (stristr(Tmprec, "&FO3") > 0) || (stristr(Tmprec, "&FO4") > 0)
          || (stristr(Tmprec, "&FO5") > 0) || (stristr(Tmprec, "&FO6") > 0) || (stristr(Tmprec, "&FO7") > 0)
-         || (stristr(Tmprec, "&FO8") > 0) || (stristr(Tmprec, "&FO9") > 0))
+         || (stristr(Tmprec, "&FO8") > 0) || (stristr(Tmprec, "&FO9") > 0) || (stristr(Tmprec, "&FOA") > 0)
+         || (stristr(Tmprec, "&FOB") > 0) || (stristr(Tmprec, "&FOC") > 0) || (stristr(Tmprec, "&FOD") > 0)
+         || (stristr(Tmprec, "&FOE") > 0) || (stristr(Tmprec, "&FOF") > 0) || (stristr(Tmprec, "&FOG") > 0)
+         || (stristr(Tmprec, "&FOH") > 0) || (stristr(Tmprec, "&FOI") > 0) || (stristr(Tmprec, "&FOJ") > 0)
+         || (stristr(Tmprec, "&FOK") > 0) || (stristr(Tmprec, "&FOL") > 0) || (stristr(Tmprec, "&FOM") > 0)
+         || (stristr(Tmprec, "&FON") > 0) || (stristr(Tmprec, "&FOO") > 0) || (stristr(Tmprec, "&FOP") > 0))
         {
           ForMe = 1;
           memset(Filrec, 0, 2048);
@@ -1673,12 +1697,17 @@ int main(int argc, char *argv[])
         if ((stristr(Tmprec, "&LST") > 0) || (stristr(Tmprec, "&LS0") > 0) || (stristr(Tmprec, "&LS1") > 0)
          || (stristr(Tmprec, "&LS2") > 0) || (stristr(Tmprec, "&LS3") > 0) || (stristr(Tmprec, "&LS4") > 0)
          || (stristr(Tmprec, "&LS5") > 0) || (stristr(Tmprec, "&LS6") > 0) || (stristr(Tmprec, "&LS7") > 0)
-         || (stristr(Tmprec, "&LS8") > 0) || (stristr(Tmprec, "&LS9") > 0))
+         || (stristr(Tmprec, "&LS8") > 0) || (stristr(Tmprec, "&LS9") > 0) || (stristr(Tmprec, "&LSA") > 0)
+         || (stristr(Tmprec, "&LSB") > 0) || (stristr(Tmprec, "&LSC") > 0) || (stristr(Tmprec, "&LSD") > 0)
+         || (stristr(Tmprec, "&LSE") > 0) || (stristr(Tmprec, "&LSF") > 0) || (stristr(Tmprec, "&LSG") > 0)
+         || (stristr(Tmprec, "&LSH") > 0) || (stristr(Tmprec, "&LSI") > 0) || (stristr(Tmprec, "&LSJ") > 0)
+         || (stristr(Tmprec, "&LSK") > 0) || (stristr(Tmprec, "&LSL") > 0) || (stristr(Tmprec, "&LSM") > 0)
+         || (stristr(Tmprec, "&LSN") > 0) || (stristr(Tmprec, "&LSO") > 0) || (stristr(Tmprec, "&LSP") > 0))
         {
           LstMe = 1;
           memset(Lstrec, 0, 2048);
 
-          LstHndl = fopen(LstFile, "r");
+          LstHndl = fopen(LstFile, "rb");
 
           if (LstHndl == NULL)
           {
@@ -1687,6 +1716,38 @@ int main(int argc, char *argv[])
 
             fprintf(LogHndl, "[!] &LST File not found (LST: not set): %s\n", LstFile);
             Looper = 0;
+          }
+          else
+          {
+            // We Opened the File - So now Check BOM for UniCode (UTF-16)
+            // - Depending on CodePage, some utlities write UniCode Text files
+            iIsUnicode = 0;
+            memset(Lstrec, 0, 5);
+
+            if (UA_fgets(Lstrec, 2, LstHndl, 0) != 0)
+            {
+              if ((Lstrec[0] == 0xffffffff) && (Lstrec[1] == 0xfffffffe))
+                iIsUnicode = 1;
+              else
+              if ((Lstrec[0] == 0xfffffffe) && (Lstrec[1] == 0xffffffff))
+               iIsUnicode = 2;
+              else
+              {
+                rewind(LstHndl);
+                iIsUnicode = 0;
+              }
+            }
+
+            if (iIsUnicode > 0)
+            {
+              fprintf(LogHndl, "[*] Unicode File Detected.\n");
+
+              if (setMSGLvl > 2)
+              {
+                consPrefix("[*] ", consYel);
+                printf("Unicode File Detected.\n");
+              }
+            }
           }
 
           fflush(stdout); //More PSExec Friendly
@@ -1763,7 +1824,19 @@ int main(int argc, char *argv[])
           else
           if ((ForMe == 0) && (LstMe == 1) && (DskMe == 0))
           {
-            if (fgets(Lstrec, 1000, LstHndl))
+            LstRC = 0;
+
+            if (iIsUnicode > 0)
+            {
+              if(UA_fgets(Lstrec, 1000, LstHndl, iIsUnicode) == 0)
+                LstRC = 1;
+            }
+            else
+            if (UA_fgets(Lstrec, 1000, LstHndl, 0) == 0)
+             LstRC = 1;
+            
+
+            if (LstRC == 0)
             {
               Looper = 1;
               LoopNum++;
@@ -1975,6 +2048,54 @@ int main(int argc, char *argv[])
               case '9':
                 TokMax = 9;
                 break;
+              case 'a':
+                TokMax = 10;
+                break;
+              case 'b':
+                TokMax = 11;
+                break;
+              case 'c':
+                TokMax = 12;
+                break;
+              case 'd':
+                TokMax = 13;
+                break;
+              case 'e':
+                TokMax = 14;
+                break;
+              case 'f':
+                TokMax = 15;
+                break;
+              case 'g':
+                TokMax = 16;
+                break;
+              case 'h':
+                TokMax = 17;
+                break;
+              case 'i':
+                TokMax = 18;
+                break;
+              case 'j':
+                TokMax = 19;
+                break;
+              case 'k':
+                TokMax = 20;
+                break;
+              case 'l':
+                TokMax = 21;
+                break;
+              case 'm':
+                TokMax = 22;
+                break;
+              case 'n':
+                TokMax = 23;
+                break;
+              case 'o':
+                TokMax = 24;
+                break;
+              case 'p':
+                TokMax = 25;
+                break;
               default:
                 TokMax = -1;
                 iPtr += 3;
@@ -2068,6 +2189,54 @@ int main(int argc, char *argv[])
                 case '9':
                   TokMax = 9;
                 break;
+                case 'a':
+                  TokMax = 10;
+                  break;
+                case 'b':
+                  TokMax = 11;
+                  break;
+                case 'c':
+                  TokMax = 12;
+                  break;
+                case 'd':
+                  TokMax = 13;
+                  break;
+                case 'e':
+                  TokMax = 14;
+                  break;
+                case 'f':
+                  TokMax = 15;
+                  break;
+                case 'g':
+                  TokMax = 16;
+                  break;
+                case 'h':
+                  TokMax = 17;
+                  break;
+                case 'i':
+                  TokMax = 18;
+                  break;
+                case 'j':
+                  TokMax = 19;
+                  break;
+                case 'k':
+                  TokMax = 20;
+                  break;
+                case 'l':
+                  TokMax = 21;
+                  break;
+                case 'm':
+                  TokMax = 22;
+                  break;
+                case 'n':
+                  TokMax = 23;
+                  break;
+                case 'o':
+                  TokMax = 24;
+                  break;
+                case 'p':
+                  TokMax = 25;
+                  break;
                 default:
                   TokMax = -1;
                   iPtr += 3;
@@ -4309,6 +4478,83 @@ int main(int argc, char *argv[])
               AChSyslog(Inrec);
           }
           else
+          if ((strnicmp(Inrec, "OPN:", 4) == 0) && (strlen(Inrec) > 4))
+          {
+            // Open the file in the OPN: Action (if its not blank)
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            // If we already had a file open, close it now.
+            if (iOPNisOpen == 1)
+            {
+              fclose(OPNHndl);
+
+              if (iLogOpen == 1)
+                fprintf(LogHndl, "[*] Previously Opened File has been Closed.\n");
+
+              if (setMSGLvl > 2)
+              {
+                consPrefix("[*] ", consYel);
+                printf("Previously Opened File has been Closed\n");
+              }
+            }
+
+            // Open a file for Append
+            OPNHndl = fopen(Inrec + 4, "a");
+            if (OPNHndl != NULL)
+            {
+              if (iLogOpen == 1)
+                fprintf(LogHndl, "[+] File Opened for Append:\n %s\n", Inrec + 4);
+
+              if (setMSGLvl > 1)
+              {
+                consPrefix("[+] ", consGre);
+                printf("File Opened for Append: \n %s\n", Inrec + 4);
+              }
+
+              iOPNisOpen = 1;
+            }
+            else
+            {
+              if (iLogOpen == 1)
+                fprintf(LogHndl, "[!] File Could not be opened for Append:\n %s\n", Inrec + 4);
+
+              if (setMSGLvl > 1)
+              {
+                consPrefix("[!] ", consRed);
+                printf("File could not be opened for Append: \n %s\n", Inrec + 4);
+              }
+
+              iOPNisOpen = 0;
+            }
+
+            if ((iSyslogLvl > 0) && (strlen(Inrec) > 4))
+             AChSyslog(Inrec);
+          }
+          else
+          if (strnicmp(Inrec, "OUT:", 4) == 0)
+          {
+            // Write to File (if it is Open)
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            if (iOPNisOpen == 1)
+            {
+              fprintf(OPNHndl, "%s\n", Inrec + 4);
+            }
+            else
+            {
+              if (iLogOpen == 1)
+                fprintf(LogHndl, "[!] No File has been OPN:(ed) for Append.\n");
+
+              if (setMSGLvl > 1)
+              {
+                consPrefix("[!] ", consRed);
+                printf("No File has been OPN:(ed) for Append.\n");
+              }
+            }
+          }
+          else
           if (strnicmp(Inrec, "PZZ:", 4) == 0)
           {
             /****************************************************************/
@@ -5881,6 +6127,58 @@ size_t LRTrim(char *SqString)
   return SqLen;
 }
 
+
+/****************************************************************/
+/* Compress Unicode into ASCII - Support Big & Little Endian    */
+/****************************************************************/
+size_t UA_fgets(char *UA_string, int UA_maxlen, FILE* UA_handle, int UA_AscOrUni)
+{
+  int UA_char, UA_unichar, UA_indx;
+
+  for (UA_indx = 0; UA_indx < UA_maxlen; UA_indx++)
+  {
+    UA_char = fgetc(UA_handle);
+
+    if (UA_char == EOF)
+      return UA_indx;
+    else
+    {
+      if (UA_AscOrUni == 0)
+      {
+        // Not UniCode
+        sprintf(UA_string + UA_indx, "%c", UA_char);
+        sprintf(UA_string + UA_indx + 1, "%c", 0x00);
+
+        if (UA_char == 0x0A)
+         return UA_indx;
+      }
+      else
+      if (UA_AscOrUni == 2)
+      {
+        // UniCode Little Endian
+        UA_unichar = fgetc(UA_handle);
+        sprintf(UA_string + UA_indx, "%c", UA_unichar);
+        sprintf(UA_string + UA_indx + 1, "%c", 0x00);
+
+        if (UA_unichar == 0x0A)
+         return UA_indx;
+      }
+      else
+      if (UA_AscOrUni == 1)
+      {
+        // Unicode Big Endian
+        UA_unichar = fgetc(UA_handle);
+        sprintf(UA_string + UA_indx, "%c", UA_char);
+        sprintf(UA_string + UA_indx + 1, "%c", 0x00);
+
+        if (UA_char == 0x0A)
+         return UA_indx;
+      }
+    }
+  }
+
+  return UA_indx;
+}
 
 
 /****************************************************************/
@@ -9241,6 +9539,8 @@ void cleanUp_Exit(int exitRC)
   if (access(MCpFile, 0) == 0)
     unlink(MCpFile);
 
+  if (iOPNisOpen == 1)
+    fclose(OPNHndl);
 
   if (iHtmMode == 1)
   {

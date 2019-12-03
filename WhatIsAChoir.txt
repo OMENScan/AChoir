@@ -1,4 +1,4 @@
-AChoir - v4.0
+AChoir - v4.1
 
 AChoir
 ======
@@ -263,6 +263,10 @@ EXA:     Run a Program and DON'T wait for completion (P_NOWAIT)
 EXB:     Run a Program in the background (P_DETACH)
 SYS:     Execute a System Command using the OS Shell
 CMD:     Execute a System Command using AChoir's Command Shell
+OPN:<FileName> - Open an Output File for Appending - Only one
+                 File can be open at a time. OPN:(ing) a file
+                 will close any previous one.
+OUT:<String> - Append the string to the OPN: output file. 
 USR:<UserId> 
          UserId to use when mapping a drive (Optional)
 USR:?    Will query for the UserId for Drive Mapping 
@@ -382,10 +386,10 @@ Objects:
 &Acq     The Current Acquisition Directory
 &Acn     The Current Acquisition Name
 &For     An array of File objects set by the FOR: action
-&FO0-&FO9  The &FOR object parsed into 10 variables using
+&FO0-&FOP  The &FOR object parsed into 25 variables using
            the Delims (See SET:DELIMS=)
 &Lst     An array of text objects set by the LST: action
-&LS0-&LS9  The &LST object parsed into 10 variables using
+&LS0-&LSP  The &LST object parsed into 25 variables using
            the Delims (See SET:DELIMS=)
 &DSK     An Array of Disk objects set by the DSK: action
 &Num     The array number of each &For Object
@@ -557,6 +561,15 @@ Achoir is designed to work with Built in DOS utilities and commands.  I have fou
 Redirecting output to a file can OFTEN add eroneous spaces which then make parsing 
 difficult. To overcome that, I have added the ability to Trim or Not Trim &For and &Lst
 file enumeration.  Trimming is on by default, but if you don't want it, you can turn it off.
+
+
+A note about UniCode
+------
+Achoir is an ASCII based program. However, many of the utilities that AChoir uses, will write 
+UniCode text output files.  In order for AChoir to be able read and parse that output, it needs 
+to understand some UniCode. To make that possible, AChoir can detect both Big Endian and Little 
+Endian UTF-16.  AChoir Will internally convert the Unicode input to ASCII and write all it's
+output to ASCII. 
 
 
 A note about LZNT1 Decompression
