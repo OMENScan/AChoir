@@ -223,6 +223,7 @@
 /*              - Expand parsing to &LSA - &LSP and &FOA - &FOP */
 /*              - Add Experimental Unicode File Processing      */
 /*                 - Only UTF-16 (Big & Little Endian)          */
+/* AChoir v4.2  - Make Log File consistent (set to ACQName)     */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -318,7 +319,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v4.1\0";
+char Version[10] = "v4.2\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -1276,7 +1277,8 @@ int main(int argc, char *argv[])
   /****************************************************************/
   /* Logging!                                                     */
   /****************************************************************/
-  sprintf(LogFile, "%s\\Logs\\ACQ-IR-%04d%02d%02d-%02d%02d.Log\0", BaseDir, iYYYY, iMonth, iDay, iHour, iMin);
+  //sprintf(LogFile, "%s\\Logs\\ACQ-IR-%04d%02d%02d-%02d%02d.Log\0", BaseDir, iYYYY, iMonth, iDay, iHour, iMin);
+  sprintf(LogFile, "%s\\Logs\\%s.Log\0", BaseDir, ACQName);
   LogHndl = fopen(LogFile, "w");
   if (LogHndl == NULL)
   {
@@ -9630,7 +9632,8 @@ void cleanUp_Exit(int exitRC)
 
     //Reset setCPath to Relative and copy Log
     setCPath = 0;
-    sprintf(CpyFile, "%s\\ACQ-IR-%04d%02d%02d-%02d%02d.Log\0", BACQDir, iYYYY, iMonth, iDay, iHour, iMin);
+    //sprintf(CpyFile, "%s\\ACQ-IR-%04d%02d%02d-%02d%02d.Log\0", BACQDir, iYYYY, iMonth, iDay, iHour, iMin);
+    sprintf(CpyFile, "%s\\%s.Log\0", BACQDir, ACQName);
     binCopy(LogFile, CpyFile, 0);
   }
 
