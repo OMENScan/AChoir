@@ -1,4 +1,4 @@
-AChoir - v4.2
+AChoir - v4.3
 
 AChoir
 ======
@@ -407,6 +407,7 @@ Objects:
 &VCK     Results of last Volume Check (VCK:<x:\>
 &MEM     System Memory 
 &DSA     Disk Space Available
+&HST     Local Host Name (set to "localhost" on error)
 
 %<variable>% - AChoir can also expand the native DOS/Windows Environment Variables
  Note: To use a native % (prevent expansion) in a script, use %% 

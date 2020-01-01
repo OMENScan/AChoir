@@ -224,6 +224,7 @@
 /*              - Add Experimental Unicode File Processing      */
 /*                 - Only UTF-16 (Big & Little Endian)          */
 /* AChoir v4.2  - Make Log File consistent (set to ACQName)     */
+/* AChoir v4.3  - Added &HST Variable (Host Name)               */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -319,7 +320,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v4.2\0";
+char Version[10] = "v4.3\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -916,10 +917,11 @@ int main(int argc, char *argv[])
   /****************************************************************/
   /* Build the &ACQ Incident Number                               */
   /****************************************************************/
-  if (GetComputerName(cName, &len) != 0)
-    sprintf(ACQName, "ACQ-IR-%s-%04d%02d%02d-%02d%02d\0", cName, iYYYY, iMonth, iDay, iHour, iMin);
-  else
-    sprintf(ACQName, "ACQ-IR-%04d%02d%02d-%02d%02d\0", iYYYY, iMonth, iDay, iHour, iMin);
+  memset(cName, 0, MAX_COMPUTERNAME_LENGTH);
+  if (GetComputerName(cName, &len) == 0)
+   strcpy(cName, "localhost");
+
+  sprintf(ACQName, "ACQ-IR-%s-%04d%02d%02d-%02d%02d\0", cName, iYYYY, iMonth, iDay, iHour, iMin);
 
 
   /****************************************************************/
@@ -1956,6 +1958,13 @@ int main(int argc, char *argv[])
             if (strnicmp(o32VarRec + iPtr, "&Inp", 4) == 0)
             {
               sprintf(Inrec + oPtr, "%s", Inprec);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Hst", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%s", cName);
               oPtr = strlen(Inrec);
               iPtr += 3;
             }
