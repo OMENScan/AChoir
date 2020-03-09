@@ -16,7 +16,7 @@ CKN:&Dir\Plaso\log2timeline.exe
   SAY:[*] Log2TimeLine Not Found, Downloading it... 
   SAY:
   FIL:Plaso.zip
-  EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\Plaso.txt https://github.com/log2timeline/plaso/releases/download/20190708/plaso-20190708-py2.7-amd64.zip
+  EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\Plaso.txt https://github.com/OMENScan/AChoir/blob/master/Tools/plaso-20191203-py3.7-amd64.zip?raw=true
   SAY:
   SAY:[*] Unzipping Plaso...
   SAY:
