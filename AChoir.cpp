@@ -1019,7 +1019,7 @@ int main(int argc, char *argv[])
       iRunMode = 3;
     }
     else
-    if (strnicmp(argv[i], "/DRV:", 4) == 0)
+    if (strnicmp(argv[i], "/DRV:", 5) == 0)
     {
       if ((argv[i][6] == ':') && (strlen(argv[i]) == 7))
       {
