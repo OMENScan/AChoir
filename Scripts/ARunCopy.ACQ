@@ -1,0 +1,17 @@
+*******************************************************
+* Run Autoruns, Parse the CSV, and copy all of the    *
+*  executables                                        *
+*******************************************************
+SET:CopyPath=Part
+ACQ:\ARN
+SAY:[+] Executing Autoruns (Ignoring MS Executables)...
+CMD:\SYS\Autorunsc.exe /accepteula -a * -c -h -m > &Acq\AutoRun.dat
+SAY:[+] Copying Executables...
+LST:&ACN\ARN\AutoRun.dat
+NCP:"&LS8" "&ACQ"
+SAY:[+] Processing Complete...
+SAY:
+SAY:[+] Now Hashing Artifacts...
+HSH:ACQ
+SAY:
+PZZ: All Done!  Press Any Key to Finish.

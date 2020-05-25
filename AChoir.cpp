@@ -225,6 +225,7 @@
 /*                 - Only UTF-16 (Big & Little Endian)          */
 /* AChoir v4.2  - Make Log File consistent (set to ACQName)     */
 /* AChoir v4.3  - Added &HST Variable (Host Name)               */
+/* AChoir v4.4  - Improve Parsing to recognize dbl-quotes       */
 /*                                                              */
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
@@ -320,7 +321,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v4.3\0";
+char Version[10] = "v4.4\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -348,6 +349,9 @@ char Delims[10] = ",\0\0\0\0\0\0\0\0";
 char *TokPtr;
 int  TokCnt;
 int  TokMax;
+int  TokIdx;
+int  TokCur;
+int  TokOnOff;
 
 int  iNative = 0; // Are we Native 64Bit on 64Bit (Native = 1, NonNative = 0)
 char sNative[10] = "\0";
@@ -2120,23 +2124,56 @@ int main(int argc, char *argv[])
               {
                 memset(Tokrec, 0, 2048);
                 strncpy(Tokrec, Filrec, 2048);
-                TokPtr = strtok(Tokrec, Delims);
-
-                for (TokCnt = 0; TokCnt < TokMax; TokCnt++)
+                
+                // V4.4 - Improved Parser (Look for dbl-quotes)
+                // TokOnOff = Tokenize Off if Quoted (0), On if Not Quoted (1) 
+                TokCnt = TokIdx = 0;
+                TokOnOff = 1;
+                for (TokCur = 0; TokCur < strlen(Tokrec); TokCur++)
                 {
-                  if (TokPtr != NULL)
-                    TokPtr = strtok(NULL, Delims);
+                  if (Tokrec[TokCur] == '"')
+                  {
+                    if (TokOnOff == 1)
+                      TokOnOff = 0;
+                    else
+                      TokOnOff = 1;
+                  }
+                  else
+                  if (strchr(Delims, Tokrec[TokCur]) != 0)
+                  {
+                    // Only Process if we are not inside a Quote 
+                    if (TokOnOff == 1)
+                    {
+                      TokCnt++;
+
+                      if (TokCnt == TokMax)
+                        TokIdx = TokCur+1;
+                      else
+                      if (TokCnt > TokMax)
+                      {
+                        Tokrec[TokCur] = '\0';
+                        break;
+                      }
+                    }
+                  }
                 }
 
                 /****************************************************************/
                 /* If we got a Column, Add it.                                  */
                 /****************************************************************/
-                if (TokPtr != NULL)
+                if (TokCnt >= TokMax)
                 {
-                  if (setTrim == 1)
-                    LRTrim(TokPtr);
+                  // Remove Double-Quotes if they are there
+                  if ((Tokrec[TokIdx] == '"') && (Tokrec[strlen(Tokrec)-1] == '"'))
+                  {
+                    TokIdx++;
+                    Tokrec[strlen(Tokrec)-1] = '\0';
+                  }
 
-                  sprintf(Inrec + oPtr, "%s", TokPtr);
+                  if (setTrim == 1)
+                    LRTrim(Tokrec + TokIdx);
+
+                  sprintf(Inrec + oPtr, "%s", Tokrec+TokIdx);
                 }
                 oPtr = strlen(Inrec);
                 iPtr += 3;
@@ -2261,23 +2298,56 @@ int main(int argc, char *argv[])
               {
                 memset(Tokrec, 0, 2048);
                 strncpy(Tokrec, Lstrec, 2048);
-                TokPtr = strtok(Tokrec, Delims);
 
-                for (TokCnt = 0; TokCnt < TokMax; TokCnt++)
+                // New Version 4.4 - Improved Parsing (recognize dbl-quotes)
+                // TokOnOff = Tokenize Off if Quoted (0), On if Not Quoted (1) 
+                TokCnt = TokIdx = 0;
+                TokOnOff = 1;
+                for (TokCur = 0; TokCur < strlen(Tokrec); TokCur++)
                 {
-                  if (TokPtr != NULL)
-                   TokPtr = strtok(NULL, Delims);
+                  if (Tokrec[TokCur] == '"')
+                  {
+                    if (TokOnOff == 1)
+                      TokOnOff = 0;
+                    else
+                      TokOnOff = 1;
+                  }
+                  else
+                  if (strchr(Delims, Tokrec[TokCur]) != 0)
+                  {
+                    // Only Process if we are not inside a Quote 
+                    if (TokOnOff == 1)
+                    {
+                      TokCnt++;
+
+                      if (TokCnt == TokMax)
+                       TokIdx = TokCur+1;
+                      else
+                      if (TokCnt > TokMax)
+                      {
+                        Tokrec[TokCur] = '\0';
+                        break;
+                      }
+                    }
+                  }
                 }
 
                 /****************************************************************/
                 /* If we got a Column, Add it.                                  */
                 /****************************************************************/
-                if (TokPtr != NULL)
+                if (TokCnt >= TokMax)
                 {
-                  if (setTrim == 1)
-                    LRTrim(TokPtr);
+                  // Remove Double-Quotes if they are there
+                  if ((Tokrec[TokIdx] == '"') && (Tokrec[strlen(Tokrec)-1] == '"'))
+                  {
+                    TokIdx++;
+                    Tokrec[strlen(Tokrec)-1] = '\0';
+                  }
 
-                  sprintf(Inrec + oPtr, "%s", TokPtr);
+                  if (setTrim == 1)
+                   LRTrim(Tokrec + TokIdx);
+
+                  sprintf(Inrec + oPtr, "%s", Tokrec + TokIdx);
                 }
                 oPtr = strlen(Inrec);
                 iPtr += 3;
