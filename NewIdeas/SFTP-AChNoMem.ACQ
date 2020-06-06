@@ -1,0 +1,138 @@
+*******************************************************
+* Live Acquisition Script for AWS SFTP (1.0)          *
+* - Collect Artifacts/Telemetry Directly to SFTP      *
+* - For Artifacts that cannot be directly SFTP -      *
+*    Extract into directory and SFTP from there       *
+*******************************************************
+SET:CopyPath=Part
+SAY:[+] AChoir will pull artifacts and telemetry of forensic value for investigation.
+SAY:[+] * * *   Please MAKE SURE you are running this as an Administrator  * * * 
+SAY:[+] * * * Administrator right are required for many of these utilities * * * 
+ADM:Check
+PZZ:[?] Press Any Key to Continue, or q to QUIT
+***
+SAY:[+] 1. Bypassing Memory Dump...
+***
+SAY:[+] 2. Uploading Prefetch Directory to SFTP Server...
+ACQ:\
+EXE:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&Win\prefetch" "&ACN.PRF"
+***
+SAY:[+] 3a. Copy Raw $MFT(s)...
+DSK:Fixed
+ACQ:\RawData
+NCP:"&Dsk:\$MFT" "&Acq"
+SAY:[+] 3b. Copy Raw $LogFile...
+NCP:"&Dsk:\$LogFile" "&Acq"
+SAY:[+] 3c. Now Extracting USNJrnl...
+EXE:\DSK\ExtractUSNJrnl.exe /DevicePath:c: /OutputPath:&Acq
+SAY:[+] 3d. Now Parsing USNJrnl...
+CMD:fsutil usn enumdata 1 0 1 C: > &Acq\USNJrnl.dat
+CMD:fsutil usn readjournal C: csv >> &Acq\USNJrnl.dat
+SAY:[+] Now Uploading to SFTP Server
+EXE:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&ACQ" "&ACN.RawData"
+CMD:RmDir &Acq /S /Q
+***
+SAY:[+] 4a. Gathering Process Information...
+ACQ:\SYS
+CMD:\SYS\PSInfo.exe /accepteula -s > &Acq\Info.dat
+SAY:[+] 4b. Gathering System Audit Information...
+EXE:\SYS\WinAudit.exe /r=gsoPxuTUeERNtnzDaIbMpmidcSArCOHG /f=&Acq\WinAudit.htm /l=&Acq\WinAudLog.txt
+SAY:[+] 4c. Gathering Group Policy Information...
+CMD:GPResult /R /Z > &Acq\GPResult.txt
+*** 
+* Note: We will SFTP SYS Info in Step 8
+***
+SAY:[+] 5. Raw Copy Registry Hives...
+ACQ:\Reg
+NCP:"&Win\System32\Config\SECURITY" "&Acq"
+NCP:"&Win\System32\Config\SOFTWARE" "&Acq"
+NCP:"&Win\System32\Config\SAM" "&Acq"
+NCP:"&Win\System32\Config\SYSTEM" "&Acq"
+NCP:"&Win\AppCompat\Programs\Amcache.hve" "&Acq"
+EXE:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&ACQ" "&ACN.Reg"
+CMD:RmDir &Acq /S /Q
+***
+ACQ:\
+SAY:[+] 6. Uploading (System32) EventViewer Logs...
+EXE:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&Win\System32\winevt\Logs" "&ACN.EVT.Sys32"
+SAY:[+] 6a. Uploaading (Sysnative) EventViewer Logs...
+EXE:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&Win\Sysnative\winevt\Logs" "&ACN.EVT.Nativ"
+***
+SAY:[+] 7. Uploading (System32) Etc Directory, and SRUM...
+EXE:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&Win\System32\Drivers\Etc" "&ACN.SYS.SYS32"
+EXE:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&Win\System32\sru\SRUDB.dat" "&ACN.SYS.SYS32/SRUDB.dat"
+SAY:[+] 7a. Uploading (Sysnative) Hosts And Services Directory...
+EXE:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&Win\Sysnative\Drivers\Etc" "&ACN.SYS.Nativ"
+EXE:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&Win\Sysnative\sru\SRUDB.dat" "&ACN.SYS.Nativ/SRUDB.dat"
+***
+SAY:[+] 8. Parsing Environment Variables...
+ACQ:\SYS
+CMD:Set > &Acq\EnVar.dat
+SAY:[+] 9. Parsing The Patch List...
+CMD:WMIC qfe list > &Acq\QFEList.dat
+SAY:[+] 10. Gathering Running Process List Information...
+CMD:Tasklist /v > &Acq\Tasklist.dat
+CMD:Tasklist /M > &Acq\TaskAll.dat
+CMD:\SYS\PSList.exe /accepteula -x > &Acq\PSList.dat
+SAY:[+] 11. Gathering Connection Information...
+EXE:\SYS\cports.exe /scomma &Acq\CPorts.csv
+SAY:[+] 12. Gathering IP Config Information...
+CMD:IPConfig /all > &Acq\IPConfig.dat
+CMD:IPConfig /DisplayDNS > &Acq\IPCfgDNS.dat
+SAY:[+] 13. Gathering ARP Information...
+CMD:Arp -a > &Acq\ArpInfo.dat
+SAY:[+] 14. Gathering NetBIOS Information...
+CKY:&Win\System32\NBTStat.exe
+ CMD:&Win\System32\NBTStat.exe -scn > &Acq\NetBios.dat
+END:
+CKY:&Win\sysnative\NBTStat.exe
+ CMD:&Win\sysnative\NBTStat.exe -scn >> &Acq\NetBios.dat
+END:
+SAY:[+] 15. Gathering Open Files/Process Information...
+CMD:\SYS\Handle.exe /accepteula > &Acq\OpenFiles.dat
+SAY:[+] 16. Gathering Scheduled Task Information...
+CMD:At > &Acq\SchedTasks.dat
+CMD:Schtasks /query /fo LIST /v >> &Acq\SchedTasks.dat
+SAY:[+] 17. Gathering System Logon Information...
+CMD:\SYS\PSLoggedon.exe /accepteula > &Acq\Logon.dat
+SAY:[+] 18. Gathering Services Information...
+CMD:Net Start > &Acq\Services.dat
+CMD:sc query type= service state= all > &Acq\Services-2.dat
+CMD:Tasklist /SVC > &Acq\Services-3.dat
+SAY:[+] 19. Gathering Last Activity Information...
+EXE:\SYS\LastActivityView.exe /scomma &Acq\LastActivity.csv
+SAY:[+] 20. Gathering User Assist Information...
+EXE:\SYS\UserAssistView.exe /scomma &Acq\UserAssist.csv
+EXE:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&ACQ" "&ACN.SYS"
+CMD:RmDir &Acq /S /Q
+***
+SAY:[+] 21. Gathering AutoRun Information...
+ACQ:\Arn
+ARN:
+CMD:\SYS\Autorunsc.exe /accepteula -a * -c -h > &Acq\AutoRun.dat
+EXE:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&ACQ" "&ACN.ARN"
+CMD:RmDir &Acq /S /Q
+***
+SAY:[+] 22a. Gathering Current (Open) User Registry...
+ACQ:\Reg
+CMD:Reg Save HKCU &Acq\NTUSER.DAT
+SAY:[+] 22b. Gathering All User Registries...
+NCP:"C:\Users\*\NTUSER.DAT" "&Acq"
+EXE:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&ACQ" "&ACN.REG"
+CMD:RmDir &Acq /S /Q
+***
+SAY:[+] 23. Now Extracting Browser History...
+ACQ:\Brw
+EXE:\SYS\BrowsingHistoryView.exe /scomma &Acq\BrowseHist.csv
+EXE:\SYS\BrowsingHistoryView.exe /shtml &Acq\BrowseHist.htm
+EXE:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&ACQ" "&ACN.BRW"
+CMD:RmDir &Acq /S /Q
+***
+SAY:[+] 24. Gathering $Recycle.Bin entries...
+DSK:Fixed
+EXE:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&Dsk:\$Recycle.Bin" "&ACN\RBin"
+***
+SAY:[+] SFTP Upload/Acquisition Complete...
+ACQ:\
+XIT:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&ACQ" "&ACN"
+PZZ:[+] All Done!  Press Any Key to Finish.

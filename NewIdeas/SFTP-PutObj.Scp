@@ -1,0 +1,18 @@
+Option Batch Continue
+Option Confirm Off
+# Connect to SFTP server using a password or SSH Private Key
+# <userID>      - The SFTP Server UserID
+# <passw>       - The SFTP Server Password
+# <SFTPServer>  - The SFTP Server IP or Domain Name
+# <FingerPrint> - The SFTP Server Fingerprint - Verifies the Host
+# <PrivateKey>  - The SFTP Server Private Key (Used instead of a password)
+#open sftp://<userID>@<SFTP Server> -hostkey="ssh-rsa 2048 <Fingerprint>" -privatekey="<Location of Private Key>"
+open sftp://<passw>:<userID>@<SFTPServer>/  -hostkey="ssh-rsa 1024 <Fingerprint>"
+###
+# Upload file using passed parameters
+###
+put "%1%" "%2%" -resumesupport=off
+###
+# Exit WinSCP
+###
+exit
