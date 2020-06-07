@@ -9,19 +9,46 @@ SAY:[+] AChoir will pull artifacts and telemetry of forensic value for investiga
 SAY:[+] * * *   Please MAKE SURE you are running this as an Administrator  * * * 
 SAY:[+] * * * Administrator right are required for many of these utilities * * * 
 ADM:Check
-PZZ:[?] Press Any Key to Continue, or q to QUIT
+***
+* PZZ:[?] Press Any Key to Continue, or q to QUIT
 ***
 SAY:[+] 1. Now Dumping Memory...
 SAY:[+]  WARNING: This will take while, and will create a HUGE memory image File.
-SAY:[+]  You've been warned ;-) 
-SAY:[+] Checking for available Disk Space (Min Required: &MEM)
-N<<:&Dsa &Mem
+SAY:[+]  You've been warned ;-)
+***
+* Check for available disk space - Assume Decent Compression 
+* Default to Memsize
+* For More than 4GB use 6GB
+* For More than 8GB use 10GB
+* For More than 16Gb use 20GB
+* For more than 32Gb use MemSize
+***
+VR0:&Mem
+N>>:&Mem 4300000000
+ VR0:6442450944
+ SAY:[+] Estimated Disk Size Exceeds 4 Meg
+END:
+N>>:&Mem 8697308774
+ VR0:10737418240
+ SAY:[+] Estimated Disk Size Exceeds 8 Meg
+END:
+N>>:&Mem 17287243366
+ VR0:21474836480
+ SAY:[+] Estimated Disk Size Exceeds 16 Meg
+END:
+N>>:&Mem 34467112550
+ VR0:&Mem
+ SAY:[+] Estimated Disk Size Exceeds 32 Meg
+END:
+SAY:[+] Checking for available Disk Space (Min Required: &VR0)
+N<<:&Dsa &VR0
  SAY:[!] Not Enough disk space in &ACQ to Capture Memory: &MEM ... 
  SAY:[!] Bypassing Memory Capture!
 END:
-N>>:&Dsa &Mem
+N>>:&Dsa &VR0
  ACQ:\MemDump
- EXE:\MEM\WinPmem320.exe --output &Acq\WinPmemDump.Raw --logfile &Acq\WinPmemDump.Log --volume_format raw -dd -t
+ *XE:\MEM\WinPmem320.exe --output &Acq\WinPmemDump.Raw --logfile &Acq\WinPmemDump.Log --volume_format raw -dd -t
+ EXE:\MEM\WinPmem320.exe --output &Acq\WinPmemDump.Aff --logfile &Acq\WinPmemDump.Log -dd -t
  SAY:[+] Now Uploading to SFTP Server
  EXE:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&ACQ" "&ACN.MEM"
  CMD:RmDir &Acq /S /Q
@@ -149,4 +176,6 @@ EXE:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&Dsk:\$Re
 SAY:[+] SFTP Upload/Acquisition Complete...
 ACQ:\
 XIT:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&ACQ" "&ACN"
-PZZ:[+] All Done!  Press Any Key to Finish.
+***
+* PZZ:[+] All Done!  Press Any Key to Finish.
+***

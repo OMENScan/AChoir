@@ -9,7 +9,8 @@ SAY:[+] AChoir will pull artifacts and telemetry of forensic value for investiga
 SAY:[+] * * *   Please MAKE SURE you are running this as an Administrator  * * * 
 SAY:[+] * * * Administrator right are required for many of these utilities * * * 
 ADM:Check
-PZZ:[?] Press Any Key to Continue, or q to QUIT
+***
+* PZZ:[?] Press Any Key to Continue, or q to QUIT
 ***
 SAY:[+] 1. Bypassing Memory Dump...
 ***
@@ -135,4 +136,6 @@ EXE:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&Dsk:\$Re
 SAY:[+] SFTP Upload/Acquisition Complete...
 ACQ:\
 XIT:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&ACQ" "&ACN"
-PZZ:[+] All Done!  Press Any Key to Finish.
+***
+* PZZ:[+] All Done!  Press Any Key to Finish.
+***
