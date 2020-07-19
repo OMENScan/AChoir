@@ -1,0 +1,15 @@
+Option Batch Continue
+Option Confirm Off
+# Connect to S3 Bucket Using KeyID and Secret
+# <KeyID>       - Generated KeyID for AWS User
+# <Secret>      - Generated Secret for AWS User
+# <BucketName>  - Name of the S3 Bucket
+open s3://<KeyID>:<Secret>@s3.amazonaws.com/<BucketName>/
+###
+# Upload file using passed parameters
+###
+put "%1%" "%2%" -resumesupport=off
+###
+# Exit WinSCP
+###
+exit
