@@ -288,13 +288,16 @@ SAY: --- Unzipping OSFMount 64 Bit ---
 SAY:
 EXE:\unzip.exe -o &Dir\&Fil -d &Dir\64Bit
 SAY:
-SAY: --- Getting PSCP 32 and 64 Bit (from the.earth.li) ---
+SAY: --- Getting WinSCP Portable (from WinSCP.net) ---
 SAY:
 DIR:\XFR
-FIL:pscp.exe
-EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\pscp.txt https://the.earth.li/~sgtatham/putty/latest/w32/pscp.exe
-FIL:pscp64.exe
-EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\pscp64.txt https://the.earth.li/~sgtatham/putty/latest/w64/pscp.exe
+FIL:WinSCP-5.17.6-Portable.zip
+EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\WinScp.txt https://winscp.net/download/WinSCP-5.17.6-Portable.zip
+SAY:
+SAY: --- Unzipping WinSCP Portable ---
+SAY:
+EXE:\unzip.exe -o &Dir\&Fil -d &Dir
+SAY:
 SAY: Download and Build Complete...
 SAY:
 SAY: Now Hashing The Files...

@@ -77,7 +77,7 @@ EXE:\SYS\RegfileExport.exe &For "&Acq\NTUSER(&Num).EXP"
 CPY:"&For" "&Acq\&Fnm(&Num)"
 SAY:
 SAY: 2b. RegRipping USER Registry Hives/Files...
-DIR:\RRV\RegRipper2.8-master
+DIR:\RRV\RegRipper3.0-master
 CMD:rip.exe -r &FOR -f ntuser > &Acq\NTUSER(&NUM).regrip
 SAY:
 SAY: 2c. RegRipping Common Hives...
