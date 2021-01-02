@@ -1,4 +1,4 @@
-AChoir - v4.4
+AChoir - v4.5
 
 AChoir
 ======
@@ -289,6 +289,7 @@ CN0: - CN9: <Number to Set> or ++ or --
          Increment/Decrement with CNx:++ and CNx:-- 
 HSH:ACQ  Hash everything in the &ACQ directory and subdirectories
 HSH:Dir  Hash everything in the &DIR directory and subdirectories
+HSH:<FileName MD5 Hash The file and store it in &HSH
 FOR:     Set the &FOR object.  This is a Looping object based on 
          Files - For instance "FOR:C:\Users\*.DAT" will define
          All *.DAT Files under C:\Users. In this way a single 
@@ -408,6 +409,7 @@ Objects:
 &MEM     System Memory 
 &DSA     Disk Space Available
 &HST     Local Host Name (set to "localhost" on error)
+&HSH     MD5 of the last file Hashed with HSH:
 
 %<variable>% - AChoir can also expand the native DOS/Windows Environment Variables
  Note: To use a native % (prevent expansion) in a script, use %% 

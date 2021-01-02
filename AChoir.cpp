@@ -226,7 +226,25 @@
 /* AChoir v4.2  - Make Log File consistent (set to ACQName)     */
 /* AChoir v4.3  - Added &HST Variable (Host Name)               */
 /* AChoir v4.4  - Improve Parsing to recognize dbl-quotes       */
+/* AChoir v4.5  - Updates carried over from AChoirX 10.00.38    */
+/*              - Change conditional logic to only count a      */
+/*                single occurance of &FOR and &LST comparisons */
+/*                This prevents the need for multiple END:      */
+/*                statements  - Multiple comparisons only get   */
+/*                a single hit if ANY match is found.           */
+/*                 THIS IS IMPORTANT!! Wherever &FOR and &LST   */
+/*                 are used in CONDITIONAL LOGIC - A SINGLE HIT */
+/*                 WILL BE TRUE.  To Test for INDIVIDUAL cases  */
+/*                 use a specific check and NOT a Check Against */
+/*                 a list (&LST, &FOR).                         */
+/*               - Expand &FOR and &LST Support to more Actions */
+/*               - Add HSH:<Filename> Will put the File hash in */
+/*                 the &HSH Variable (Only supports a single    */
+/*                 File for now)                                */
+/*               - Implement END:Reset to clear any Dangling    */
+/*                 ENDs.  Use Judiciously.                      */
 /*                                                              */
+/****************************************************************/
 /*  rc=0 - All Good                                             */
 /*  rc=1 - Bad Input                                            */
 /*  rc=2 - Bad Execution                                        */
@@ -321,7 +339,7 @@
 #define MaxArray 100
 #define BUFSIZE 4096
 
-char Version[10] = "v4.4\0";
+char Version[10] = "v4.5\0";
 char RunMode[10] = "Run\0";
 int  iRanMode = 0;
 int  iRunMode = 0;
@@ -336,6 +354,9 @@ int  iCDepth = 0; // CopyDepth Counter
 int  iCacheType = 0; // Movable Cache (Default)
 int  iIsUnicode = 0; // Check file for UniCode BOM (0=No, 2=LittleEndian, 1=BigEndian)
 int  LstRC = 0; // Return Code for Reading LST: Record
+char LastHash[50] = "none";  // Last Single File Hash
+int  NotFound = 0; // Flag for ensuring that only one Found Rec Increments RunMe
+int  YesFound = 0; // Flag for ensuring that only one Found Rec Increments RunMe
 
 
 int  setNCP = 2;     // 0=NODCMP, 1=DECOMP/RAWONLY, 2=OSCOPY (Default)
@@ -1795,6 +1816,9 @@ int main(int argc, char *argv[])
         /* Loop (FOR: and LST:) until Looper = 1                        */
         /****************************************************************/
         LoopNum = 0;
+        NotFound = 0;
+        YesFound = 0;
+
         while (Looper == 1)
         {
           if ((ForMe == 0) && (LstMe == 0) && (DskMe == 0))
@@ -1923,6 +1947,13 @@ int main(int argc, char *argv[])
             if (strnicmp(o32VarRec + iPtr, "&Fil", 4) == 0)
             {
               sprintf(Inrec + oPtr, "%s", CurrFil);
+              oPtr = strlen(Inrec);
+              iPtr += 3;
+            }
+            else
+            if (strnicmp(o32VarRec + iPtr, "&Hsh", 4) == 0)
+            {
+              sprintf(Inrec + oPtr, "%s", LastHash);
               oPtr = strlen(Inrec);
               iPtr += 3;
             }
@@ -4062,8 +4093,32 @@ int main(int argc, char *argv[])
                 }
               }
               else
-              if(strnicmp(Cmprec + iPrm1, Cmprec + iPrm2, 255) != 0)
-               RunMe++;
+              if (strnicmp(Cmprec + iPrm1, Cmprec + iPrm2, 255) == 0)
+              {
+                // Yes on First Match Only
+                if (YesFound == 0)
+                  YesFound = 1;
+              }
+              else
+              {
+                // No On First Not Match Only
+                if (NotFound == 0)
+                  NotFound = 1;
+              }
+
+              if (NotFound == 1 && YesFound == 0)
+              {
+                // Not Found, Increment Just Once
+                RunMe++;
+                NotFound = 2;
+              }
+              else 
+              if (YesFound == 1 && NotFound == 2)
+              {
+                // undo the Previous Runme++ and make sure we dont do it again.
+                RunMe--;
+                YesFound = 2;
+              }
             }
           }
           else
@@ -4103,6 +4158,12 @@ int main(int argc, char *argv[])
                     fprintf(LogHndl, "[*] %lld is Greater Than %lld\n", longParm1, longParm2);
                     printf("%lld is Greater than %lld\n", longParm1, longParm2);
                   }
+                  else
+                  {
+                    // Yes on First Match Only
+                    if (YesFound == 0)
+                      YesFound = 1;
+                  }
                 }
                 else
                 {
@@ -4112,7 +4173,28 @@ int main(int argc, char *argv[])
                     printf("%lld is NOT Greater than %lld\n", longParm1, longParm2);
                   }
                   else
+                  {
+                    // No On First Not Match Only
+                    if (NotFound == 0)
+                      NotFound = 1;
+                  }
+                }
+
+                if (consOrFile != 1)
+                {
+                  if (NotFound == 1 && YesFound == 0)
+                  {
+                    // Not Found, Increment Just Once
                     RunMe++;
+                    NotFound = 2;
+                  }
+                  else 
+                  if (YesFound == 1 && NotFound == 2)
+                  {
+                    // undo the Previous Runme++ and make sure we dont do it again.
+                    RunMe--;
+                    YesFound = 2;
+                  }
                 }
               }
               else
@@ -4125,6 +4207,12 @@ int main(int argc, char *argv[])
                     fprintf(LogHndl, "[*] %lld is Less than %lld\n", longParm1, longParm2);
                     printf("%lld is Less than %lld\n", longParm1, longParm2);
                   }
+                  else
+                  {
+                    // Yes on First Match Only
+                    if (YesFound == 0)
+                      YesFound = 1;
+                  }
                 }
                 else
                 {
@@ -4134,7 +4222,28 @@ int main(int argc, char *argv[])
                     printf("%lld is NOT Less than %lld\n", longParm1, longParm2);
                   }
                   else
-                    RunMe++;
+                  {
+                    // No On First Not Match Only
+                    if (NotFound == 0)
+                      NotFound = 1;
+                  }
+
+                  if (consOrFile != 1)
+                  {
+                    if (NotFound == 1 && YesFound == 0)
+                    {
+                      // Not Found, Increment Just Once
+                      RunMe++;
+                      NotFound = 2;
+                    }
+                    else
+                    if (YesFound == 1 && NotFound == 2)
+                    {
+                      // undo the Previous Runme++ and make sure we dont do it again.
+                      RunMe--;
+                      YesFound = 2;
+                    }
+                  }
                 }
               }
               else
@@ -4147,6 +4256,12 @@ int main(int argc, char *argv[])
                     fprintf(LogHndl, "[*] Numbers are Equal: %lld\n", longParm1);
                     printf("Numbers are Equal: %lld\n", longParm1);
                   }
+                  else
+                  {
+                    // Yes on First Match Only
+                    if (YesFound == 0)
+                      YesFound = 1;
+                  }
                 }
                 else
                 {
@@ -4156,7 +4271,28 @@ int main(int argc, char *argv[])
                     printf("%lld is NOT Equal to %lld\n", longParm1, longParm2);
                   }
                   else
-                    RunMe++;
+                  {
+                    // No On First Not Match Only
+                    if (NotFound == 0)
+                      NotFound = 1;
+                  }
+
+                  if (consOrFile != 1)
+                  {
+                    if (NotFound == 1 && YesFound == 0)
+                    {
+                      // Not Found, Increment Just Once
+                      RunMe++;
+                      NotFound = 2;
+                    }
+                    else
+                    if (YesFound == 1 && NotFound == 2)
+                    {
+                      // undo the Previous Runme++ and make sure we dont do it again.
+                      RunMe--;
+                      YesFound = 2;
+                    }
+                  }
                 }
               }
             }
@@ -4198,8 +4334,32 @@ int main(int argc, char *argv[])
                 }
               }         
               else
-              if(strnicmp(Cmprec + iPrm1, Cmprec + iPrm2, 255) == 0)
-               RunMe++;
+              if (strnicmp(Cmprec + iPrm1, Cmprec + iPrm2, 255) != 0)
+              {
+                // Yes on First Match Only
+                if (YesFound == 0)
+                  YesFound = 1;
+              }
+              else
+              {
+                // No On First Not Match Only
+                if (NotFound == 0)
+                  NotFound = 1;
+              }
+
+              if (NotFound == 1 && YesFound == 0)
+              {
+                // Not Found, Increment Just Once
+                RunMe++;
+                NotFound = 2;
+              }
+              else
+              if (YesFound == 1 && NotFound == 2)
+              {
+                // undo the Previous Runme++ and make sure we dont do it again.
+                RunMe--;
+                YesFound = 2;
+              }
             }
           }
           else
@@ -4258,18 +4418,62 @@ int main(int argc, char *argv[])
             {
               if (strnicmp(Inrec+4, "Server", 6) == 0)
               {
-                if(iIsServer != 1)
-                 RunMe++;
+                if(iIsServer == 1)
+                {
+                  // Yes on First Match Only
+                  if (YesFound == 0)
+                    YesFound = 1;
+                }
+                else
+                {
+                  // No On First Not Match Only
+                  if (NotFound == 0)
+                    NotFound = 1;
+                }
               }
               else
               if (strnicmp(Inrec+4, "Client", 6) == 0)
               {
-                if(iIsServer != 0)
-                 RunMe++;
+                if(iIsServer == 0)
+                {
+                  // Yes on First Match Only
+                  if (YesFound == 0)
+                    YesFound = 1;
+                }
+                else
+                {
+                  // No On First Not Match Only
+                  if (NotFound == 0)
+                    NotFound = 1;
+                }
               }
               else
-              if (strnicmp(shortWinVer, Inrec+4, 10) != 0)
+              if (strnicmp(shortWinVer, Inrec+4, 10) == 0)
+              {
+                // Yes on First Match Only
+                if (YesFound == 0)
+                  YesFound = 1;
+              }
+              else
+              {
+                // No On First Not Match Only
+                if (NotFound == 0)
+                  NotFound = 1;
+              }
+
+              if (NotFound == 1 && YesFound == 0)
+              {
+                // Not Found, Increment Just Once
                 RunMe++;
+                NotFound = 2;
+              }
+              else
+              if (YesFound == 1 && NotFound == 2)
+              {
+                // undo the Previous Runme++ and make sure we dont do it again.
+                RunMe--;
+                YesFound = 2;
+              }
             }
           }
           else
@@ -4298,8 +4502,32 @@ int main(int argc, char *argv[])
               }
             }         
             else
-            if (LastRC != ChkRC)
+            if (LastRC == ChkRC)
+            {
+              // Yes on First Match Only
+              if (YesFound == 0)
+                YesFound = 1;
+            }
+            else
+            {
+              // No On First Not Match Only
+              if (NotFound == 0)
+                NotFound = 1;
+            }
+
+            if (NotFound == 1 && YesFound == 0)
+            {
+              // Not Found, Increment Just Once
               RunMe++;
+              NotFound = 2;
+            }
+            else
+            if (YesFound == 1 && NotFound == 2)
+            {
+              // undo the Previous Runme++ and make sure we dont do it again.
+              RunMe--;
+              YesFound = 2;
+            }
           }
           else
           if (strnicmp(Inrec, "RC!:", 4) == 0)
@@ -4327,8 +4555,32 @@ int main(int argc, char *argv[])
               }
             }         
             else
-            if (LastRC == ChkRC)
+            if (LastRC != ChkRC)
+            {
+              // Yes on First Match Only
+              if (YesFound == 0)
+                YesFound = 1;
+            }
+            else
+            {
+              // No On First Not Match Only
+              if (NotFound == 0)
+                NotFound = 1;
+            }
+
+            if (NotFound == 1 && YesFound == 0)
+            {
+              // Not Found, Increment Just Once
               RunMe++;
+              NotFound = 2;
+            }
+            else
+            if (YesFound == 1 && NotFound == 2)
+            {
+              // undo the Previous Runme++ and make sure we dont do it again.
+              RunMe--;
+              YesFound = 2;
+            }
           }
           else
           if (strnicmp(Inrec, "RC<:", 4) == 0)
@@ -4356,8 +4608,32 @@ int main(int argc, char *argv[])
               }
             }         
             else
-            if (LastRC >= ChkRC)
+            if (LastRC < ChkRC)
+            {
+              // Yes on First Match Only
+              if (YesFound == 0)
+                YesFound = 1;
+            }
+            else
+            {
+              // No On First Not Match Only
+              if (NotFound == 0)
+                NotFound = 1;
+            }
+
+            if (NotFound == 1 && YesFound == 0)
+            {
+              // Not Found, Increment Just Once
               RunMe++;
+              NotFound = 2;
+            }
+            else
+            if (YesFound == 1 && NotFound == 2)
+            {
+              // undo the Previous Runme++ and make sure we dont do it again.
+              RunMe--;
+              YesFound = 2;
+            }
           }
           else
           if (strnicmp(Inrec, "RC>:", 4) == 0)
@@ -4385,8 +4661,32 @@ int main(int argc, char *argv[])
               }
             }         
             else
-            if (LastRC <= ChkRC)
+            if (LastRC > ChkRC)
+            {
+              // Yes on First Match Only
+              if (YesFound == 0)
+                YesFound = 1;
+            }
+            else
+            {
+              // No On First Not Match Only
+              if (NotFound == 0)
+                NotFound = 1;
+            }
+
+            if (NotFound == 1 && YesFound == 0)
+            {
+              // Not Found, Increment Just Once
               RunMe++;
+              NotFound = 2;
+            }
+            else
+            if (YesFound == 1 && NotFound == 2)
+            {
+              // undo the Previous Runme++ and make sure we dont do it again.
+              RunMe--;
+              YesFound = 2;
+            }
           }
           else
           if (strnicmp(Inrec, "CKY:", 4) == 0)
@@ -4415,8 +4715,32 @@ int main(int argc, char *argv[])
               }
             }         
             else
-            if (access(ChkFile, 0) != 0)
+            if (access(ChkFile, 0) == 0)
+            {
+              // Yes on First Match Only
+              if (YesFound == 0)
+                YesFound = 1;
+            }
+            else
+            {
+              // No On First Not Match Only
+              if (NotFound == 0)
+                NotFound = 1;
+            }
+
+            if (NotFound == 1 && YesFound == 0)
+            {
+              // Not Found, Increment Just Once
               RunMe++;
+              NotFound = 2;
+            }
+            else
+            if (YesFound == 1 && NotFound == 2)
+            {
+              // undo the Previous Runme++ and make sure we dont do it again.
+              RunMe--;
+              YesFound = 2;
+            }
           }
           else
           if (strnicmp(Inrec, "64B:", 4) == 0)
@@ -4499,8 +4823,32 @@ int main(int argc, char *argv[])
               }
             }         
             else
-            if (access(ChkFile, 0) == 0)
+            if (access(ChkFile, 0) != 0)
+            {
+              // Yes on First Match Only
+              if (YesFound == 0)
+                YesFound = 1;
+            }
+            else
+            {
+              // No On First Not Match Only
+              if (NotFound == 0)
+                NotFound = 1;
+            }
+
+            if (NotFound == 1 && YesFound == 0)
+            {
+              // Not Found, Increment Just Once
               RunMe++;
+              NotFound = 2;
+            }
+            else
+            if (YesFound == 1 && NotFound == 2)
+            {
+              // undo the Previous Runme++ and make sure we dont do it again.
+              RunMe--;
+              YesFound = 2;
+            }
           }
           else
           if (strnicmp(Inrec, "REQ:", 4) == 0)
@@ -4708,6 +5056,20 @@ int main(int argc, char *argv[])
             }
           }
           else
+          if ((strnicmp(Inrec, "HSH:", 4) == 0) && (strlen(Inrec) > 4))
+          {
+            /****************************************************************/
+            /* Hash an Individual File                                      */
+            /****************************************************************/
+            strtok(Inrec, "\n");
+            strtok(Inrec, "\r");
+
+            FileMD5(Inrec+4);
+
+            memset(LastHash, 0, 50);
+            strncpy(LastHash, MD5Out, 32);
+          }
+          else
           if (strnicmp(Inrec, "DSK:", 4) == 0)
           {
             /****************************************************************/
@@ -4812,8 +5174,39 @@ int main(int argc, char *argv[])
             /****************************************************************/
             /* Decrement Conditional Pointer                                */
             /****************************************************************/
+            if (strnicmp(Inrec + 4, "Reset", 5) == 0)
+            {
+              if (iLogOpen == 1)
+                fprintf(LogHndl, "[+] Resetting Internal Conditional Execution Flag...\n");
+
+              if (setMSGLvl > 1)
+              {
+                consPrefix("[*] ", consYel);
+                printf("Resetting Internal Conditional Execution Flag...\n");
+              }
+
+              RunMe = 0;
+            }
+            else
             if (RunMe > 0)
+            {
               RunMe--;
+            }
+            else
+            if (RunMe < 0)
+            {
+              //* Something went wrong and our logic created a negative RunMe - Reset to 0
+              if (iLogOpen == 1)
+                fprintf(LogHndl, "[!] Internal Error, Resetting Internal Conditional Execution Flag...\n");
+
+              if (setMSGLvl > 1)
+              {
+                consPrefix("[*] ", consYel);
+                printf("Internal Error, Resetting Internal Conditional Execution Flag...\n");
+              }
+
+              RunMe = 0;
+            }
           }
           else
           if (strnicmp(Inrec, "BYE:", 4) == 0)
