@@ -373,6 +373,16 @@ AChoir v4.2
 AChoir v4.3
 - Added &HST Variable (Host Name)
 
+AChoir v4.4
+- Improve Parsing to recognize dbl-quotes
+
+AChoir v4.5
+- Updates carried over from AChoirX 10.00.38
+- Change conditional logic to only count a single occurance of &FOR and &LST comparisons. This prevents the need for multiple END: statements  - Multiple comparisons only get a single hit if ANY match is found. THIS IS IMPORTANT!! Wherever &FOR and &LST are used in CONDITIONAL LOGIC - A SINGLE HIT WILL BE TRUE.  To Test for INDIVIDUAL cases use a specific check and NOT a Check Against a list (&LST, &FOR).
+- Expand &FOR and &LST Support to more Actions
+- Add HSH:<Filename> Will put the File hash in the &HSH Variable (Only supports a single File for now)
+- Implement END:Reset to clear any Dangling ENDs.  Use Judiciously. 
+
 
 # Quick Start (tl;dr):
 The quickest way to get started with AChoir is to download the Achoir-Inst.exe 
