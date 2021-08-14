@@ -45,7 +45,8 @@ N<<:&Dsa &Mem
 END:
 N>>:&Dsa &Mem
  ACQ:\MemDump
- EXE:\MEM\WinPmem.exe &Acq\WinPmemDump.Raw
+ *EXE:\MEM\WinPmem.exe &Acq\WinPmemDump.Raw
+ EXE:\MEM\WinPmem40x64.exe &Acq\WinPmemDump.Raw
 END:
 SAY:
 SAY: 2. Extracting Prefetch Directory...

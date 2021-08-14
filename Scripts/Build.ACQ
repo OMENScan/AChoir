@@ -1,4 +1,4 @@
-**********************************************************
+********************************************************
 ** Live Acquisition Downloading Script (2.0)             *
 ** This script uses cURL to get the AChoir Utilities     *
 ** from the owners websites - These are not my utilities *
@@ -34,6 +34,10 @@ SAY:
 SAY: --- Getting WinPMem (from GitHub/Rekall & Velocidex) ---
 SAY:
 DIR:\MEM
+FIL:WinPmem40x64.exe
+EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\WinPMem40x64.txt https://github.com/Velocidex/WinPmem/releases/download/v4.0.rc1/winpmem_mini_x64_rc2.exe
+FIL:WinPmem40x86.exe
+EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\WinPMem40x86.txt https://github.com/Velocidex/WinPmem/releases/download/v4.0.rc1/winpmem_mini_x86_rc2.exe
 FIL:WinPmem320.exe
 EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\WinPMem320.txt https://github.com/Velocidex/c-aff4/releases/download/3.2/winpmem_3.2.exe
 FIL:WinPmem201.exe
@@ -98,16 +102,15 @@ CKN:&Dir\PsLogList.exe
     SAY:
   END:
 END:
-SAY:
-SAY: --- Getting Prefetch Parser (From Red Wolf) ---
-SAY:
-FIL:PrefetchParser.zip
-EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\PrefetchParser.txt http://redwolfcomputerforensics.com/downloads/parse_prefetch_info_v1.4.zip
-SAY:
-SAY: --- Unzipping Prefetch Parser ---
-SAY:
-EXE:\unzip.exe -o &Dir\&Fil -d &Dir
-SAY:
+*** SAY:
+*** SAY: --- Getting Prefetch Parser (From Red Wolf) --- No Longer Available (08/07/2020)
+*** SAY:
+*** FIL:PrefetchParser.zip
+*** EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\PrefetchParser.txt http://redwolfcomputerforensics.com/downloads/parse_prefetch_info_v1.4.zip
+*** SAY:
+*** SAY: --- Unzipping Prefetch Parser ---
+*** SAY:
+*** EXE:\unzip.exe -o &Dir\&Fil -d &Dir
 SAY:
 SAY: --- Getting WinPreFetchView - 32bit (From Nirsoft) ---
 SAY:
@@ -233,8 +236,6 @@ SAY: --- Unzipping RBCmd ---
 SAY:
 EXE:\unzip.exe -o &Dir\&Fil -d &Dir
 SAY:
-SAY: --- Getting RegRipper 2.8 (from GitHub/Keydet89) ---
-SAY:
 DIR:\SYS\64Bit
 SAY:
 SAY: --- Getting CurrPorts (From NirSoft) ---
@@ -265,10 +266,15 @@ SAY:
 EXE:\unzip.exe -o &Dir\&Fil -d &Dir
 SAY:
 DIR:\RRV
-FIL:master.zip
-EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\RegRip.txt https://github.com/keydet89/RegRipper2.8/archive/master.zip
 SAY:
-SAY: --- Unzipping RegRipper 2.8 ---
+SAY: --- Getting RegRipper 3.0 (from GitHub/Keydet89) ---
+SAY:
+FIL:master.zip
+***: Regripper 2.8 - No Longer Available (08/07/2020)
+***:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\RegRip.txt https://github.com/keydet89/RegRipper2.8/archive/master.zip
+EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\RegRip.txt https://github.com/omenscan/RegRipper3.0/archive/master.zip
+SAY:
+SAY: --- Unzipping RegRipper 3.0 ---
 SAY:
 EXE:\unzip.exe -o &Dir\&Fil -d &Dir
 SAY:

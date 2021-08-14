@@ -48,7 +48,8 @@ END:
 N>>:&Dsa &VR0
  ACQ:\MemDump
  *XE:\MEM\WinPmem320.exe --output &Acq\WinPmemDump.Raw --logfile &Acq\WinPmemDump.Log --volume_format raw -dd -t
- EXE:\MEM\WinPmem320.exe --output &Acq\WinPmemDump.Aff --logfile &Acq\WinPmemDump.Log -dd -t
+ *EXE:\MEM\WinPmem320.exe --output &Acq\WinPmemDump.Aff --logfile &Acq\WinPmemDump.Log -dd -t
+ EXE:\MEM\WinPmem40x64.exe &Acq\WinPmemDump.Raw
  SAY:[+] Now Uploading to SFTP Server
  EXE:winscp.com /ini=NUL /log=WinScp.log /script=PutObj.SCP /parameter "&ACQ" "&ACN.MEM"
  CMD:RmDir &Acq /S /Q

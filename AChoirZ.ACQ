@@ -33,7 +33,8 @@ N<<:&Dsa &Mem
 END:
 N>>:&Dsa &Mem
  ACQ:\MemDump
- EXE:\MEM\WinPmem320.exe --output &Acq\WinPmemDump.Raw --logfile &Acq\WinPmemDump.Log --volume_format raw -dd -t
+ *EXE:\MEM\WinPmem320.exe --output &Acq\WinPmemDump.Raw --logfile &Acq\WinPmemDump.Log --volume_format raw -dd -t
+ EXE:\MEM\WinPmem40x64.exe &Acq\WinPmemDump.Raw
 END:
 SAY:
 SAY: 2. Extracting Prefetch Directory...

@@ -34,6 +34,10 @@ SAY:
 SAY: --- Getting WinPMem (from GitHub/Rekall & Velocidex) ---
 SAY:
 DIR:\MEM
+FIL:WinPmem40x64.exe
+EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\WinPMem40x64.txt https://github.com/Velocidex/WinPmem/releases/download/v4.0.rc1/winpmem_mini_x64_rc2.exe
+FIL:WinPmem40x86.exe
+EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\WinPMem40x86.txt https://github.com/Velocidex/WinPmem/releases/download/v4.0.rc1/winpmem_mini_x86_rc2.exe
 FIL:WinPmem320.exe
 EXE:\cURL.exe -L -s -k -o &Dir\&Fil -D &Dir\WinPMem320.txt https://github.com/Velocidex/c-aff4/releases/download/3.2/winpmem_3.2.exe
 FIL:WinPmem201.exe
